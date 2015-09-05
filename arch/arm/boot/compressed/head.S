@@ -1,3 +1,40 @@
+/* ==================================================================
+ * 파일명: linux/arch/arm/boot/compressed/head.S
+ *
+ * 요약:   커널 코드 시작 
+ * 설명:   todo
+ *
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-09-05
+ * ==================================================================
+ */
+/* ==================================================================
+ * 제 00차 스터디
+ * 날짜: 2015-09-05
+ * 장소: 커널 연구회
+ *
+ * 팀:     Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 참석자: 곽희범 (kh-1143@hanmail.net)
+ *         임채훈 (im.fehead@gmail.com)
+ *         한대현 (rhrnak0501@gmail.com)
+ *         민혜미 (mhyem2@naver.com)
+ *         김동현 (dhkim1027@gmail.com)
+ *         정종채 (fynia@naver.com)
+ *         김문영 (m03y29@gmail.com)
+ *         정성욱 (huber7908@gmail.com)
+ *         김일호 (lkimilhol@naver.com)
+ *         박창수 (darkpcs@gmail.com)
+ *         곽승준 (rialtoksj@yahoo.com)
+ *         배병휴 (isswindx@gmail.com)
+ *         김영준 (iam.yeongjunkim@gmail.com)
+ *         박종성 (jongsong.park@gmail.com)
+ *         박병배 (i.billpark@gmail.com)
+ *         안종찬 (ahnchan2@gmail.com)
+ *         이상선 (razr1121@gmail.com)
+ *
+ *         참석인원: 17 명
+ * ==================================================================
+ */
 /*
  *  linux/arch/arm/boot/compressed/head.S
  *
@@ -12,6 +49,18 @@
 #include <asm/assembler.h>
 #include <asm/v7m.h>
 
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-09-05
+ * ------------------------------------------------------------------
+ * a: application-cpu
+ * m: micro controller
+ * r: realtime
+ *
+ * AR_CLASS : CONFIG_CPU_V7M 일때 사용하지 않음
+ * M_CLASS  : CONFIG_CPU_V7M 일때 사용
+ * ==================================================================
+ */
  AR_CLASS(	.arch	armv7-a	)
  M_CLASS(	.arch	armv7-m	)
 
@@ -26,6 +75,36 @@
 
 #if defined(CONFIG_DEBUG_ICEDCC)
 
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-09-05
+ * ------------------------------------------------------------------
+ * CONFIG_CPU_V6, CONFIG_CPU_V6K, CONFIG_CPU_V7 이면
+ *
+ * Coprocessor - CPU를 돕는 연산 장치
+ *  - 예) 부동소수점 연산을 전문적으로 수행한다.
+ * 
+ * 매크로 loadsp 
+ *  - rb, tmp는 arguments
+ *  - 사용예: loadsp, 'a', 'b'
+ *  - 여기서는 동작 안함
+ * 
+ * 매크로 writeb
+ *  - mcr pc14: cp14 동작시키는 명령 
+ *  - cN : Coprocessor 내부의 레지스터
+ *  - todo 사용하는 부분 이후 다시 볼 것
+ *
+ * mcr: coprocessor 레지스터로 읽어옴
+ * mcr{cond} <cp_num>, <op1>, <Rd>, <CRn>, <CRm>{,<op2>}
+ *
+ * mcr p14: 프로세스의 데이터를 코프로세서로 보냄
+ *   - jtag에서 사용하기 위해
+ *   - 그럼 jtag가 coprocessor의 레지스터에서 데이터를 읽어옴
+ *
+ * <puts 기준>
+ * writeb, r2, r3 ; r2에 문자가 들어있음, r3에 출력할 주소가 있음
+ * ==================================================================
+ */
 #if defined(CONFIG_CPU_V6) || defined(CONFIG_CPU_V6K) || defined(CONFIG_CPU_V7)
 		.macro	loadsp, rb, tmp
 		.endm
@@ -46,14 +125,42 @@
 		.endm
 #endif
 
+// if CONFIG_DEBUG_ICEDCC
 #else
 
 #include CONFIG_DEBUG_LL_INCLUDE
 
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-09-05
+ * ------------------------------------------------------------------
+ * senduart: uart로 보낸다. (출력) rs-232c (시리얼포트)
+ *
+ * c-style: #define writeb(ch, rb)  senduart \ch, \rb
+ * ==================================================================
+ */
 		.macro	writeb,	ch, rb
 		senduart \ch, \rb
 		.endm
 
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-09-05
+ * ------------------------------------------------------------------
+ * 시리얼 포트의 메모리 주소
+ * SA1100: Strong Arm 1100
+ *  - SA1100기준에서 시리얼포트0: 0x80000000
+ *  - USB로 사용하고 있음
+ *
+ * loadsp의 sp는 시리얼포트
+ * 디버깅용으로 시리얼포트 출력을 위해 정의
+ *
+ * guess: addruart - address uart
+ *
+ * <putc 기준>
+ * loadsp, r3, r1
+ * ==================================================================
+ */
 #if defined(CONFIG_ARCH_SA1100)
 		.macro	loadsp, rb, tmp
 		mov	\rb, #0x80000000	@ physical base address
@@ -61,21 +168,42 @@
 		add	\rb, \rb, #0x00050000	@ Ser3
 #else
 		add	\rb, \rb, #0x00010000	@ Ser1
-#endif
+#endif //CONFIG_DEBUG_LL_SER3
 		.endm
 #else
 		.macro	loadsp,	rb, tmp
 		addruart \rb, \tmp
 		.endm
-#endif
-#endif
-#endif
+#endif //CONFIG_ARCH_SA1100
+#endif //CONFIG_DEBUG_LL_SER3
+#endif //CONFIG_DEBUG_ICEDCC
 
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-09-05
+ * ------------------------------------------------------------------
+ * bl: 서브루틴 호출 분기 명령어 (함수 호출 이후 돌아오는 포인트)
+ *   - lr 레지스터에 bl 다음의 pc를 저장한다.
+ *   - lr 레지스터: 점프할 때, 돌아올 주소를 저장하는데 주로 사용됨
+ *     (link register - r14)
+ *
+ * 함수호출 이후 돌아오는 역할을 수행한다.
+ * ex-c) putc();
+ * ==================================================================
+ */
 		.macro	kputc,val
 		mov	r0, \val
 		bl	putc
 		.endm
 
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-09-05
+ * ------------------------------------------------------------------
+ * guess: put hexa?? 
+ * 
+ * ==================================================================
+ */
 		.macro	kphex,val,len
 		mov	r0, \val
 		mov	r1, #\len
@@ -1257,12 +1385,44 @@ __armv3_mpu_cache_flush:
  * Various debugging routines for printing hex characters and
  * memory, which again must be relocatable.
  */
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-09-05
+ * ------------------------------------------------------------------
+ * TODO 
+ *  .align <number> : 디폴트는 4byte이다.
+ *  .type: phexbuf 는 #object이다. 
+ *         #object는 데이터 형태
+ *  .space: 예약된 공간 (12byte)
+ *  .size:  현재 주소 - phexbuf 주소 = phexbuf 사이즈
+ *
+ * c-style: char phexbuf[12];
+ *          int size = &phexbuf[11] - &phexbuf[0]
+ * ==================================================================
+ */
 #ifdef DEBUG
 		.align	2
 		.type	phexbuf,#object
 phexbuf:	.space	12
 		.size	phexbuf, . - phexbuf
 
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-09-05
+ * ------------------------------------------------------------------
+ * r0: value,
+ * r1: length (offset)
+ *
+ * adr r3, phexbuf          ; r3 = &phexbuf
+ * mov r2, #0               ; r2 = 0
+ * strb r2, [r3, r1]        ; r3 = r3 + r1;
+ *                            *r3 = r2;
+ * subs r1, r1, #1          ; r1 = r1 - 1
+ * movmi r0, r3             ; 상태
+ *
+ * TODO 15차에서 분석 예정
+ * ==================================================================
+ */
 @ phex corrupts {r0, r1, r2, r3}
 phex:		adr	r3, phexbuf
 		mov	r2, #0
@@ -1278,6 +1438,38 @@ phex:		adr	r3, phexbuf
 		strb	r2, [r3, r1]
 		b	1b
 
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-09-05
+ * ------------------------------------------------------------------
+ * 1:
+ * ldrb r2, [r0], #1    ; load register byte. r2 = r0 + 1
+ *                      ;  참고: r0 = char *str. 즉, str + 1
+ * 2:
+ * writeb r2, r3        ; r2(문자)를 r3(출력될 주소)로 보낸다.
+ * mov r1, #0x00020000  ; r1 = 0x00020000 
+ * subs r1, r1, #1      ; r1 = r1 - 1
+ * bne 3b               ; for( r1 = 20000 ; r1 != 0; r-- )
+ *                        puts, 문자 하나를 전송하고 약간의 딜레이 시간이
+ *                        필요할 수도 있다.
+ *                        TODO 20000 값이 baud rate 값과 같은지
+ * teq r2, \n           ; teq : XOR 연산을 이용한 비교 연산
+ *                        결과에 따라 n, z flag를 업데이트한다.
+ *                          - n flag: 계산한 결과가 음수면 세팅됨
+ *                          - z flag: 계산한 결과가 0일때, set됨
+ *                        r2 == \n 이면, z flag가 세팅됨.
+ *                      ; puts!! 개행문자를 만날 때까지 반복
+ * moveq r2, \r         ; if(r2 == '\n') r2 = '\r';
+ *                        z flag가 세팅되어 있으면 mov 수행
+ * beq 2b               ; z flag가 세팅되어 있으면 branch 수행
+ *  ...
+ * mov	pc, lr          ; pc = lr, 돌아갈 장소를 pc에 담는다.
+ *
+ * 정리: \n은 \r 로 변경하고, NULL을 만날때까지, writeb를 수행한다.
+ *       writeb 이후에, 약간의 딜레이를 주어 받는쪽에서 처리를 
+ *       완료할 수 있게 한다.
+ * ==================================================================
+ */
 @ puts corrupts {r0, r1, r2, r3}
 puts:		loadsp	r3, r1
 1:		ldrb	r2, [r0], #1
@@ -1293,6 +1485,19 @@ puts:		loadsp	r3, r1
 		teq	r0, #0
 		bne	1b
 		mov	pc, lr
+
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-09-05
+ * ------------------------------------------------------------------
+ * mov r2, r0       ; c-style: r2 = r0;
+ * mov r0, #0       ; c-style: r0 = 0;
+ * loadsp r3, r1    ; 문자 하나를 시리얼 포트로 보낸다. (디버그 모드일 때)
+ *                    r3에 물리메모리 주소가 매핑된다.
+ *                    r1은 tmp용으로 사용
+ * b  2b            ; puts의 2: 라벨로 브렌치, 여기서 문자가 쓰여진다.
+ * ==================================================================
+ */
 @ putc corrupts {r0, r1, r2, r3}
 putc:
 		mov	r2, r0
