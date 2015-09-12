@@ -291,7 +291,20 @@
 #endif
 		.endm
 
-		.macro	debug_reloc_end
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-09-12
+ * ------------------------------------------------------------------
+ *
+ *		kphex	r5, 8						; 커널의 끝(?)을 16진수로찍기(end of kernel)
+ *
+ * 		mov	r0, r4						; r4: zImage(compressed kernel) 압축이 풀릴 시작 위치를 r0로 복사
+ *
+ * 		bl	memdump						;	dump 256 bytes at start of kernel
+ *
+ * ==================================================================
+ */
+ .macro	debug_reloc_end
 #ifdef DEBUG
 		kphex	r5, 8		/* end of kernel */
 		kputc	#'\n'
@@ -1457,7 +1470,7 @@ __armv3_mpu_cache_flush:
  *  .size:  현재 주소 - phexbuf 주소 = phexbuf 사이즈
  *
  * c-style: char phexbuf[12];
- *          int size = &phexbuf[11] - &phexbuf[0]
+ *          int size = &phexbuf[12] - &phexbuf[0]
  * ==================================================================
  */
 #ifdef DEBUG
@@ -1600,7 +1613,63 @@ putc:
  * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
  * 날짜: 2015-09-12
  * ------------------------------------------------------------------
- * bl(branch after saving lr?) : 호출하기 전에 rl레지스터값에 다음 실행할 pc값을 저장하고 브랜치함
+ * bl(branch after saving lr?) : 호출하기 전에 lr레지스터값에 다음 실행할 pc값을 저장하고 브랜치함
+ *
+ *
+ * memdump:	mov	r12, r0	; r0는 아까 zImage의 압축이 풀릴 시작주소를 r12로 복사
+ *
+ * mov	r10, lr			; lr(link register)를 r10에 복사
+ *				; 아래에서 bl로 분기가 생기니까 lr을 임시 저장
+ *
+ * mov	r11, #0			; #0은 10진수 0. 이걸 r11에 복사
+ *
+ * 2: mov r0, r11, lsl #2	; 레이블2 시작. (헤더주소 찍기)
+ *				; 00000000: deadbeef deadbeef deadbeef .... 뭐 이런 느낌?
+ *				; 참고) $xxd -l 256 sh 쉘을 256바이트 덤프하는 예
+ *				; r0 = r11 << 2
+ *				; lsl(logical shift left) lsl #2는 곱하기 4
+ *
+ * add	r0, r0, r12		; r0 = r0 + r12
+ *
+ * mov	r1, #8			; r1 = 8
+ *
+ * bl	phex			; lr에 돌아올위치를 저장하고 phex로 브랜치(점프)
+ * 				; 인자로는 r0(val), r1(len)
+ *				; 결국, r0부터 8 글자를 16진수로 찍기
+ *
+ * mov	r0, #':'		; ": " 찍기
+ * bl	putc
+ * 1: mov r0, #' 		; 레이블1 시작. (바디 64바이트 덤프)
+ * bl	putc
+ *
+ * ldr	r0, [r12, r11, lsl #2]	; ldr(load register. 32비트 값을 레지스터로 일어들이기) 
+ *				; r0 = *(r12 + (r11 << 2))
+ *				; []이게 나오면 주소의 의미
+ * mov	r1, #8			; r1은 lenght
+ * bl	phex			; 8개 찍기
+ *
+ * and	r0, r11, #7		; r0 = r11 & 0x07 (00000111b)
+ * teq	r0, #3			; teq(test if equal). (r0 == 3)면 z플래그가 세운다
+ *				; 여기서 3과 비교하는 이유는 4덩어리씩 끊어주기 위해서 
+ *				;
+ *				; 질문)
+ *				; 근데 지금 몇 글자씩 찍고있나?
+ *
+ * moveq r0, #' '		; z플래그가 서있으면 r0에 ' '를 복사한다
+ *
+ * bleq	putc			; bleq: z플래그가 1이면 브랜치
+ *
+ * and	r0, r11, #7		; r0 = r11 & 0x07 다시 마스킹하고
+ * add	r11, r11, #1		; r11 = r11 + 1
+ * teq	r0, #7			; r0와 7이 같은지 테스트. 같으면 z플래그가 서짐(1로 세팅됨)
+ * bne	1b			; 8(덩어리)이 아니라면 레이블1로 브랜치
+ * mov	r0, #'\n'		; 8덩어리니까 new line을 찍는다
+ * bl	putc
+ *
+ * cmp	r11, #64		; r11이 64와 비교(비교 방법은 그 다음 명령어를 참고)
+ * blt	2b			; blt(branch if less than): r11이 그 대상(64)보다 작으면 브랜치
+ *
+ * mov	pc, r10 		; 임시 저장했던 lr을 pc에 복사(결국 리턴)
  *
  * ==================================================================
  */
