@@ -27,7 +27,7 @@
  *         곽승준 (rialtoksj@yahoo.com)
  *         배병휴 (isswindx@gmail.com)
  *         김영준 (iam.yeongjunkim@gmail.com)
- *         박종성 (jongsong.park@gmail.com)
+ *         박종성 (@minidump)
  *         박병배 (i.billpark@gmail.com)
  *         안종찬 (ahnchan2@gmail.com)
  *         이상선 (razr1121@gmail.com)
