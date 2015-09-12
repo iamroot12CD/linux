@@ -1408,19 +1408,50 @@ phexbuf:	.space	12
 
 /* ==================================================================
  * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
- * 날짜: 2015-09-05
+ * 날짜: 2015-09-12
  * ------------------------------------------------------------------
- * r0: value,
- * r1: length (offset)
+ * 함수명: phex(put hexa?)
+ * 설명: 10진수를 받아들여서 16진수로 변환함
+ * 인자
+ * 	r0: value,
+ * 	r1: length (offset)
  *
  * adr r3, phexbuf          ; r3 = &phexbuf
  * mov r2, #0               ; r2 = 0
- * strb r2, [r3, r1]        ; r3 = r3 + r1;
- *                            *r3 = r2;
+ * strb r2, [r3, r1]        ; *(r3+r1) = r2;
+ * <------------------------ 2015/9/12 여기부터 시작
  * subs r1, r1, #1          ; r1 = r1 - 1
- * movmi r0, r3             ; 상태
+ *							; subs의 s가 왠지 플래그값을 바꾸는것 같아서
+ *							; 그 결과값을 가지고 이하의 명령어들을 참고합니다.
+ *							; (r1값이 음수면 N플래그가 1로 설정된다고 가정)
  *
- * TODO 15차에서 분석 예정
+ * movmi r0, r3             ; r0 = ( r1 < 0 ) ? r3 : ;
+ *							; movmi : r1안의 값이 마이너스면(음수면?) mov해라(r0에 넣어라)
+ *
+ * bmi	puts				; bmi(branch if minus?) r1값이 음수면 puts 호출한다
+ *
+ * and	r2, r0, #15			; r2 = r0 & 0xF
+ *							; and(AND연산?) : 0xF 마스크 연산을 하는거. 하위 비트 잘라내기
+ *
+ * mov	r0, r0, lsr #4		; r0 = r0 >> 4
+ *							; lsr(logical shift right)  : 논리연산인데 unsigned 연산
+ *							;							: 참고로 asr는 signed 연산
+ *							; 결국 4비트씩 자르는 과정
+ *
+ * cmp	r2, #10				; cmp(compare?) : r2와 10을 비교
+ *
+ * addge	r2, r2, #7		; r2 = ( r2 >= 10 ) ? r2+7 : ;
+ * 							; addge(add if greater and equal to) 
+ *							; 질문)r2 + 7 : 왜 7을 더해주나?
+ *
+ * add	r2, r2, #'0'		; '0'은 ascii code로 48, 아까 위에서 연산한 r2에 48을 더해서 
+ *							; 결국 'A'로 변환해 줌
+ *
+ * strb	r2, [r3, r1]		; *(r3+r1) = r2
+ *							; strb(store byte?) 8비트값을 메모리에 저장
+ *
+ * b	1b					; branch 1b (1b는 가장 가까운 레이블1로 back해라)
+ *							;           (참고로 1f라면 가장 가까운 레이블1로 forward해라)
  * ==================================================================
  */
 @ phex corrupts {r0, r1, r2, r3}
@@ -1458,7 +1489,7 @@ phex:		adr	r3, phexbuf
  *                          - n flag: 계산한 결과가 음수면 세팅됨
  *                          - z flag: 계산한 결과가 0일때, set됨
  *                        r2 == \n 이면, z flag가 세팅됨.
- *                      ; puts!! 개행문자를 만날 때까지 반복
+ *                      ; puts!! null문자를 만날 때까지 반복
  * moveq r2, \r         ; if(r2 == '\n') r2 = '\r';
  *                        z flag가 세팅되어 있으면 mov 수행
  * beq 2b               ; z flag가 세팅되어 있으면 branch 수행
@@ -1505,6 +1536,14 @@ putc:
 		loadsp	r3, r1
 		b	2b
 
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-09-12
+ * ------------------------------------------------------------------
+ * bl(branch after saving lr?) : 호출하기 전에 rl레지스터값에 다음 실행할 pc값을 저장하고 브랜치함
+ *
+ * ==================================================================
+ */
 @ memdump corrupts {r0, r1, r2, r3, r10, r11, r12, lr}
 memdump:	mov	r12, r0
 		mov	r10, lr
