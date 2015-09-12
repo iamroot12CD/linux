@@ -27,7 +27,7 @@
  *         곽승준 (rialtoksj@yahoo.com)
  *         배병휴 (isswindx@gmail.com)
  *         김영준 (iam.yeongjunkim@gmail.com)
- *         박종성 (jongsong.park@gmail.com)
+ *         박종성 (@minidump)
  *         박병배 (i.billpark@gmail.com)
  *         안종찬 (ahnchan2@gmail.com)
  *         이상선 (razr1121@gmail.com)
@@ -291,7 +291,20 @@
 #endif
 		.endm
 
-		.macro	debug_reloc_end
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-09-12
+ * ------------------------------------------------------------------
+ *
+ *		kphex	r5, 8						; 커널의 끝(?)을 16진수로찍기(end of kernel)
+ *
+ * 		mov	r0, r4						; r4: zImage(compressed kernel) 압축이 풀릴 시작 위치를 r0로 복사
+ *
+ * 		bl	memdump						;	dump 256 bytes at start of kernel
+ *
+ * ==================================================================
+ */
+ .macro	debug_reloc_end
 #ifdef DEBUG
 		kphex	r5, 8		/* end of kernel */
 		kputc	#'\n'
@@ -1457,7 +1470,7 @@ __armv3_mpu_cache_flush:
  *  .size:  현재 주소 - phexbuf 주소 = phexbuf 사이즈
  *
  * c-style: char phexbuf[12];
- *          int size = &phexbuf[11] - &phexbuf[0]
+ *          int size = &phexbuf[12] - &phexbuf[0]
  * ==================================================================
  */
 #ifdef DEBUG
@@ -1476,42 +1489,42 @@ phexbuf:	.space	12
  * 	r0: value,
  * 	r1: length (offset)
  *
- * adr r3, phexbuf          ; r3 = &phexbuf
- * mov r2, #0               ; r2 = 0
- * strb r2, [r3, r1]        ; *(r3+r1) = r2;
- * <------------------------ 2015/9/12 여기부터 시작
- * subs r1, r1, #1          ; r1 = r1 - 1
- *							; subs의 s가 왠지 플래그값을 바꾸는것 같아서
- *							; 그 결과값을 가지고 이하의 명령어들을 참고합니다.
- *							; (r1값이 음수면 N플래그가 1로 설정된다고 가정)
+ * adr r3, phexbuf          	; r3 = &phexbuf
+ * mov r2, #0               	; r2 = 0
+ * strb r2, [r3, r1]        	; *(r3+r1) = r2;
+ * <----------------------------- 2015/9/12 여기부터 시작
+ * subs r1, r1, #1          	; r1 = r1 - 1
+ *				; subs의 s가 왠지 플래그값을 바꾸는것 같아서
+ *				; 그 결과값을 가지고 이하의 명령어들을 참고합니다.
+ *				; (r1값이 음수면 N플래그가 1로 설정된다고 가정)
  *
- * movmi r0, r3             ; r0 = ( r1 < 0 ) ? r3 : ;
- *							; movmi : r1안의 값이 마이너스면(음수면?) mov해라(r0에 넣어라)
+ * movmi r0, r3             	; r0 = ( r1 < 0 ) ? r3 : ;
+ *				; movmi : r1안의 값이 마이너스면(음수면?) mov해라(r0에 넣어라)
  *
- * bmi	puts				; bmi(branch if minus?) r1값이 음수면 puts 호출한다
+ * bmi	puts			; bmi(branch if minus?) r1값이 음수면 puts 호출한다
  *
- * and	r2, r0, #15			; r2 = r0 & 0xF
- *							; and(AND연산?) : 0xF 마스크 연산을 하는거. 하위 비트 잘라내기
+ * and	r2, r0, #15		; r2 = r0 & 0xF
+ *				; and(AND연산?) : 0xF 마스크 연산을 하는거. 하위 비트 잘라내기
  *
  * mov	r0, r0, lsr #4		; r0 = r0 >> 4
- *							; lsr(logical shift right)  : 논리연산인데 unsigned 연산
- *							;							: 참고로 asr는 signed 연산
- *							; 결국 4비트씩 자르는 과정
+ *				; lsr(logical shift right)  	: 논리연산인데 unsigned 연산
+ *				;				: 참고로 asr는 signed 연산
+ *				; 결국 4비트씩 자르는 과정
  *
- * cmp	r2, #10				; cmp(compare?) : r2와 10을 비교
+ * cmp	r2, #10			; cmp(compare?) : r2와 10을 비교
  *
- * addge	r2, r2, #7		; r2 = ( r2 >= 10 ) ? r2+7 : ;
- * 							; addge(add if greater and equal to) 
- *							; 질문)r2 + 7 : 왜 7을 더해주나?
+ * addge r2, r2, #7		; r2 = ( r2 >= 10 ) ? r2+7 : ;
+ * 				; addge(add if greater and equal to) 
+ *				; 질문)r2 + 7 : 왜 7을 더해주나?
  *
  * add	r2, r2, #'0'		; '0'은 ascii code로 48, 아까 위에서 연산한 r2에 48을 더해서 
- *							; 결국 'A'로 변환해 줌
+ *				; 결국 'A'로 변환해 줌
  *
  * strb	r2, [r3, r1]		; *(r3+r1) = r2
- *							; strb(store byte?) 8비트값을 메모리에 저장
+ *				; strb(store byte?) 8비트값을 메모리에 저장
  *
- * b	1b					; branch 1b (1b는 가장 가까운 레이블1로 back해라)
- *							;           (참고로 1f라면 가장 가까운 레이블1로 forward해라)
+ * b	1b			; branch 1b (1b는 가장 가까운 레이블1로 back해라)
+ *				;           (참고로 1f라면 가장 가까운 레이블1로 forward해라)
  * ==================================================================
  */
 @ phex corrupts {r0, r1, r2, r3}
@@ -1600,7 +1613,63 @@ putc:
  * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
  * 날짜: 2015-09-12
  * ------------------------------------------------------------------
- * bl(branch after saving lr?) : 호출하기 전에 rl레지스터값에 다음 실행할 pc값을 저장하고 브랜치함
+ * bl(branch after saving lr?) : 호출하기 전에 lr레지스터값에 다음 실행할 pc값을 저장하고 브랜치함
+ *
+ *
+ * memdump:	mov	r12, r0	; r0는 아까 zImage의 압축이 풀릴 시작주소를 r12로 복사
+ *
+ * mov	r10, lr			; lr(link register)를 r10에 복사
+ *				; 아래에서 bl로 분기가 생기니까 lr을 임시 저장
+ *
+ * mov	r11, #0			; #0은 10진수 0. 이걸 r11에 복사
+ *
+ * 2: mov r0, r11, lsl #2	; 레이블2 시작. (헤더주소 찍기)
+ *				; 00000000: deadbeef deadbeef deadbeef .... 뭐 이런 느낌?
+ *				; 참고) $xxd -l 256 sh 쉘을 256바이트 덤프하는 예
+ *				; r0 = r11 << 2
+ *				; lsl(logical shift left) lsl #2는 곱하기 4
+ *
+ * add	r0, r0, r12		; r0 = r0 + r12
+ *
+ * mov	r1, #8			; r1 = 8
+ *
+ * bl	phex			; lr에 돌아올위치를 저장하고 phex로 브랜치(점프)
+ * 				; 인자로는 r0(val), r1(len)
+ *				; 결국, r0부터 8 글자를 16진수로 찍기
+ *
+ * mov	r0, #':'		; ": " 찍기
+ * bl	putc
+ * 1: mov r0, #' 		; 레이블1 시작. (바디 64바이트 덤프)
+ * bl	putc
+ *
+ * ldr	r0, [r12, r11, lsl #2]	; ldr(load register. 32비트 값을 레지스터로 일어들이기) 
+ *				; r0 = *(r12 + (r11 << 2))
+ *				; []이게 나오면 주소의 의미
+ * mov	r1, #8			; r1은 lenght
+ * bl	phex			; 8개 찍기
+ *
+ * and	r0, r11, #7		; r0 = r11 & 0x07 (00000111b)
+ * teq	r0, #3			; teq(test if equal). (r0 == 3)면 z플래그가 세운다
+ *				; 여기서 3과 비교하는 이유는 4덩어리씩 끊어주기 위해서 
+ *				;
+ *				; 질문)
+ *				; 근데 지금 몇 글자씩 찍고있나?
+ *
+ * moveq r0, #' '		; z플래그가 서있으면 r0에 ' '를 복사한다
+ *
+ * bleq	putc			; bleq: z플래그가 1이면 브랜치
+ *
+ * and	r0, r11, #7		; r0 = r11 & 0x07 다시 마스킹하고
+ * add	r11, r11, #1		; r11 = r11 + 1
+ * teq	r0, #7			; r0와 7이 같은지 테스트. 같으면 z플래그가 서짐(1로 세팅됨)
+ * bne	1b			; 8(덩어리)이 아니라면 레이블1로 브랜치
+ * mov	r0, #'\n'		; 8덩어리니까 new line을 찍는다
+ * bl	putc
+ *
+ * cmp	r11, #64		; r11이 64와 비교(비교 방법은 그 다음 명령어를 참고)
+ * blt	2b			; blt(branch if less than): r11이 그 대상(64)보다 작으면 브랜치
+ *
+ * mov	pc, r10 		; 임시 저장했던 lr을 pc에 복사(결국 리턴)
  *
  * ==================================================================
  */
