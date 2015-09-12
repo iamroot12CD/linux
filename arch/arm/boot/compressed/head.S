@@ -200,8 +200,8 @@
  * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
  * 날짜: 2015-09-05
  * ------------------------------------------------------------------
- * guess: put hexa?? 
- * 
+ * kphex매크로 정의
+ *
  * ==================================================================
  */
 		.macro	kphex,val,len
@@ -210,7 +210,67 @@
 		bl	phex
 		.endm
 
-		.macro	debug_reloc_start
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-09-12
+ * ------------------------------------------------------------------
+ * debug_reloc_start 매크로 정의
+ *
+ *									; 이하는 디버그 모드일경우, 관련 정보를 출력함
+ * kputc	#'\n'			; new line하나 찍기
+ *
+ * kphex	r6, 8			; r6에는 프로세서 id가 들어있는 레지스터
+ *									; 그 값을 16진수로 찍기
+ *									; 8은 32비트.(r6의 크기)
+ *
+ * #ifdef CONFIG_CPU_CP15
+ * kputc	#':'			; ':' 찍기
+ * kphex	r7, 8			; 아키텍처 id 찍기
+ *
+ * #ifdef CONFIG_CPU_CP15
+ * kputc	#':'			; ':' 찍기
+ * mrc	p15, 0, r0, c1, c0 		; mrc(REG값을 코프로세서에서 읽어온다)
+ *														; p15 : 코프로세서 15(mmu나 캐시를 설정하는 역할) 
+ *														; 0		: 코프로세서의 명령어
+ *														;			: 이게 0일경우, 프로세서id를 가져오는 의미
+ * 														; r0	: 저장할 레지스터(dest)
+ *														; c1	: 주-레지스터 lhs (코프로세서 레지스터 넘버?)
+ *														;       시스템 제어에 사용되는 레지스터
+ *														;			  (mpu 또는 캐시를 활성/비활성화 하는 역할)
+ *														; c0	: 부-레지스터 rhs (코프로세서 레지스터 넘버?)
+ *														;
+ *														; 가정) 
+ *														; c1과 c0를 0오퍼레이션으로 수행한 후, r0에 그 결과를 저장??
+ *														; 가정2)
+ *														; c1과 c0 코프로세서의 상태를 r0로 저장하는 것
+ *
+ *														; 참고) endian configuration and control
+ *														; MRCp15, 0, r0, c1, c0   ; r0 := CP15 register 1
+ *
+ *														; 참고)
+ *														; BAND의 "Summary of CP15 instructions"를 참고해주세요
+ *														; 샘플의 주석: read control register cofiguration data
+ *
+ * 														; 참고)
+ * 														; mcr p14: 프로세스의 데이터를 코프로세서로 보냄
+ *														;   - jtag에서 사용하기 위해
+ *														;   - 그럼 jtag가 coprocessor의 레지스터에서 데이터를 읽어옴
+ 
+ *														; 결국, 코프로세서의 값을 읽어와서 찍는다
+ *
+ * kphex	r0, 8								; 컨트롤 레지스터 값이 r0에 들어와서 16진수로 찍는다
+ *		kputc	#'\n'							; 커널의 시작주소, 끝주소, 실행주소르 찍는다
+ *		kphex	r5, 8
+ *		kputc	#'-'
+ *		kphex	r9, 8
+ *		kputc	#'>'
+ *		kphex	r4, 8
+ *		kputc	#'\n'
+ *
+ *	질문) 주레지스터와 부레지스터가 어떤 의미/구분이 있냐?
+ * ==================================================================
+ */
+			.macro	debug_reloc_start
 #ifdef DEBUG
 		kputc	#'\n'
 		kphex	r6, 8		/* processor id */
@@ -1408,19 +1468,50 @@ phexbuf:	.space	12
 
 /* ==================================================================
  * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
- * 날짜: 2015-09-05
+ * 날짜: 2015-09-12
  * ------------------------------------------------------------------
- * r0: value,
- * r1: length (offset)
+ * 함수명: phex(put hexa?)
+ * 설명: 10진수를 받아들여서 16진수로 변환함
+ * 인자
+ * 	r0: value,
+ * 	r1: length (offset)
  *
  * adr r3, phexbuf          ; r3 = &phexbuf
  * mov r2, #0               ; r2 = 0
- * strb r2, [r3, r1]        ; r3 = r3 + r1;
- *                            *r3 = r2;
+ * strb r2, [r3, r1]        ; *(r3+r1) = r2;
+ * <------------------------ 2015/9/12 여기부터 시작
  * subs r1, r1, #1          ; r1 = r1 - 1
- * movmi r0, r3             ; 상태
+ *							; subs의 s가 왠지 플래그값을 바꾸는것 같아서
+ *							; 그 결과값을 가지고 이하의 명령어들을 참고합니다.
+ *							; (r1값이 음수면 N플래그가 1로 설정된다고 가정)
  *
- * TODO 15차에서 분석 예정
+ * movmi r0, r3             ; r0 = ( r1 < 0 ) ? r3 : ;
+ *							; movmi : r1안의 값이 마이너스면(음수면?) mov해라(r0에 넣어라)
+ *
+ * bmi	puts				; bmi(branch if minus?) r1값이 음수면 puts 호출한다
+ *
+ * and	r2, r0, #15			; r2 = r0 & 0xF
+ *							; and(AND연산?) : 0xF 마스크 연산을 하는거. 하위 비트 잘라내기
+ *
+ * mov	r0, r0, lsr #4		; r0 = r0 >> 4
+ *							; lsr(logical shift right)  : 논리연산인데 unsigned 연산
+ *							;							: 참고로 asr는 signed 연산
+ *							; 결국 4비트씩 자르는 과정
+ *
+ * cmp	r2, #10				; cmp(compare?) : r2와 10을 비교
+ *
+ * addge	r2, r2, #7		; r2 = ( r2 >= 10 ) ? r2+7 : ;
+ * 							; addge(add if greater and equal to) 
+ *							; 질문)r2 + 7 : 왜 7을 더해주나?
+ *
+ * add	r2, r2, #'0'		; '0'은 ascii code로 48, 아까 위에서 연산한 r2에 48을 더해서 
+ *							; 결국 'A'로 변환해 줌
+ *
+ * strb	r2, [r3, r1]		; *(r3+r1) = r2
+ *							; strb(store byte?) 8비트값을 메모리에 저장
+ *
+ * b	1b					; branch 1b (1b는 가장 가까운 레이블1로 back해라)
+ *							;           (참고로 1f라면 가장 가까운 레이블1로 forward해라)
  * ==================================================================
  */
 @ phex corrupts {r0, r1, r2, r3}
@@ -1458,7 +1549,7 @@ phex:		adr	r3, phexbuf
  *                          - n flag: 계산한 결과가 음수면 세팅됨
  *                          - z flag: 계산한 결과가 0일때, set됨
  *                        r2 == \n 이면, z flag가 세팅됨.
- *                      ; puts!! 개행문자를 만날 때까지 반복
+ *                      ; puts!! null문자를 만날 때까지 반복
  * moveq r2, \r         ; if(r2 == '\n') r2 = '\r';
  *                        z flag가 세팅되어 있으면 mov 수행
  * beq 2b               ; z flag가 세팅되어 있으면 branch 수행
@@ -1505,6 +1596,14 @@ putc:
 		loadsp	r3, r1
 		b	2b
 
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-09-12
+ * ------------------------------------------------------------------
+ * bl(branch after saving lr?) : 호출하기 전에 rl레지스터값에 다음 실행할 pc값을 저장하고 브랜치함
+ *
+ * ==================================================================
+ */
 @ memdump corrupts {r0, r1, r2, r3, r10, r11, r12, lr}
 memdump:	mov	r12, r0
 		mov	r10, lr
