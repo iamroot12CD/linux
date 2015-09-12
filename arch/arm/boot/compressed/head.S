@@ -1410,6 +1410,9 @@ phexbuf:	.space	12
  * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
  * 날짜: 2015-09-05
  * ------------------------------------------------------------------
+ * phdex(unsigned int value, int len);
+ *	phdexbuf 에 정수값을 string hexa값으로 바꾸어 넣는다.
+ *	예) 0x1234ABCD --> char * phdexbuf = "1234ABCD", '\0';
  * r0: value,
  * r1: length (offset)
  *
