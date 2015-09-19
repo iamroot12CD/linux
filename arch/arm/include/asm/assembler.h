@@ -308,6 +308,32 @@
 	msr	cpsr_c, #\mode
 	.endm
 #endif
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-09-19
+ * ------------------------------------------------------------------
+ * 
+ *	mrs	\reg , cpsr			// cpsr을 arm register(r0)에 저장.
+ *	eor	\reg, \reg, #HYP_MODE		// XOR 연산, r0 = r0 ^ #HYP_MODE(0x1a)
+ *	tst	\reg, #MODE_MASK		// if (r0 == #MODE_MASK(0x1f))
+ *	bic	\reg , \reg , #MODE_MASK	// !AND, r0 = !(r0 & #MODE_MASK)
+ *						// 여기까지는 cpsr [7:0]을 clear
+ *	orr	\reg , \reg , #PSR_I_BIT | PSR_F_BIT | SVC_MODE	// OR 연산, r0 = r0 | (PSR_I | PSR_F | SVC_MODE)
+ *						// 이 코드는 SVC모드 설정 및 인터럽트, FAST 인터럽트 disable
+ *	THUMB(	orr	\reg , \reg , #PSR_T_BIT	)	// THUMB 모드 설정.
+ *	bne	1f				// 위 tst 명령코드에서 HYP_MODE가 아니면 1f 분기.
+ *	orr	\reg, \reg, #PSR_A_BIT		// disables imprecise data aborts.
+ *						// 즉, 각기 PSR의 비트를 설정함으로써 mask interrupts.
+ *	adr	lr, BSYM(2f)			// lr = 2f + 1 
+ *	msr	spsr_cxsf, \reg			// spsr_cxsf = r0
+ *						// [(NZCV)FLAG][STATUS][EXTENTION][(IFTMode)CONTROL]을 r0값으로 설정.
+ *	__MSR_ELR_HYP(14)
+ *	__ERET
+ *1:	msr	cpsr_c, \reg			// arm register의 값을 cpsr_c에 저장.
+ *2:
+ *	setmode	PSR_F_BIT | PSR_I_BIT | SVC_MODE, \reg
+ * ==================================================================
+ */
 
 /*
  * Helper macro to enter SVC mode cleanly and mask interrupts. reg is
@@ -318,19 +344,23 @@
  */
 .macro safe_svcmode_maskall reg:req
 #if __LINUX_ARM_ARCH__ >= 6 && !defined(CONFIG_CPU_V7M)
-	mrs	\reg , cpsr
-	eor	\reg, \reg, #HYP_MODE
-	tst	\reg, #MODE_MASK
-	bic	\reg , \reg , #MODE_MASK
-	orr	\reg , \reg , #PSR_I_BIT | PSR_F_BIT | SVC_MODE
+	mrs	\reg , cpsr			
+	eor	\reg, \reg, #HYP_MODE		
+	tst	\reg, #MODE_MASK		
+	bic	\reg , \reg , #MODE_MASK	
+						
+	orr	\reg , \reg , #PSR_I_BIT | PSR_F_BIT | SVC_MODE	
+						
 THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
-	bne	1f
-	orr	\reg, \reg, #PSR_A_BIT
-	adr	lr, BSYM(2f)
-	msr	spsr_cxsf, \reg
+	bne	1f				
+	orr	\reg, \reg, #PSR_A_BIT		
+						
+	adr	lr, BSYM(2f)			
+	msr	spsr_cxsf, \reg			
+						
 	__MSR_ELR_HYP(14)
 	__ERET
-1:	msr	cpsr_c, \reg
+1:	msr	cpsr_c, \reg			
 2:
 #else
 /*
