@@ -312,6 +312,91 @@
 		bl	memdump		/* dump 256 bytes at start of kernel */
 #endif
 		.endm
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-09-19
+ * ------------------------------------------------------------------
+ * 
+ *		.section ".start", #alloc, #execinstr	; start section을 정의(start 분기 시작은 안함). 
+ *		; 섹션 명칭 다음에 ,(콤마)로 구분하여 추가로 섹션의 특성? (할당, 실행)을 정의가 가능.
+ *		.align					; 기본 4byte 기준으로 정렬. 
+ * 		AR_CLASS(	.arm	)		; Application/Realtime CPU일 때 .arm mode를 적용. 
+ *		; This performs the same action as .code 32.
+ *		; .code[16/32] The value 16 selects Thumb, with the value 32 selecting ARM.
+ *
+ *		; [질문] .section 에 ".start"를 지정하는 것과 start: label의 차이?
+ *		; .start section을 실행가능하고 메모리 할당가능한 섹션에 위치시켜라.
+ *		; start: 는 일반적인 브랜치 label.
+ *
+ *		start:				; start label 시작.
+ *		.type	start,#function		; start를 function으로 지정. 
+ *		.rept	7			; 7번 반복매크로.
+ *		mov	r0, r0			; r0 = r0
+ *						; 즉, r0 = r0를 7번 반복.
+ *		; 7번 반복한 이유 : 처음에는 사람들이 pipeline을 비워두기 위한 것이라고 추측.
+ *		; 일반적인 start 주소는 0xnnnn8000에서 시작하는데 특정 부트로더에서는
+ *		; 0xnnnn8020에서 시작하므로 0xnnnn8000으로 맞춰주기 위해서.
+ *		; iamroot 10차팀 9주차 정리 link에 내용 나와 있음
+ *		; (http://neuromancer.kr/t/009-2013-06-22-arm-system-developers-guide-ch14/35)
+ *
+ *		.endr
+ *		ARM(		mov	r0, r0		)	; ARM mode에서 1번더 r0 = r0
+ *		ARM(		b	1f		)	; 브랜치 1f
+ *		THUMB(		adr	r12, BSYM(1f)	)	; THUMB mode에서 r12 = 1f + 1의 주소 
+ *		; #define BSYM(sym)       sym + 1 => (/arch/arm/include/asm/unified.h)
+ *		; 왜 1을 더하는지에 대한 대답 아래 2개 주소사이트 참조
+ *		; http://stackoverflow.com/questions/9368360/arm-thumb-using-bx-in-thumb-code-to-call-a-thumb-function-or-to-jump-to-a-thu
+ *		; http://recipes.egloos.com/5032032
+ *		; +1을 더하는 이유는 THUMB 모드와 ARM 모드를 구분.
+ *		; (CPSR의 T bit가 1 이면 THUMB, 0이면 ARM) 이므로 최하위비트를 1로 만들어 THUMB 모드로 사용.
+ *		; T bit를 1과 0으로 자동 setting해 주는 명령어 bx(branch with exchange)
+ *		; bx라는 명령어에 jump할 주소를 주게 되는데, 그 주소가 홀수이면 T bit를 1로, 즉 Thumb mode로, 그 주소가 짝이면 T bit를 0
+ *
+ *		THUMB(		bx	r12		)	; 위 BSYM을 통해 주소+1을 하여 홀수주소를 만들기 때문에 bx명령을 통해 CPSR의 T bit를 자동으로 1로 셋팅하여 THUMB 모드로 동작.
+ *		.word	_magic_sig	@ Magic numbers to help the loader	; word단위로 _magic_sig를 주소저장 :: 0x016f2818 
+ *		.word	_magic_start	@ absolute load/run zImage address	; word단위로 _maigc_start를 주소저장 :: zImage는 compressed kernel의 start 주소.
+ *		.word	_magic_end	@ zImage end address			; word단위로 _maigc_end를 주소저장 :: zImage는 compressed kernel의 end 주소.
+ *		.word	0x04030201	@ endianness flag			; word단위로 endiannesflag를 저장 :: 이 단계에서 big/little endian을 알수 없고 flag가 메모리에 올라갔을 때 첫 바이트가 0x01이면 little endian, 0x04이면 big endian로 검사해야 알 수 있다.
+ *
+ *		THUMB(		.thumb			)	; THUMB mode를 사용.
+ *
+ *		1:
+ *		ARM_BE8(	setend	be		)	@ go BE8 if compiled for BE8	; CONFIG_CPU_ENDIAN_BE8 일 때 setend be 명령이 실행되어 big endian으로 사용하도록 설정.
+		; 기본적으로 ARM CPU는 little endian을 사용.
+ *		AR_CLASS(	mrs	r9, cpsr	)	; cpsr의 내용을 Arm register(r9)에 저장. 
+ *		#ifdef CONFIG_ARM_VIRT_EXT
+ *		bl	__hyp_stub_install	@ get into SVC mode, reversibly		; to do 가상화
+ *		#endif
+ *		mov	r7, r1			@ save architecture ID		; r7 = r1
+ *		mov	r8, r2			@ save atags pointer		; r8 = r2
+ *		; [질문] atags pointer는 무엇인가요?
+ *		; => bootloader에서 linux kernel로 설정을 전달하는 pointer.
+ *		; [질문] r1, r2는 어디서 나온 것인가요?
+ *		; => bootloader에서 linux kernel로 전달된다.
+ *
+ *		#ifndef CONFIG_CPU_V7M
+ *		mrs	r2, cpsr		@ get current mode	; cpsr의 내용을 r2에 저장.
+ *		tst	r2, #3			@ not user?		; cpsr의 하위 2bit(mode bit)를 비교하여 user mode인지 체크. (tst :: test)
+ *		bne	not_angel		; cpsr의 하위 2bit가 11이 아니면(user mode가 아니면_인터럽트 제외) not_angel로 브랜치.
+ *						; [질문] angel이 무엇인가?
+ *						; => 부트로더 종류 중 하나로 angel 부트로더를 말함.
+ *		mov	r0, #0x17		@ angel_SWIreason_EnterSVC	; r0 = 0x17
+ *						; [질문] # 또는 operand 2는 barrel shifter를 통해 전달되는데 barrel shifter는 어떤 동작을 하나?
+						; [질문] 왜 0x17값을 넣는가?
+ *		ARM(		swi	0x123456	)	@ angel_SWI_ARM
+ *		THUMB(		svc	0xab		)	@ angel_SWI_THUMB
+ *		; 링크 참조 :: 
+ *		; 1. http://trace32.com/wiki/index.php/SemiHosting_%EA%B3%BC_%EA%B7%B8_%ED%99%9C%EC%9A%A9
+ *		; 2. http://egloos.zum.com/recipes/v/5037342
+ *		; 3. http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0282b/BGBJHIEA.html
+ *		not_angel:
+ *		safe_svcmode_maskall r0		; Helper macro to enter SVC mode cleanly and mask interrupts.
+ *		msr	spsr_cxsf, r9		@ Save the CPU boot mode in
+ *						@ SPSR
+ *		; 
+ *		#endif
+ * ==================================================================
+ */
 
 		.section ".start", #alloc, #execinstr	/* 할당, 실행 가능한 섹션이다. */
 /*
