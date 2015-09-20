@@ -313,7 +313,7 @@
 #endif
 		.endm
 
-		.section ".start", #alloc, #execinstr
+		.section ".start", #alloc, #execinstr	/* 할당, 실행 가능한 섹션이다. */
 /*
  * sort out different calling conventions
  */
@@ -323,25 +323,25 @@
 		 * As of today (2014) that's exactly the members of the A and R
 		 * classes.
 		 */
- AR_CLASS(	.arm	)
+ AR_CLASS(	.arm	)		/* code32 --> ARM명령어 체계(code16 : THUMB) */
 start:
-		.type	start,#function
+		.type	start,#function	/* start function */
 		.rept	7
-		mov	r0, r0
+		mov	r0, r0			/* 0x00008000 ~ 0x0000801b */
 		.endr
-   ARM(		mov	r0, r0		)
-   ARM(		b	1f		)
- THUMB(		adr	r12, BSYM(1f)	)
- THUMB(		bx	r12		)
+   ARM(		mov	r0, r0		)	/* 0x0000801c ~ 0x0000801f */
+   ARM(		b	1f		)	/* 0x00008020 ~ 0x00008023 */
+ THUMB(		adr	r12, BSYM(1f)	)	/* 0x0000801c ~ 0x0000801f */
+ THUMB(		bx	r12		)	/* 0x0000801f ~ 0x00008023 */
 
-		.word	_magic_sig	@ Magic numbers to help the loader
-		.word	_magic_start	@ absolute load/run zImage address
-		.word	_magic_end	@ zImage end address
-		.word	0x04030201	@ endianness flag
+		.word	_magic_sig	@ Magic numbers to help the loader 0x8024 ~ 27
+		.word	_magic_start	@ absolute load/run zImage address 0x8028 ~ 2b
+		.word	_magic_end	@ zImage end address		0x802c ~ 2f
+		.word	0x04030201	@ endianness flag		0x8030 ~ 33
 
- THUMB(		.thumb			)
+ THUMB(		.thumb			)	/* code16 --> THUMB 명령어 체계 */
 1:
- ARM_BE8(	setend	be		)	@ go BE8 if compiled for BE8
+ ARM_BE8(	setend	be		)	@ go BE8 if compiled for BE8 - Set the endianness bit in the CPSR
  AR_CLASS(	mrs	r9, cpsr	)
 #ifdef CONFIG_ARM_VIRT_EXT
 		bl	__hyp_stub_install	@ get into SVC mode, reversibly
