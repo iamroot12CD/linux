@@ -1015,6 +1015,11 @@ params:		ldr	r0, =0x10000100		@ params_phys for RPC
 		.align
 #endif
 
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-10-03
+ * ------------------------------------------------------------------
+ */
 /*
  * Turn on the cache.  We need to setup some page tables so that we
  * can have both the I and D caches on.
@@ -1028,9 +1033,18 @@ params:		ldr	r0, =0x10000100		@ params_phys for RPC
  *  r7 = architecture number
  *  r8 = atags pointer
  * On exit,
- *  r0, r1, r2, r3, r9, r10, r12 corrupted
+ *  r0, r1, r2, r3, r9, r10, r12 corrupted ; 사용되는 레지스터
  * This routine must preserve:
- *  r4, r7, r8
+ *  r4, r7, r8	; 사용되지 않은 레지스터
+ *
+ *  cache 를 ON시킴. I(Instruction Cache), D(Data Cache)
+ *  커널 실행 주소로부터 아래로 16k에 page table을위치시킨다.
+ *
+ *		.align	5		; 32Byte 정렬
+ *					; TODO: align이 뭔지 애매하다??
+ *cache_on:	mov	r3, #8			@ cache_on function
+ 					; ? #8 : cache on
+ *		b	call_cache_fn
  */
 		.align	5
 cache_on:	mov	r3, #8			@ cache_on function
@@ -1259,6 +1273,50 @@ __common_mmu_cache_on:
  *  r3  = block offset
  *  r9  = corrupted
  *  r12 = corrupted
+ *
+ *  cache on : r3 = 8
+ *   On entry,
+ *    r4 = kernel execution address
+ *    r7 = architecture number
+ *    r8 = atags pointer
+ *
+ *
+ * call_cache_fn:	adr	r12, proc_types
+ * 					; r12 = &proc_types;
+ * #ifdef CONFIG_CPU_CP15
+ * 		mrc	p15, 0, r9, c0, c0	@ get processor ID
+ *					; r9 = processor ID
+ * #elif defined(CONFIG_CPU_V7M) ; cp15 코프로쎄서가 없으며 V7M cpu일때
+ * 		/ *
+ * 		 * On v7-M the processor id is located in the V7M_SCB_CPUID
+ * 		 * register, but as cache handling is IMPLEMENTATION DEFINED on
+ * 		 * v7-M (if existant at all) we just return early here.
+ * 		 * If V7M_SCB_CPUID were used the cpu ID functions (i.e.
+ * 		 * __armv7_mmu_cache_{on,off,flush}) would be selected which
+ * 		 * use cp15 registers that are not implemented on v7-M.
+ * 		 * /
+ * 		bx	lr
+ * #else
+ * 		ldr	r9, =CONFIG_PROCESSOR_ID
+ *				; r9 = CONFIG_PROCESSOR_ID
+ * #endif // CONFIG_CPU_CP15
+ *
+ * 1:		ldr	r1, [r12, #0]		@ get value
+ * 					; r1 = cpu ID : 0x41000000
+ * 		ldr	r2, [r12, #4]		@ get mask
+ * 					; r2 = cpu ID mask : 0xff00f000
+ * 		eor	r1, r1, r9		@ (real ^ match)
+ * 					; r1 = r1 ^ r9
+ * 		tst	r1, r2			@       & mask
+ 					; cpsr = r1 & 0xff00f000
+					; 정리 --> cpsr = (r9 ^ cpuID) & cpuMask
+					;  0 이면 : 같음, 1이외값 : 틀림
+ *  ARM(		addeq	pc, r12, r3		) @ call cache function
+ *  THUMB(		addeq	r12, r3			)
+ *  THUMB(		moveq	pc, r12			) @ call cache function
+ * 		add	r12, r12, #PROC_ENTRY_SIZE
+ * 		b	1b
+ * 
  */
 
 call_cache_fn:	adr	r12, proc_types
