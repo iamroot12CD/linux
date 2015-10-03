@@ -594,6 +594,56 @@ not_angel:
 		orrcc	r4, r4, #1		@ remember we skipped cache_on
 		blcs	cache_on
 
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-10-03
+ * ------------------------------------------------------------------
+ *
+ * IAMROOT-12A:
+ * ------------
+ * r0에 현재 실행되는 상태의 LC0의 주소 값이 담기고,
+ * r1은 처음 이미지가 만들어질 때 당시의 주소 값(0을 기준으로)이 담겨 있고
+ * 이 둘의 차이 값이 r0(delta) 값이 된다.이 델타 값으로 Image의 위치를
+ * 가리키는 레지스터들을 보정하는데 사용한다.
+ *
+ * 코드가 재배치가 이루어진 후 이곳으로 재진입하게 되면 또 한 번 delta가
+ * 바뀌고 이 때에도 바뀐 주소로인해 관련 레지스터들의 주소를 교정한다.
+ *
+ * -r6 = _edata + delta
+ * -r10 = _input_data_end-4 + delta
+ *
+ *  _input_data_end-4 = 압축된 커널(piggy)의 마지막 어드레스를 의미함.
+ *                      데이터 내용은 압축된 커널의 길이.
+ *
+ *restart:	adr	r0, LC0			; r0 = &LC0
+ *		ldmia	r0, {r1, r2, r3, r6, r10, r11, r12}
+ *						; ldmia r0 주소에 있는 값을 차례로 다음 레지스터들에
+ *						; 값을 저장하고 r0값을 증가 시킨다. ia : Increase After
+ *						; r1 = LC0
+ *						; r2 = __bss_start
+ *						; r3 = _end
+ *						; r6 = _edata;
+ *						; r10 = input_data_end - 4
+ *						; r11 = _got_start
+ *						; r12(ip) = _got_end
+ *		ldr	sp, [r0, #28]		; sp = .L_user_stack_end
+ *
+ *		/ *
+ *		 * We might be running at a different address.  We need
+ *		 * to fix up various pointers.
+ *		 * 
+ *		 * 다른 주소에서 실행되고 있으므로 다양한 포인터등을 고칠 필요가있다.
+ *		 * /
+ *		sub	r0, r0, r1		@ calculate the delta offset
+ *						; r0 = r0 - r1 : &LC0 - &LC0
+ *						; Q) delta 란 무엇인가?  A) 0번지부터 이미지 최초위치
+ *						;   12 A팀 부팅관련 문서 참고
+ *		add	r6, r6, r0		@ _edata
+ *						; r6 = _edata + delta
+ *		add	r10, r10, r0		@ inflated kernel size location
+ *						; r10 = input_data_end - 4 + delta
+ *
+ */
 restart:	adr	r0, LC0
 		ldmia	r0, {r1, r2, r3, r6, r10, r11, r12}
 		ldr	sp, [r0, #28]
