@@ -463,7 +463,91 @@ not_angel:
 
 		.text
 
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-10-03
+ * ------------------------------------------------------------------
+ *
+ * 참고 URL : http://iamroot.org/wiki/doku.php?id=kernel_original_12_a:%EB%B6%80%ED%8A%B8_%EA%B4%80%EB%A0%A8#zimage%EC%9D%98_%EC%8B%9C%EC%9E%91_%EC%9C%84%EC%B9%98_offset
+ *#ifdef CONFIG_AUTO_ZRELADDR ; Auto calculation of the decompressed kernel image address
+ *      			; 자동 재배치 소스
+ *      			; http://stackcanary.com/?p=246
+ *
+ *		/ *
+ *		 * Set up a page table only if it won't overwrite ourself.
+ *		 * That means r4 < pc || r4 - 16k page directory > &_end.
+ *		 * Given that r4 > &_end is most unfrequent, we add a rough
+ *		 * additional 1MB of room for a possible appended DTB.
+ *
+ *		 중복된 영역이 아니라면 page table를 설정한다.
+ *		 r4가 pc 보다 작거나  r4 - 16k page directory 가 &_end보다 크다는 뜻이다.
+ *		 r4가 &_end보다 큰일은 거의 없으며, DTB 추가가 가능하도록 1MB 정도의 빈공간(room)을
+ *		 추가한다.
+ *		 * /
+ * 		mov	r4, pc			;
+ *       	and	r4, r4, #0xf8000000	; r4 = pc & 0xf8000000
+ *       	add	r4, r4, #TEXT_OFFSET	; r4 += TEXT_OFFSET
+ *      					; TEXT_OFFSET : 0x00008000
+ *      					; arch/arm/Makefile
+ *      					;	TEXT_OFFSET := $(textofs-y)
+ *
+ *#else
+ *		ldr	r4, =zreladdr		; arch/arm/boot/compressed/Makefile
+ *      					;	LDFLAGS_vmlinux += --defsym zreladdr=$(ZRELADDR)
+ *      					; arch/arm/boot/Makefile
+ *      					;	ZRELADDR := $(zreladdr-y)
+ *      					; arch/arm/mach-bcm2709/Makefile.boot
+ *      					;	zreladdr-y   := 0x00008000
+ *
+ *#endif // CONFIG_AUTO_ZRELADDR
+ *
+ *      	mov	r0, pc			; r0 = pc
+ *      	cmp	r0, r4			; cmp : r0 - r4 의 결과값을 cspr에 저장
+ *
+ *      					; Carry flag, Zero flag
+ *      					;   X  |  Y  | X-Y |  C  |  Z
+ *      					; -----+-----+-----+-----+-----
+ *      					;   0  |  0  |  0  |  1  |  1
+ *      					;   0  |  1  |  -1 |  0  |  0
+ *      					;   1  |  0  |  1  |  1  |  0
+ *      					;   1  |  1  |  0  |  1  |  1
+ *      
+ *      					; ldr :  load address
+ *      					; cc : 조건문 carry clear 
+ *      					; ex1)	r0 = 0000	r4 = 0001
+ *      					;	r0 - r4 = -1(1111) 빌림 발생(Carray Clear)
+ *      					;		0000 + 1111
+ *      					; ex2)	r0 = 0001	r4 = 0000
+ *      					;	r0 - r4 = 1(0001)빌림 발생 하지 않음(Carray Set)
+ *      							0001 + 0000
+ *      					; furyheimdall.tistory.com/30
+ *
+ *      	ldrcc	r0, LC0+32		; if(r0 < r4) {
+ *      					; 	r0 = (LC0+32)
+ *      	addcc	r0, r0, pc		;	r0 += pc
+ *      	cmpcc	r4, r0			;	if(r4 < r0)
+ *      	orrcc	r4, r4, #1		;		r4 |= 1; // remember we skipped cache_on
+ * 						;	else
+ *						;		cache_on();
+ *      					; } else {
+ *      	blcs	cache_on		;	cache_on();
+ *      					; }
+ *
+ */
 #ifdef CONFIG_AUTO_ZRELADDR
+/*
+ * ZRELADDR is the physical address where the decompressed kernel
+ * image will be placed. If AUTO_ZRELADDR is selected, the address
+ * will be determined at run-time by masking the current IP with
+ * 0xf8000000. This assumes the zImage being placed in the first 128MB
+ * from start of memory.
+ *
+ * ZRELADDR는 압축풀린 커널이 놓여질 물리 주소이다. AUTO_ZRELADDR 가
+ * 설정되어 있으면, 주소는 실시간에 현재 IP(pc ?)에 0xf8000000과 마스킹
+ * 해서 결정된다. zImage가 0MB ~ 128MB 안에 놓여진다고 가정한다.
+ * http://iamroot.org/wiki/doku.php?id=kernel_original_12_a:%EB%B6%80%ED%8A%B8_%EA%B4%80%EB%A0%A8#%EC%9D%BC%EB%B0%98_%EC%9D%B4%EB%AF%B8%EC%A7%80_vs_config_zboot_rom
+ *
+ */
 		/*
 		 * Find the start of physical memory.  As we are executing
 		 * without the MMU on, we are in the physical address space.
@@ -481,6 +565,13 @@ not_angel:
 		 * are already placing their zImage in (eg) the top 64MB
 		 * of this range.
 		 */
+		/*
+		 * 물리메모리의 시작 주소를 찾는다. MMU를 사용중이지 않기 때문에
+		 * 현재 물리 주소를 다루고 있다.
+		 * 주소정렬에 사용한 offset들을 제거할 필요가 있다.
+		 *
+		 * 위 정렬은 다른 플렛폼간의 호환을 위한 것이다 - 초기 128MB
+  		 */
 		mov	r4, pc
 		and	r4, r4, #0xf8000000
 		/* Determine final kernel image address. */
