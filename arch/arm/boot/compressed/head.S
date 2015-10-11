@@ -1043,7 +1043,7 @@ params:		ldr	r0, =0x10000100		@ params_phys for RPC
  *		.align	5		; 32Byte 정렬
  *					; TODO: align이 뭔지 애매하다??
  *cache_on:	mov	r3, #8			@ cache_on function
- 					; ? #8 : cache on
+ *					; ? #8 : cache on
  *		b	call_cache_fn
  */
 		.align	5
@@ -1118,6 +1118,92 @@ __armv3_mpu_cache_on:
 #define CB_BITS 0x0c
 #endif
 
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-10-10
+ * ------------------------------------------------------------------
+ *
+ *  MMU 에 대한 설명 : http://recipes.egloos.com/5232056
+ *  페이징 소스를 C 코드로 구현 : http://kth3321.blogspot.kr/2013/04/arm-cortex-1.html
+ *  소스 관련 참고 : http://www.iamroot.org/xe/Kernel_10_ARM/174738
+ *
+ * ==================================================================
+ * __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
+ * 					; r3 = r4 - 16384(16k)
+ * 					; r4 = cache_on 에서 설정된 kernel execution address
+ *					; arm의 경우 1M 단위로 페이지 세팅하기 때문에 
+ *					; 2^32 = 4G는 총4096개의 
+ *					; 엔트리가 필요하고 한 엔트리는 32비트 워드 이기 때문에
+ *					; 4096 * 4byte = 16k
+ *					; 0x00008000 - 16k = 0x00004000 모기향책 그림 5-4 참고(66p)
+ *		bic	r3, r3, #0xff		@ Align the pointer
+ *					; bit clear r3 = r3 & ~0xff
+ *		bic	r3, r3, #0x3f00
+ *					; bit clear r3 = r3 & ~0x3f00
+ *					; 왜 r3 & ~0x3fff 로 하지 않는가?
+ *					; bic 명령어가 8비트밖에 클리어를 못함. operand2
+ *
+ * Initialise the page tables, turning on the cacheable and bufferable
+ * bits for the RAM area only.
+ * 메모리의 256M영역에대해서는 cacheable bufferable로 설정해 준다.
+ * 이것은 커널의 압축해제시 캐시와 쓰기버퍼사용을 통해서 압축해제 성능을 높이기 위함이다.
+ * 모기향 책 65p
+ *
+ *		mov	r0, r3
+ *					; r0 = r3
+ *					; r3 페이지 디렉토리 시작주소  0x00004000
+ *					; 100 0000 0000 0000
+ * 		mov	r9, r0, lsr #18
+ *					; 000 0000 0000 0000
+ *					; 2^18 = 256k
+ *					; r9 = r0 >> 18
+ *		mov	r9, r9, lsl #18		@ start of RAM
+ *					; r9 = r9 << 18
+ * 		add	r10, r9, #0x10000000	@ a reasonable RAM size
+ *					; r10 = r9 + 256M
+ *					; r10 = End Of Ram
+ *		mov	r1, #0x12		@ XN|U + section mapping
+ *					; XN : http://www.iamroot.org/xe/Kernel_10_ARM/174738
+ *					; XN : MMU 접근권한 설정 
+ *					; r1 = 0x12 (10010)
+ *		orr	r1, r1, #3 << 10	@ AP=11
+ *					; r1 = 0xc12 
+ * 		add	r2, r3, #16384
+ *					; r2 = r3 + 16k
+ *					; r2 = kernel execution address
+ * 1:		cmp	r1, r9			@ if virt > start of RAM
+ *					; 0xc12 > r9
+ *		cmphs	r10, r1			@   && end of RAM > virt
+ *					; if (r1 > r9 && r10 >= r1) 
+ *		bic	r1, r1, #0x1c		@ clear XN|U + C + B
+ *					; r1 = r1 && 0x1c 
+ *		orrlo	r1, r1, #0x10		@ Set XN|U for non-RAM
+ *					; 
+ *		orrhs	r1, r1, r6		@ set RAM section settings
+ *		str	r1, [r0], #4		@ 1:1 mapping
+ *		add	r1, r1, #1048576
+ *		teq	r0, r2
+ *		bne	1b
+ *
+ * If ever we are running from Flash, then we surely want the cache
+ * to be enabled also for our execution instance...  We map 2MB of it
+ * so there is no map overlap problem for up to 1 MB compressed kernel.
+ * If the execution is in RAM then we would only be duplicating the above.
+ *
+ * 		orr	r1, r6, #0x04		@ ensure B is set for this
+ *		orr	r1, r1, #3 << 10
+ *		mov	r2, pc
+ *		mov	r2, r2, lsr #20
+ *		orr	r1, r1, r2, lsl #20
+ *		add	r0, r3, r2, lsl #2
+ *		str	r1, [r0], #4
+ * 		add	r1, r1, #1048576
+ *		str	r1, [r0]
+ *		mov	pc, lr
+ * ENDPROC(__setup_mmu)
+ *
+ */
+
 __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
 		bic	r3, r3, #0xff		@ Align the pointer
 		bic	r3, r3, #0x3f00
@@ -1191,6 +1277,48 @@ __armv4_mmu_cache_on:
 		mcr	p15, 0, r0, c8, c7, 0	@ flush I,D TLBs
 #endif
 		mov	pc, r12
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-10-10
+ * ------------------------------------------------------------------
+ * __armv7_mmu_cache_on:
+ * 		mov	r12, lr
+ *				; r12 = lr
+ * #ifdef CONFIG_MMU
+ *				; arch/arm/Kconfig
+ *				; config MMU
+ *				; bool "MMU-based Paged Memory Management Support"
+ *				; default y
+ * 				; help
+ *	  			; Select if you want MMU-based virtualised addressing space
+ *	  			; support by paged memory management. If unsure, say 'Y'.
+ *		mrc	p15, 0, r11, c0, c1, 4	@ read ID_MMFR0
+ *				; ID_MMFR0 : 메모리 모델 정보, 메모리관리 서포트 정보
+ *				; http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0438e/BABEHBEB.html
+ *		tst	r11, #0xf		@ VMSA
+ *				; 하위 4비트 VMSA 지원여부 체크 
+ * 				; 버추얼 메모리 시스템 아키텍쳐 
+ *		movne	r6, #CB_BITS | 0x02	@ !XN
+ *				; z 플래그가 0아닐 때(지원하면) 실행
+ *				; arch/arm/mm/Kconfig CPU_DCACHE_WRITETHROUGH 
+ *				; r6 = 0x0c | 0x02
+ * 		blne	__setup_mmu
+ *				; 
+ *		mov	r0, #0
+ *		mcr	p15, 0, r0, c7, c10, 4	@ drain write buffer
+ *		tst	r11, #0xf		@ VMSA
+ *		mcrne	p15, 0, r0, c8, c7, 0	@ flush I,D TLBs
+ * #endif
+ *		mrc	p15, 0, r0, c1, c0, 0	@ read control reg
+ * 		bic	r0, r0, #1 << 28	@ clear SCTLR.TRE
+ *		orr	r0, r0, #0x5000		@ I-cache enable, RR cache replacement
+ *		orr	r0, r0, #0x003c		@ write buffer
+ *		bic	r0, r0, #2		@ A (no unaligned access fault)
+ *		orr	r0, r0, #1 << 22	@ U (v6 unaligned access model)
+ *						@ (needed for ARM1176)
+ * 
+ * ==================================================================
+ */
 
 __armv7_mmu_cache_on:
 		mov	r12, lr
@@ -1308,13 +1436,16 @@ __common_mmu_cache_on:
  * 		eor	r1, r1, r9		@ (real ^ match)
  * 					; r1 = r1 ^ r9
  * 		tst	r1, r2			@       & mask
- 					; cpsr = r1 & 0xff00f000
-					; 정리 --> cpsr = (r9 ^ cpuID) & cpuMask
-					;  0 이면 : 같음, 1이외값 : 틀림
+ *					; cpsr = r1 & 0xff00f000
+ *					; 정리 --> cpsr = (r9 ^ cpuID) & cpuMask
+ *					;  0 이면 : 같음, 1이외값 : 틀림
  *  ARM(		addeq	pc, r12, r3		) @ call cache function
+ *					; r3=(cache온, cache오프, cache 클리어)
+ *					; tst r1, r2 값이 0으로 세팅되어있으면 pc = r12+r3
  *  THUMB(		addeq	r12, r3			)
  *  THUMB(		moveq	pc, r12			) @ call cache function
  * 		add	r12, r12, #PROC_ENTRY_SIZE
+ *					; 
  * 		b	1b
  * 
  */
