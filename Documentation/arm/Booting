@@ -6,11 +6,25 @@ Date  : 18 May 2002
 
 The following documentation is relevant to 2.4.18-rmk6 and beyond.
 
+/*
+ * ARM Linux를 부팅하기 위해서는 boot loader가 필요합니다. 
+ * Boot loader는 main kernel 전에 실행되는 작은 프로그램입니다.
+ * Boot loader는 다양한 devices를 초기화하고 마지막으로 커널에
+ * 정보를 넘기면서 Linux Kernel을 호출합니다.
+ */
 In order to boot ARM Linux, you require a boot loader, which is a small
 program that runs before the main kernel.  The boot loader is expected
 to initialise various devices, and eventually call the Linux kernel,
 passing information to the kernel.
 
+/*
+ * 기본적으로 boot loader는 최소한 다음을 제공해야 합니다. 
+ *	1. RAM 셋업 및 초기화
+ *	2. 하나의 serial port를 초기화
+ *	3. machine type 감지
+ * 	4. initramfs 로드
+ * 	5. kernel image 호출 
+ */
 Essentially, the boot loader should provide (as a minimum) the
 following:
 
@@ -28,6 +42,13 @@ following:
 Existing boot loaders:		MANDATORY
 New boot loaders:		MANDATORY
 
+/*
+ * Boot loader는 kernel이 시스템의 휘발성 데이터 보관으로 사용할 
+ * 모든 RAM을 찾아서 초기화 시킵니다. Machine에 종족적인 방법을 사용
+ * 합니다. (Boot loader는 내부 알고리즘을 사용하여 커널이 존재할 
+ * 위치나 모든 RAM 사이즈를 machine의 RAM에 대한 정보를 사용하거나 
+ * boot loader 설계자가 괜찮다고 생각하는 다른 방법으로 표시합니다. 
+ */
 The boot loader is expected to find and initialise all RAM that the
 kernel will use for volatile data storage in the system.  It performs
 this in a machine dependent manner.  (It may use internal algorithms
@@ -42,6 +63,15 @@ sees fit.)
 Existing boot loaders:		OPTIONAL, RECOMMENDED
 New boot loaders:		OPTIONAL, RECOMMENDED
 
+/*
+ * Boot loader는 target board의 하나의 serial port를 초기화하고 
+ * enable시켜야 합니다. 이를ㄹ 통해 kernel serial driver는 자동적으로
+ * kernel console로 사용할 serial port를 찾습니다. (일반적으로 디버깅
+ * 용도로 사용되거나 통신용으로 사용됩니다.)
+ *
+ * 다른 대안으로 boot loader는 kernel에게 port에 대해 기술되어 있는
+ * tagged lists를 통해 'console=' 옵션을 전달합니다. 
+ */
 The boot loader should initialise and enable one serial port on the
 target.  This allows the kernel serial driver to automatically detect
 which serial port it should use for the kernel console (generally
@@ -60,6 +90,18 @@ serial format options as described in
 Existing boot loaders:		OPTIONAL
 New boot loaders:		MANDATORY except for DT-only platforms
 
+/*
+ * Boot loader는 여러 방법으로 자신이 돌아갈 machine type을 감지해야
+ * 합니다. 이것이 hard coded(칩의 레지스터에 써진) 값이든 알고리즘으로 
+ * 되어 있든 이 문서의 범위를 벗어납니다. Boot loader는 반드시 
+ * MACH_TYPE_xxx 값을 kernel에게 전달해야 합니다. 
+ * (linux/arch/arm/tools/mach-types을 살펴보라) MACH_TYPE_xxx는 레지스터
+ * r1을 통해 전달되야 합니다.
+ * 
+ * DT-only platforms에서는 machine type은 device tree로 결정됩니다.
+ * Machine type을 0의 1의 보수로 설정하세요. 이것은 강격히 필요하지 
+ * 않습니다만 존재하는 어떤 types과 match되지 않도록 해야 합니다. 
+ */
 The boot loader should detect the machine type its running on by some
 method.  Whether this is a hard coded value or some algorithm that
 looks at the connected hardware is beyond the scope of this document.
@@ -77,6 +119,11 @@ necessary, but assures that it will not match any existing types.
 Existing boot loaders:		OPTIONAL, HIGHLY RECOMMENDED
 New boot loaders:		MANDATORY
 
+/*
+ * Boot loader는 반드시 kernel에 configuration data를 전달해 주기 위해 
+ * tagged list나 dtb image를 제공해야 합니다. Boot data의 물리 주소는
+ * 레지스터 r2를 통해 kernel로 전달됩니다. 
+ */
 The boot loader must provide either a tagged list or a dtb image for
 passing configuration data to the kernel.  The physical address of the
 boot data is passed to the kernel in register r2.
@@ -84,6 +131,15 @@ boot data is passed to the kernel in register r2.
 4a. Setup the kernel tagged list
 --------------------------------
 
+/*
+ * Boot loader는 반드시 kernel tagged list를 생성& 초기화해야 합니다.
+ * 유효한 tagged list는 ATAG_CORE로 시작하고 ATAG_NONE으로 끝납니다.
+ * ATAG_CORE tag는 비어있거나 비어있지 않을 수 있습니다.
+ * 비어 있는 ATAG_CORE tag는 2로 셋팅된 size field를 가집니다.
+ * ATAG_NONE은 반드시 size field가 0으로 셋팅되어야 합니다.
+ *
+ * list안에는 어떠한 수의 tag가 있을 수 있습니다. 
+ */
 The boot loader must create and initialise the kernel tagged list.
 A valid tagged list starts with ATAG_CORE and ends with ATAG_NONE.
 The ATAG_CORE tag may or may not be empty.  An empty ATAG_CORE tag
