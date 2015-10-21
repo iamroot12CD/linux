@@ -463,7 +463,91 @@ not_angel:
 
 		.text
 
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-10-03
+ * ------------------------------------------------------------------
+ *
+ * 참고 URL : http://iamroot.org/wiki/doku.php?id=kernel_original_12_a:%EB%B6%80%ED%8A%B8_%EA%B4%80%EB%A0%A8#zimage%EC%9D%98_%EC%8B%9C%EC%9E%91_%EC%9C%84%EC%B9%98_offset
+ *#ifdef CONFIG_AUTO_ZRELADDR ; Auto calculation of the decompressed kernel image address
+ *      			; 자동 재배치 소스
+ *      			; http://stackcanary.com/?p=246
+ *
+ *		/ *
+ *		 * Set up a page table only if it won't overwrite ourself.
+ *		 * That means r4 < pc || r4 - 16k page directory > &_end.
+ *		 * Given that r4 > &_end is most unfrequent, we add a rough
+ *		 * additional 1MB of room for a possible appended DTB.
+ *
+ *		 중복된 영역이 아니라면 page table를 설정한다.
+ *		 r4가 pc 보다 작거나  r4 - 16k page directory 가 &_end보다 크다는 뜻이다.
+ *		 r4가 &_end보다 큰일은 거의 없으며, DTB 추가가 가능하도록 1MB 정도의 빈공간(room)을
+ *		 추가한다.
+ *		 * /
+ * 		mov	r4, pc			;
+ *       	and	r4, r4, #0xf8000000	; r4 = pc & 0xf8000000
+ *       	add	r4, r4, #TEXT_OFFSET	; r4 += TEXT_OFFSET
+ *      					; TEXT_OFFSET : 0x00008000
+ *      					; arch/arm/Makefile
+ *      					;	TEXT_OFFSET := $(textofs-y)
+ *
+ *#else
+ *		ldr	r4, =zreladdr		; arch/arm/boot/compressed/Makefile
+ *      					;	LDFLAGS_vmlinux += --defsym zreladdr=$(ZRELADDR)
+ *      					; arch/arm/boot/Makefile
+ *      					;	ZRELADDR := $(zreladdr-y)
+ *      					; arch/arm/mach-bcm2709/Makefile.boot
+ *      					;	zreladdr-y   := 0x00008000
+ *
+ *#endif // CONFIG_AUTO_ZRELADDR
+ *
+ *      	mov	r0, pc			; r0 = pc
+ *      	cmp	r0, r4			; cmp : r0 - r4 의 결과값을 cspr에 저장
+ *
+ *      					; Carry flag, Zero flag
+ *      					;   X  |  Y  | X-Y |  C  |  Z
+ *      					; -----+-----+-----+-----+-----
+ *      					;   0  |  0  |  0  |  1  |  1
+ *      					;   0  |  1  |  -1 |  0  |  0
+ *      					;   1  |  0  |  1  |  1  |  0
+ *      					;   1  |  1  |  0  |  1  |  1
+ *      
+ *      					; ldr :  load address
+ *      					; cc : 조건문 carry clear 
+ *      					; ex1)	r0 = 0000	r4 = 0001
+ *      					;	r0 - r4 = -1(1111) 빌림 발생(Carray Clear)
+ *      					;		0000 + 1111
+ *      					; ex2)	r0 = 0001	r4 = 0000
+ *      					;	r0 - r4 = 1(0001)빌림 발생 하지 않음(Carray Set)
+ *      							0001 + 0000
+ *      					; furyheimdall.tistory.com/30
+ *
+ *      	ldrcc	r0, LC0+32		; if(r0 < r4) {
+ *      					; 	r0 = (LC0+32)
+ *      	addcc	r0, r0, pc		;	r0 += pc
+ *      	cmpcc	r4, r0			;	if(r4 < r0)
+ *      	orrcc	r4, r4, #1		;		r4 |= 1; // remember we skipped cache_on
+ * 						;	else
+ *						;		cache_on();
+ *      					; } else {
+ *      	blcs	cache_on		;	cache_on();
+ *      					; }
+ *
+ */
 #ifdef CONFIG_AUTO_ZRELADDR
+/*
+ * ZRELADDR is the physical address where the decompressed kernel
+ * image will be placed. If AUTO_ZRELADDR is selected, the address
+ * will be determined at run-time by masking the current IP with
+ * 0xf8000000. This assumes the zImage being placed in the first 128MB
+ * from start of memory.
+ *
+ * ZRELADDR는 압축풀린 커널이 놓여질 물리 주소이다. AUTO_ZRELADDR 가
+ * 설정되어 있으면, 주소는 실시간에 현재 IP(pc ?)에 0xf8000000과 마스킹
+ * 해서 결정된다. zImage가 0MB ~ 128MB 안에 놓여진다고 가정한다.
+ * http://iamroot.org/wiki/doku.php?id=kernel_original_12_a:%EB%B6%80%ED%8A%B8_%EA%B4%80%EB%A0%A8#%EC%9D%BC%EB%B0%98_%EC%9D%B4%EB%AF%B8%EC%A7%80_vs_config_zboot_rom
+ *
+ */
 		/*
 		 * Find the start of physical memory.  As we are executing
 		 * without the MMU on, we are in the physical address space.
@@ -481,6 +565,13 @@ not_angel:
 		 * are already placing their zImage in (eg) the top 64MB
 		 * of this range.
 		 */
+		/*
+		 * 물리메모리의 시작 주소를 찾는다. MMU를 사용중이지 않기 때문에
+		 * 현재 물리 주소를 다루고 있다.
+		 * 주소정렬에 사용한 offset들을 제거할 필요가 있다.
+		 *
+		 * 위 정렬은 다른 플렛폼간의 호환을 위한 것이다 - 초기 128MB
+  		 */
 		mov	r4, pc
 		and	r4, r4, #0xf8000000
 		/* Determine final kernel image address. */
@@ -503,6 +594,56 @@ not_angel:
 		orrcc	r4, r4, #1		@ remember we skipped cache_on
 		blcs	cache_on
 
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-10-03
+ * ------------------------------------------------------------------
+ *
+ * IAMROOT-12A:
+ * ------------
+ * r0에 현재 실행되는 상태의 LC0의 주소 값이 담기고,
+ * r1은 처음 이미지가 만들어질 때 당시의 주소 값(0을 기준으로)이 담겨 있고
+ * 이 둘의 차이 값이 r0(delta) 값이 된다.이 델타 값으로 Image의 위치를
+ * 가리키는 레지스터들을 보정하는데 사용한다.
+ *
+ * 코드가 재배치가 이루어진 후 이곳으로 재진입하게 되면 또 한 번 delta가
+ * 바뀌고 이 때에도 바뀐 주소로인해 관련 레지스터들의 주소를 교정한다.
+ *
+ * -r6 = _edata + delta
+ * -r10 = _input_data_end-4 + delta
+ *
+ *  _input_data_end-4 = 압축된 커널(piggy)의 마지막 어드레스를 의미함.
+ *                      데이터 내용은 압축된 커널의 길이.
+ *
+ *restart:	adr	r0, LC0			; r0 = &LC0
+ *		ldmia	r0, {r1, r2, r3, r6, r10, r11, r12}
+ *						; ldmia r0 주소에 있는 값을 차례로 다음 레지스터들에
+ *						; 값을 저장하고 r0값을 증가 시킨다. ia : Increase After
+ *						; r1 = LC0
+ *						; r2 = __bss_start
+ *						; r3 = _end
+ *						; r6 = _edata;
+ *						; r10 = input_data_end - 4
+ *						; r11 = _got_start
+ *						; r12(ip) = _got_end
+ *		ldr	sp, [r0, #28]		; sp = .L_user_stack_end
+ *
+ *		/ *
+ *		 * We might be running at a different address.  We need
+ *		 * to fix up various pointers.
+ *		 * 
+ *		 * 다른 주소에서 실행되고 있으므로 다양한 포인터등을 고칠 필요가있다.
+ *		 * /
+ *		sub	r0, r0, r1		@ calculate the delta offset
+ *						; r0 = r0 - r1 : &LC0 - &LC0
+ *						; Q) delta 란 무엇인가?  A) 0번지부터 이미지 최초위치
+ *						;   12 A팀 부팅관련 문서 참고
+ *		add	r6, r6, r0		@ _edata
+ *						; r6 = _edata + delta
+ *		add	r10, r10, r0		@ inflated kernel size location
+ *						; r10 = input_data_end - 4 + delta
+ *
+ */
 restart:	adr	r0, LC0
 		ldmia	r0, {r1, r2, r3, r6, r10, r11, r12}
 		ldr	sp, [r0, #28]
@@ -874,6 +1015,11 @@ params:		ldr	r0, =0x10000100		@ params_phys for RPC
 		.align
 #endif
 
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-10-03
+ * ------------------------------------------------------------------
+ */
 /*
  * Turn on the cache.  We need to setup some page tables so that we
  * can have both the I and D caches on.
@@ -887,9 +1033,18 @@ params:		ldr	r0, =0x10000100		@ params_phys for RPC
  *  r7 = architecture number
  *  r8 = atags pointer
  * On exit,
- *  r0, r1, r2, r3, r9, r10, r12 corrupted
+ *  r0, r1, r2, r3, r9, r10, r12 corrupted ; 사용되는 레지스터
  * This routine must preserve:
- *  r4, r7, r8
+ *  r4, r7, r8	; 사용되지 않은 레지스터
+ *
+ *  cache 를 ON시킴. I(Instruction Cache), D(Data Cache)
+ *  커널 실행 주소로부터 아래로 16k에 page table을위치시킨다.
+ *
+ *		.align	5		; 32Byte 정렬
+ *					; TODO: align이 뭔지 애매하다??
+ *cache_on:	mov	r3, #8			@ cache_on function
+ *					; ? #8 : cache on
+ *		b	call_cache_fn
  */
 		.align	5
 cache_on:	mov	r3, #8			@ cache_on function
@@ -962,6 +1117,127 @@ __armv3_mpu_cache_on:
 #else
 #define CB_BITS 0x0c
 #endif
+
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-10-10 
+ * 날짜: 2015-10-17
+ * ------------------------------------------------------------------
+ *
+ *  MMU 에 대한 설명 : http://recipes.egloos.com/5232056
+ *  페이징 소스를 C 코드로 구현: http://kth3321.blogspot.kr/2013/04/arm-cortex-1.html
+ *  소스 관련 참고 : http://www.iamroot.org/xe/Kernel_10_ARM/174738
+ *
+ * ==================================================================
+ * __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
+ * 				; r3 = r4 - 16384(16k)
+ * 				; r4 = cache_on 에서 설정된 kernel execution address
+ *				; arm의 경우 1M 단위로 페이지 세팅하기 때문에 
+ *				; 2^32 = 4G는 총4096개의 
+ *				; 엔트리가 필요하고 한 엔트리는 32비트 워드이기 때문
+ *				; 4096 * 4byte = 16k
+ *				; 0x8000 - 16k = 0x4000 모기향책 그림5-4 참고(66p)
+ *		bic	r3, r3, #0xff		@ Align the pointer
+ *				; bit clear r3 = r3 & ~0xff
+ *		bic	r3, r3, #0x3f00
+ *				; bit clear r3 = r3 & ~0x3f00
+ *				; 왜 r3 & ~0x3fff 로 하지 않는가?
+ *				; 답) 명령어 operand로 8bit만 받을 수있어 
+ *				;     부득이 하게 2번 처리하는 것
+ *				; 결국 하위 14bit를 지움, 16kB align을 위해
+ *				; if r4 = 0x0000 8000, 최종적으로 r3 = 0x0000 4000
+ *				; 참조)https://github.com/iamroot12b/kernel/issues/4
+ * Initialise the page tables, turning on the cacheable and bufferable
+ * bits for the RAM area only.
+ * 오직 메모리 영역만에만 cacheable bufferable로 설정
+ * 이것은 커널의 압축해제시 캐시와 쓰기버퍼사용을 통해서 압축해제 성능을 높이기 위함
+ * 모기향 책 65p
+ *
+ *		mov	r0, r3
+ *				; r0 = r3
+ *				; r3 페이지 디렉토리 시작주소  0x0000 4000
+ *				; 0100 0000 0000 0000
+ * 		mov	r9, r0, lsr #18
+ *				; 000 0000 0000 0000
+ *				; 2^18 = 256k
+ *				; r9 = r0 >> 18
+ *				; r9 = 0
+ *		mov	r9, r9, lsl #18		@ start of RAM
+ *				; r9 = r9 << 18
+ *				; r9 = 0
+ * 		add	r10, r9, #0x10000000	@ a reasonable RAM size
+ *				; why? 265MB가 리눅스 구동하기 위한 최소한 메모리??
+ *				; r10 = r9 + 256M
+ *				; r10 = End Of Ram
+ *		mov	r1, #0x12		@ XN|U + section mapping
+ *				; XN : http://www.iamroot.org/xe/Kernel_10_ARM/174738
+ *				; #define XN (XN_MASK << XN_SHIFT)
+ *				; XN_MASK = 0x01, XN_SHIFT = 4
+ *				; XN : MMU 접근권한 설정 
+ *				; r1 = 0x12 (10010)로 section entry table를 나타냄
+ *				; When the XN bit is 1, a Permission fault is 
+ *				; generated if the processor attempts to execute an
+ *				; instruction fetched from the corresponding memory 
+ *				; region.
+ *				; Lv.1 Page Table Entry에서 U는 entry의 종류를 나타냄
+ *				; 0b10은 section entry table을 나타냄
+ *				; 0b11은 fine entry table을 나타냄
+ *				; 0b01은 coarse entry table을 나타냄
+ *				; 0b00은 page fault를 나타냄
+ *		orr	r1, r1, #3 << 10	@ AP=11
+ *				; AP (Access Permition)를 설정
+ *				; AP는 11,10번 비트, Read & Write된다는 뜻
+ *				; r1 = 0b10010 | 0b110000000000
+ *				; r1 = 0xc12 (0b1100 0001 0010)
+ * 		add	r2, r3, #16384
+ *				; r2 = r3 + 16k
+ *				; r2 = Lv.1 PageTable의 끝, 밑 1:루프의 끝을 설정
+ * 1:		cmp	r1, r9			@ if virt > start of RAM
+ *				; r9은 시작주소
+ *				; 0xc12(AP = 11, XN|U = 10010)  > r9
+ *		cmphs	r10, r1			@   && end of RAM > virt
+ *				; r10 = 256MB
+ *				; hs (higher or same)
+ *				; if (r9 <= r1)면 수행됨
+ *		bic	r1, r1, #0x1c		@ clear XN|U + C + B
+ *				; r1 = 0xc12 (0b1100 0001 0010)
+ *				;      0x01c (0b0000 0001 1100)
+ * 				; r1 = 0xc02 (0b1100 0000 0010)
+ *		orrlo	r1, r1, #0x10		@ Set XN|U for non-RAM
+ *				; if(r10 < r1)면 수행됨, r10 = end of Ram
+ *				; post fix lo는 Unsigned lower (identical to CC)
+ *		orrhs	r1, r1, r6		@ set RAM section settings
+ *				; if (r9 <= r1 < r10)면 orrhs가 수행됨
+ *				; arch/arm/mm/Kconfig파일에 CPU_DCACHE_WRITETHROUGH
+ *				; 셋되어 있으면 CB_BITS = 0x08, 아니면 0x0c 
+ *				; r6 = #CB_BITS | 0x02로 0x1E아니면 0x1A값을 가짐  
+ *		str	r1, [r0], #4		@ 1:1 mapping
+ *				; r0는 페이지 디렉토리 시작주소  0x0000 4000 
+ *				; *(r0 + 4) = r1 
+ *		add	r1, r1, #1048576
+ *				; 1048576 = 0x100000
+ *				; section table entry의 base address는 1M단위
+ *		teq	r0, r2	; r2 = Lv.1 PageTable의 끝, 끝까지 루프를 돌았나?
+ *		bne	1b	; 아니면 1로 점프
+ *
+ * If ever we are running from Flash, then we surely want the cache
+ * to be enabled also for our execution instance...  We map 2MB of it
+ * so there is no map overlap problem for up to 1 MB compressed kernel.
+ * If the execution is in RAM then we would only be duplicating the above.
+ * 2015-10-24 시작부분
+ * 		orr	r1, r6, #0x04		@ ensure B is set for this
+ *		orr	r1, r1, #3 << 10
+ *		mov	r2, pc
+ *		mov	r2, r2, lsr #20
+ *		orr	r1, r1, r2, lsl #20
+ *		add	r0, r3, r2, lsl #2
+ *		str	r1, [r0], #4
+ * 		add	r1, r1, #1048576
+ *		str	r1, [r0]
+ *		mov	pc, lr
+ * ENDPROC(__setup_mmu)
+ * =============================================================================
+ */
 
 __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
 		bic	r3, r3, #0xff		@ Align the pointer
@@ -1036,6 +1312,53 @@ __armv4_mmu_cache_on:
 		mcr	p15, 0, r0, c8, c7, 0	@ flush I,D TLBs
 #endif
 		mov	pc, r12
+
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-10-10
+ * ------------------------------------------------------------------
+ * __armv7_mmu_cache_on:
+ * 		mov	r12, lr
+ *				; r12 = lr
+ * #ifdef CONFIG_MMU
+ *				; arch/arm/Kconfig
+ *				; config MMU
+ *				; bool "MMU-based Paged Memory Management Support"
+ *				; default y
+ * 				; help
+ *	  			; Select if you want MMU-based virtualised 
+ *				; addressing space
+ *	  			; support by paged memory management. 
+ *				; If unsure, say 'Y'.
+ *		mrc	p15, 0, r11, c0, c1, 4	@ read ID_MMFR0
+ *				; ID_MMFR0 : 메모리 모델 정보, 메모리관리 서포트 정보
+ * http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0438e/BABEHBEB.html
+ *
+ *		tst	r11, #0xf		@ VMSA
+ *				; 하위 4비트 VMSA 지원여부 체크 
+ * 				; 버추얼 메모리 시스템 아키텍쳐 = MMU? 
+ *		movne	r6, #CB_BITS | 0x02	@ !XN
+ *				; z 플래그가 0아닐 때(지원하면) 실행
+ *				; arch/arm/mm/Kconfig파일에 CPU_DCACHE_WRITETHROUGH
+ *				; 셋되어 있으면 CB_BITS = 0x08, 아니면 0x0c 
+ *				; r6 = #CB_BITS | 0x02  
+ * 		blne	__setup_mmu
+ *				; 
+ *		mov	r0, #0
+ *		mcr	p15, 0, r0, c7, c10, 4	@ drain write buffer
+ *		tst	r11, #0xf		@ VMSA
+ *		mcrne	p15, 0, r0, c8, c7, 0	@ flush I,D TLBs
+ * #endif
+ *		mrc	p15, 0, r0, c1, c0, 0	@ read control reg
+ * 		bic	r0, r0, #1 << 28	@ clear SCTLR.TRE
+ *		orr	r0, r0, #0x5000		@ I-cache enable, RR cache replacement
+ *		orr	r0, r0, #0x003c		@ write buffer
+ *		bic	r0, r0, #2		@ A (no unaligned access fault)
+ *		orr	r0, r0, #1 << 22	@ U (v6 unaligned access model)
+ *						@ (needed for ARM1176)
+ * 
+ * ==================================================================
+ */
 
 __armv7_mmu_cache_on:
 		mov	r12, lr
@@ -1118,6 +1441,53 @@ __common_mmu_cache_on:
  *  r3  = block offset
  *  r9  = corrupted
  *  r12 = corrupted
+ *
+ *  cache on : r3 = 8
+ *   On entry,
+ *    r4 = kernel execution address
+ *    r7 = architecture number
+ *    r8 = atags pointer
+ *
+ *
+ * call_cache_fn:	adr	r12, proc_types
+ * 					; r12 = &proc_types;
+ * #ifdef CONFIG_CPU_CP15
+ * 		mrc	p15, 0, r9, c0, c0	@ get processor ID
+ *					; r9 = processor ID
+ * #elif defined(CONFIG_CPU_V7M) ; cp15 코프로쎄서가 없으며 V7M cpu일때
+ * 		/ *
+ * 		 * On v7-M the processor id is located in the V7M_SCB_CPUID
+ * 		 * register, but as cache handling is IMPLEMENTATION DEFINED on
+ * 		 * v7-M (if existant at all) we just return early here.
+ * 		 * If V7M_SCB_CPUID were used the cpu ID functions (i.e.
+ * 		 * __armv7_mmu_cache_{on,off,flush}) would be selected which
+ * 		 * use cp15 registers that are not implemented on v7-M.
+ * 		 * /
+ * 		bx	lr
+ * #else
+ * 		ldr	r9, =CONFIG_PROCESSOR_ID
+ *				; r9 = CONFIG_PROCESSOR_ID
+ * #endif // CONFIG_CPU_CP15
+ *
+ * 1:		ldr	r1, [r12, #0]		@ get value
+ * 					; r1 = cpu ID : 0x41000000
+ * 		ldr	r2, [r12, #4]		@ get mask
+ * 					; r2 = cpu ID mask : 0xff00f000
+ * 		eor	r1, r1, r9		@ (real ^ match)
+ * 					; r1 = r1 ^ r9
+ * 		tst	r1, r2			@       & mask
+ *					; cpsr = r1 & 0xff00f000
+ *					; 정리 --> cpsr = (r9 ^ cpuID) & cpuMask
+ *					;  0 이면 : 같음, 1이외값 : 틀림
+ *  ARM(		addeq	pc, r12, r3		) @ call cache function
+ *					; r3=(cache온, cache오프, cache 클리어)
+ *					; tst r1, r2 값이 0으로 세팅되어있으면 pc = r12+r3
+ *  THUMB(		addeq	r12, r3			)
+ *  THUMB(		moveq	pc, r12			) @ call cache function
+ * 		add	r12, r12, #PROC_ENTRY_SIZE
+ *					; 
+ * 		b	1b
+ * 
  */
 
 call_cache_fn:	adr	r12, proc_types
