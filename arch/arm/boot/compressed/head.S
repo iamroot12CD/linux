@@ -9,30 +9,24 @@
  * ==================================================================
  */
 /* ==================================================================
- * 제 20주차 스터디
- * 날짜: 2015-09-05
+ * 제 27주차 스터디
+ * 날짜: 2015-10-24
  * 장소: 커널 연구회
  *
  * 팀:     Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
- * 참석자: 곽희범 (kh-1143@hanmail.net)
+ * 참석자:  곽희범 (kh-1143@hanmail.net)
  *         임채훈 (im.fehead@gmail.com)
- *         한대현 (rhrnak0501@gmail.com)
  *         민혜미 (mhyem2@naver.com)
- *         김동현 (dhkim1027@gmail.com)
- *         정종채 (fynia@naver.com)
- *         김문영 (m03y29@gmail.com)
- *         정성욱 (huber7908@gmail.com)
- *         김일호 (lkimilhol@naver.com)
- *         박창수 (darkpcs@gmail.com)
- *         곽승준 (rialtoksj@yahoo.com)
- *         배병휴 (isswindx@gmail.com)
  *         김영준 (iam.yeongjunkim@gmail.com)
  *         박종성 (@minidump)
  *         박병배 (i.billpark@gmail.com)
  *         안종찬 (ahnchan2@gmail.com)
- *         이상선 (razr1121@gmail.com)
+ *	   김건용 (gykim0914@gmail.com)
+ *	   권세홍 (sehongkwon2.24@gmail.com)
+ *	   조훈근 (hoonycho12@gmail.com)
+ *	   김민호 (8891m@naver.com)
  *
- *         참석인원: 17 명
+ *         참석인원: 10 명
  * ==================================================================
  */
 /*
@@ -1121,89 +1115,164 @@ __armv3_mpu_cache_on:
 /* ==================================================================
  * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
  * 날짜: 2015-10-10
+ * 날짜: 2015-10-17
  * ------------------------------------------------------------------
  *
+ *  Cache Cash : http://recipes.egloos.com/5170809
  *  MMU 에 대한 설명 : http://recipes.egloos.com/5232056
- *  페이징 소스를 C 코드로 구현 : http://kth3321.blogspot.kr/2013/04/arm-cortex-1.html
+ *  페이징 소스를 C 코드로 구현: http://kth3321.blogspot.kr/2013/04/arm-cortex-1.html
  *  소스 관련 참고 : http://www.iamroot.org/xe/Kernel_10_ARM/174738
  *
  * ==================================================================
  * __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
- * 					; r3 = r4 - 16384(16k)
- * 					; r4 = cache_on 에서 설정된 kernel execution address
- *					; arm의 경우 1M 단위로 페이지 세팅하기 때문에 
- *					; 2^32 = 4G는 총4096개의 
- *					; 엔트리가 필요하고 한 엔트리는 32비트 워드 이기 때문에
- *					; 4096 * 4byte = 16k
- *					; 0x00008000 - 16k = 0x00004000 모기향책 그림 5-4 참고(66p)
+ * 				; r3 = r4 - 16384(16k)
+ * 				; r4 = cache_on 에서 설정된 kernel execution address
+ *				; arm의 경우 1M 단위로 페이지 세팅하기 때문에
+ *				; 2^32 = 4G는 총4096개의
+ *				; 엔트리가 필요하고 한 엔트리는 32비트 워드이기 때문
+ *				; 4096 * 4byte = 16k
+ *				; 0x8000 - 16k = 0x4000 모기향책 그림5-4 참고(66p)
  *		bic	r3, r3, #0xff		@ Align the pointer
- *					; bit clear r3 = r3 & ~0xff
+ *				; bit clear r3 = r3 & ~0xff
  *		bic	r3, r3, #0x3f00
- *					; bit clear r3 = r3 & ~0x3f00
- *					; 왜 r3 & ~0x3fff 로 하지 않는가?
- *					; bic 명령어가 8비트밖에 클리어를 못함. operand2
- *
+ *				; bit clear r3 = r3 & ~0x3f00
+ *				; 왜 r3 & ~0x3fff 로 하지 않는가?
+ *				; 답) 명령어 operand로 8bit만 받을 수있어
+ *				;     부득이 하게 2번 처리하는 것
+ *				; 결국 하위 14bit를 지움, 16kB align을 위해
+ *				; if r4 = 0x0000 8000, 최종적으로 r3 = 0x0000 4000
+ *				; 참조)https://github.com/iamroot12b/kernel/issues/4
  * Initialise the page tables, turning on the cacheable and bufferable
  * bits for the RAM area only.
- * 메모리의 256M영역에대해서는 cacheable bufferable로 설정해 준다.
- * 이것은 커널의 압축해제시 캐시와 쓰기버퍼사용을 통해서 압축해제 성능을 높이기 위함이다.
+ * 오직 메모리 영역만에만 cacheable bufferable로 설정
+ * 이것은 커널의 압축해제시 캐시와 쓰기버퍼사용을 통해서 압축해제 성능을 높이기 위함
  * 모기향 책 65p
  *
  *		mov	r0, r3
- *					; r0 = r3
- *					; r3 페이지 디렉토리 시작주소  0x00004000
- *					; 100 0000 0000 0000
+ *				; r0 = r3
+ *				; r3 페이지 디렉토리 시작주소  0x0000 4000
+ *				; 0100 0000 0000 0000
  * 		mov	r9, r0, lsr #18
- *					; 000 0000 0000 0000
- *					; 2^18 = 256k
- *					; r9 = r0 >> 18
+ *				; 000 0000 0000 0000
+ *				; 2^18 = 256k
+ *				; r9 = r0 >> 18
+ *				; r9 = 0
  *		mov	r9, r9, lsl #18		@ start of RAM
- *					; r9 = r9 << 18
+ *				; r9 = r9 << 18
+ *				; r9 = 0
  * 		add	r10, r9, #0x10000000	@ a reasonable RAM size
- *					; r10 = r9 + 256M
- *					; r10 = End Of Ram
+ *				; why? 265MB가 리눅스 구동하기 위한 최소한 메모리??
+ *				; r10 = r9 + 256M
+ *				; r10 = End Of Ram
  *		mov	r1, #0x12		@ XN|U + section mapping
- *					; XN : http://www.iamroot.org/xe/Kernel_10_ARM/174738
- *					; XN : MMU 접근권한 설정 
- *					; r1 = 0x12 (10010)
+ *				; XN : http://www.iamroot.org/xe/Kernel_10_ARM/174738
+ *				; #define XN (XN_MASK << XN_SHIFT)
+ *				; XN_MASK = 0x01, XN_SHIFT = 4
+ *				; XN : MMU 접근권한 설정
+ *				; r1 = 0x12 (10010)로 section entry table를 나타냄
+ *				; When the XN bit is 1, a Permission fault is
+ *				; generated if the processor attempts to execute an
+ *				; instruction fetched from the corresponding memory
+ *				; region.
+ *				; Lv.1 Page Table Entry에서 U는 entry의 종류를 나타냄
+ *				; 0b10은 section entry table을 나타냄
+ *				; 0b11은 fine entry table을 나타냄
+ *				; 0b01은 coarse entry table을 나타냄
+ *				; 0b00은 page fault를 나타냄
  *		orr	r1, r1, #3 << 10	@ AP=11
- *					; r1 = 0xc12 
+ *				; AP (Access Permition)를 설정
+ *				; AP는 11,10번 비트, Read & Write된다는 뜻
+ *				; r1 = 0b10010 | 0b110000000000
+ *				; r1 = 0xc12 (0b1100 0001 0010)
  * 		add	r2, r3, #16384
- *					; r2 = r3 + 16k
- *					; r2 = kernel execution address
+ *				; r2 = r3 + 16k
+ *				; r2 = Lv.1 PageTable의 끝, 밑 1:루프의 끝을 설정
  * 1:		cmp	r1, r9			@ if virt > start of RAM
- *					; 0xc12 > r9
+ *				; r9은 시작주소
+ *				; 0xc12(AP = 11, XN|U = 10010)  > r9
  *		cmphs	r10, r1			@   && end of RAM > virt
- *					; if (r1 > r9 && r10 >= r1) 
+ *				; r10 = 256MB
+ *				; hs (higher or same)
+ *				; if (r9 <= r1)면 수행됨
  *		bic	r1, r1, #0x1c		@ clear XN|U + C + B
- *					; r1 = r1 && 0x1c 
+ *				; r1 = 0xc12 (0b1100 0001 0010)
+ *				;      0x01c (0b0000 0001 1100)
+ * 				; r1 = 0xc02 (0b1100 0000 0010)
  *		orrlo	r1, r1, #0x10		@ Set XN|U for non-RAM
- *					; 
+ *				; if(r10 < r1)면 수행됨, r10 = end of Ram
+ *				; post fix lo는 Unsigned lower (identical to CC)
  *		orrhs	r1, r1, r6		@ set RAM section settings
+ *				; if (r9 <= r1 < r10)면 orrhs가 수행됨
+ *				; arch/arm/mm/Kconfig파일에 CPU_DCACHE_WRITETHROUGH
+ *				; 셋되어 있으면 CB_BITS = 0x08, 아니면 0x0c
+ *				; r6 = #CB_BITS | 0x02로 0xE아니면 0xA값을 가짐
  *		str	r1, [r0], #4		@ 1:1 mapping
+ *				; r0는 페이지 디렉토리 시작주소  0x0000 4000
+ *				; *(r0 + 4) = r1
  *		add	r1, r1, #1048576
- *		teq	r0, r2
- *		bne	1b
+ *				; 1048576 = 0x100000
+ *				; section table entry의 base address는 1M단위
+ *		teq	r0, r2	; r2 = Lv.1 PageTable의 끝, 끝까지 루프를 돌았나?
+ *		bne	1b	; 아니면 1로 점프
  *
  * If ever we are running from Flash, then we surely want the cache
  * to be enabled also for our execution instance...  We map 2MB of it
  * so there is no map overlap problem for up to 1 MB compressed kernel.
  * If the execution is in RAM then we would only be duplicating the above.
- *
+ * 2015-10-24 시작부분
  * 		orr	r1, r6, #0x04		@ ensure B is set for this
+ *				; B(Write Buffer)를 on
+ *				; r1 = 0x0E
+ *				; CPU_DCACHE_WRITETHROUGH에 독립적으로 B를 활성화
  *		orr	r1, r1, #3 << 10
+ *				; AP를 rw활성화
  *		mov	r2, pc
+ *				; promgram counter를 r2에 대입
  *		mov	r2, r2, lsr #20
+ *				; r2 = r2 >> 20
+ *				; base 주소를 얻기 위한 과정
  *		orr	r1, r1, r2, lsl #20
+ * 				; r1 |= (r2 << 20)
+ *				; r1(0xC0E)
+ * 				; 설정값과 base 주소를 조합하는 과정
  *		add	r0, r3, r2, lsl #2
+ *				; r3 = 0x4000 (page directory 시작 주소)
+ * 				; r2 = base address
+ *				; r0 += (r2 << 2)
+ *				; result : r0 = 0x4000 + pc의 page entry의 주소
  *		str	r1, [r0], #4
+ *				; *r0 = r1 ; r0 += 4
  * 		add	r1, r1, #1048576
+ *				; 다음 page entry 값 세팅
+ * 				; 1MB = #1048576
  *		str	r1, [r0]
+ *				; *r0 = r1
  *		mov	pc, lr
+ *				; C언어의 return
+ *				; pc = link register
  * ENDPROC(__setup_mmu)
- *
- */
+ * =============================================================================
+*/
 
+/* ==========================================================================
+ * 제 27주차 스터디
+ * 날짜: 2015-10-24
+ * 장소: 커널 연구회
+ *
+ * 팀:     Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 참석자: 곽희범 (kh-1143@hanmail.net)
+ *         임채훈 (im.fehead@gmail.com)
+ *         민혜미 (mhyem2@naver.com)
+ *         김영준 (iam.yeongjunkim@gmail.com)
+ *         박종성 (@minidump)
+ *         박병배 (i.billpark@gmail.com)
+ *         안종찬 (ahnchan2@gmail.com)
+ *	   김건용 (gykim0914@gmail.com)
+ *	   권세홍 (sehongkwon2.24@gmail.com)
+ *	   조훈근 (hoonycho12@gmail.com)
+ *
+ *         참석인원: 10 명
+ * ==========================================================================*/
 __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
 		bic	r3, r3, #0xff		@ Align the pointer
 		bic	r3, r3, #0x3f00
@@ -1277,6 +1346,7 @@ __armv4_mmu_cache_on:
 		mcr	p15, 0, r0, c8, c7, 0	@ flush I,D TLBs
 #endif
 		mov	pc, r12
+
 /* ==================================================================
  * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
  * 날짜: 2015-10-10
@@ -1290,35 +1360,122 @@ __armv4_mmu_cache_on:
  *				; bool "MMU-based Paged Memory Management Support"
  *				; default y
  * 				; help
- *	  			; Select if you want MMU-based virtualised addressing space
- *	  			; support by paged memory management. If unsure, say 'Y'.
+ *	  			; Select if you want MMU-based virtualised
+ *				; addressing space
+ *	  			; support by paged memory management.
+ *				; If unsure, say 'Y'.
  *		mrc	p15, 0, r11, c0, c1, 4	@ read ID_MMFR0
  *				; ID_MMFR0 : 메모리 모델 정보, 메모리관리 서포트 정보
- *				; http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0438e/BABEHBEB.html
+ * http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0438e/BABEHBEB.html
+ *
  *		tst	r11, #0xf		@ VMSA
  *				; 하위 4비트 VMSA 지원여부 체크 
- * 				; 버추얼 메모리 시스템 아키텍쳐 
+ * 				; 버추얼 메모리 시스템 아키텍쳐 = MMU?
  *		movne	r6, #CB_BITS | 0x02	@ !XN
  *				; z 플래그가 0아닐 때(지원하면) 실행
- *				; arch/arm/mm/Kconfig CPU_DCACHE_WRITETHROUGH 
- *				; r6 = 0x0c | 0x02
+ *				; arch/arm/mm/Kconfig파일에 CPU_DCACHE_WRITETHROUGH
+ *				; 셋되어 있으면 CB_BITS = 0x08, 아니면 0x0c
+ *				; r6 = #CB_BITS | 0x02
  * 		blne	__setup_mmu
  *				; 
- *		mov	r0, #0
- *		mcr	p15, 0, r0, c7, c10, 4	@ drain write buffer
- *		tst	r11, #0xf		@ VMSA
- *		mcrne	p15, 0, r0, c8, c7, 0	@ flush I,D TLBs
- * #endif
- *		mrc	p15, 0, r0, c1, c0, 0	@ read control reg
- * 		bic	r0, r0, #1 << 28	@ clear SCTLR.TRE
- *		orr	r0, r0, #0x5000		@ I-cache enable, RR cache replacement
- *		orr	r0, r0, #0x003c		@ write buffer
- *		bic	r0, r0, #2		@ A (no unaligned access fault)
- *		orr	r0, r0, #1 << 22	@ U (v6 unaligned access model)
- *						@ (needed for ARM1176)
- * 
  * ==================================================================
  */
+
+/* ==========================================================================
+ * Team:           Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * Date:           24.10.2015
+ *
+ *		clean과 flush 차이 : http://linuxphil.blogspot.kr/2011/01/arm-clean-flush-invalidate.html ;
+ * This code is...
+ *		mov	r0, #0
+ *				; r0 = 0
+ *		mcr	p15, 0, r0, c7, c10, 4	@ drain write buffer
+ *				; cache의 clean == WriteBuffer의 drain (메모리 반영x)
+ *				; mcr (move to co-processor from resgister)
+ *		tst	r11, #0xf		@ VMSA
+ *				; VMSA 지원가능 여부 check
+ *		mcrne	p15, 0, r0, c8, c7, 0	@ flush I,D TLBs
+ * 				; 메모리 반영시키고 MMU의 페이지 테이블의 cache 비움
+ * #endif
+ *		mrc	p15, 0, r0, c1, c0, 0	@ read control reg
+ *				; r0로 control register를 가져옴.
+ *				; http://infocenter.arm.com/help/topic/com.arm.doc.ddi0464f/DDI0464F_cortex_a7_mpcore_r0p5_trm.pdf p.108
+ * 		bic	r0, r0, #1 << 28	@ clear SCTLR.TRE
+ *				; TRE : tex remap enable / disable
+ *				; text remap disable
+ *		orr	r0, r0, #0x5000		@ I-cache enable, RR cache replacement
+ *				; r0 |= 0x5000
+ *				; round
+ *		orr	r0, r0, #0x003c		@ write buffer
+ *				; r0 |= 0x003c
+ *		bic	r0, r0, #2		@ A (no unaligned access fault)
+ *				; r0 &= ~2
+ *				; SCTLR의 2번째 비트를 clear하면, alignment fault check disable
+ *				; ex) ldrh : align checking을 half word 단위로 하는데,
+ *				; SCTLR의 2번째 비트가 0으로 되어 있으면, 사용가능하고
+ *				; 1로 되어 있으면, alignment fault가 발생한다.
+ *				; link : http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0338g/Cdffhdje.html
+ *		orr	r0, r0, #1 << 22	@ U (v6 unaligned access model)
+ *				; arm v7의 경우 항상 1
+ *						@ (needed for ARM1176)
+ * ==========================================================================*/
+
+/* ==========================================================================
+ * Team:           Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * Date:           24.10.2015
+ *
+ * This code is...
+ *
+ *		#ifdef CONFIG_MMU
+ *			ARM_BE8(orr	r0, r0, #1 << 25 )	@ big-endian page tables
+ *				; ARM_BE8일 경우에 내부 명령어 실행
+ *				; SCTLR의 25번째 비트가 EE
+ *				; 용도: exception이 발생시, SCTLR.EE를 통해 CPSR.E를 설정
+ *			mrcne   p15, 0, r6, c2, c0, 2   @ read ttb control reg
+ *				; if (VMSA)
+ *				; r6  <- ttb(translation table base register)
+ *				; ttbr0 = user용
+ *				; ttbr1 = kernel용
+ *				; link : http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0211k/Bihgfcgf.html
+ *			orrne	r0, r0, #1		@ MMU enabled
+ *				; if (VMSA)
+ *				; r0 |= 1
+ *			movne	r1, #0xfffffffd		@ domain 0 = client
+ *				; DACR의 값을 설정
+ *				; 00 : No access	01: Client
+ *				; 10 : Reserved		11: Master
+ *			bic     r6, r6, #1 << 31        @ 32-bit translation system
+ * 				; r6의 2^32자리를 clear
+ *				; 31번 bit ->  EAE (extended address enable)
+ *				; EAE가 0일 경우, 32bit를 이용한다.
+ *				; EAE가 1일 경우, 40bit를 이용한다.
+ *				; ref : PAE
+ *			bic     r6, r6, #3 << 0         @ use only ttbr0
+ *				; 하위 2비트를 clear
+ *				; TTBCR의 N[2:0]으로 TTBR0의 base address field
+ *				; 길이를 설정한다.
+ *				; base address field 길이 : 31 ~ 14-N
+ *				; N : 0 ~ 7
+ *				; link : http://liris.cnrs.fr/~mmrissa/lib/exe/fetch.php?media=armv7-a-r-manual.pdf
+ *				; N이 0일경우 ARM v5와 ARM v6가 호환이 되고
+ *				; 그외의 값의 경우 base address field의 길이를 설정한다
+ *				; 2015.10.24
+ *-------------------------------------------------------------------------------------
+ *			mcrne	p15, 0, r3, c2, c0, 0	@ load page table pointer
+ *				; r3 <- page table pointer (0x4000)
+ *			mcrne	p15, 0, r1, c3, c0, 0	@ load domain access control
+ *				;  r1 <- domain access control
+ *
+ *			mcrne   p15, 0, r6, c2, c0, 2   @ load ttb control
+ * 		#endif
+ *			mcr	p15, 0, r0, c7, c5, 4	@ ISB
+ *			mcr	p15, 0, r0, c1, c0, 0	@ load control register
+ *			mrc	p15, 0, r0, c1, c0, 0	@ and read it back
+ *			mov	r0, #0
+ *			mcr	p15, 0, r0, c7, c5, 4	@ ISB
+ *			mov	pc, r12
+ *
+ * ==========================================================================*/
 
 __armv7_mmu_cache_on:
 		mov	r12, lr
