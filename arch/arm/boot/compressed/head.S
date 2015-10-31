@@ -592,6 +592,17 @@ not_angel:
  * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
  * 날짜: 2015-10-03
  * ------------------------------------------------------------------
+ * 날짜: 2015-10-31
+ * 참석자: 곽희범 (kh-1143@hanmail.net)
+ *         임채훈 (im.fehead@gmail.com)
+ *         김영준 (iam.yeongjunkim@gmail.com)
+ *         박병배 (i.billpark@gmail.com)
+ *         안종찬 (ahnchan2@gmail.com)
+ *	   권세홍 (sehongkwon2.24@gmail.com)
+ *	   김민호 (8891m@naver.com)
+ *         곽승준 (rialtoksj@yahoo.com)
+ *
+ *         참석인원: 8 명
  *
  * IAMROOT-12A:
  * ------------
@@ -609,18 +620,25 @@ not_angel:
  *  _input_data_end-4 = 압축된 커널(piggy)의 마지막 어드레스를 의미함.
  *                      데이터 내용은 압축된 커널의 길이.
  *
+ * (참고URL) r0와 r1값의 차이 - 메모리 주소와 offset 값
+ * http://www.iamroot.org/xe/Kernel_10_ARM/176234 
+ *
  *restart:	adr	r0, LC0			; r0 = &LC0
  *		ldmia	r0, {r1, r2, r3, r6, r10, r11, r12}
  *						; ldmia r0 주소에 있는 값을 차례로 다음 레지스터들에
- *						; 값을 저장하고 r0값을 증가 시킨다. ia : Increase After
- *						; r1 = LC0
- *						; r2 = __bss_start
- *						; r3 = _end
- *						; r6 = _edata;
- *						; r10 = input_data_end - 4
- *						; r11 = _got_start
- *						; r12(ip) = _got_end
- *		ldr	sp, [r0, #28]		; sp = .L_user_stack_end
+ *						; 값을 저장한다. 만약, r0 뒤에 ! 기호가 있는경우는
+ *                                              ; r0값을 증가시켜 저장한다. ia : Increase After
+ *                                              ; ldmia (load multiple increament after)
+ *                                              ;
+ *                                              ; (컴파일하여 확인해본 각 레지스터 값)
+ *						; r1 = LC0 (0x00000240 메모리주소)
+ *						; r2 = __bss_start (0x003d8a60 파일 offset값)
+ *						; r3 = _end (0x003d8a76 파일 offset값)
+ *						; r6 = _edata; (0x003d8a60 파일 offset값)
+ *						; r10 = input_data_end - 4 (0x003d8a22 파일 offset값)
+ *						; r11 = _got_start (0x003d8a34 파일 offset값)
+ *						; r12(ip) = _got_end (0x003d8a5c 파일 offset값)
+ *		ldr	sp, [r0, #28]		; sp = .L_user_stack_end (0x003d9a80 파일 offset값)
  *
  *		/ *
  *		 * We might be running at a different address.  We need
@@ -629,14 +647,115 @@ not_angel:
  *		 * 다른 주소에서 실행되고 있으므로 다양한 포인터등을 고칠 필요가있다.
  *		 * /
  *		sub	r0, r0, r1		@ calculate the delta offset
- *						; r0 = r0 - r1 : &LC0 - &LC0
+ *						; r0 = r0 - r1 : &LC0(메모리 주소) - &LC0(파일 offset값)
  *						; Q) delta 란 무엇인가?  A) 0번지부터 이미지 최초위치
  *						;   12 A팀 부팅관련 문서 참고
  *		add	r6, r6, r0		@ _edata
  *						; r6 = _edata + delta
  *		add	r10, r10, r0		@ inflated kernel size location
  *						; r10 = input_data_end - 4 + delta
+ *              (커널 ELF 헤더 정보)
+ *             Section Headers:
+ *             [Nr] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al
+ *             [ 0]                   NULL            00000000 000000 000000 00      0   0  0
+ *             [ 1] .text             PROGBITS        00000000 008000 003a94 00  AX  0   0 32
+ *             [ 2] .rodata           PROGBITS        00003a94 00ba94 000cc4 00   A  0   0  4
+ *             [ 3] .piggydata        PROGBITS        00004758 00c758 3d42ce 00   A  0   0  1
+ *             [ 4] .got.plt          PROGBITS        003d8a28 3e0a28 00000c 04  WA  0   0  4
+ *             [ 5] .got              PROGBITS        003d8a34 3e0a34 000028 00  WA  0   0  4
+ *             [ 6] .pad              PROGBITS        003d8a5c 3e0a5c 000004 00  WA  0   0  1
+ *             [ 7] .bss              NOBITS          003d8a60 3e0a60 00001c 00  WA  0   0  4
+ *             [ 8] .stack            NOBITS          003d8a80 3e0a60 001000 00  WA  0   0  1
+ * 		*
+ *		* The kernel build system appends the size of the
+ *		* decompressed kernel at the end of the compressed data
+ *		* in little-endian form.
+ *		*
+ *              r10 이 가리키고 있는 메모리의 값을 big-endian 에서 little-endian 포맷으로 변경하는 작업
+ *              (참고URL) http://www.iamroot.org/xe/Kernel_10_ARM/176234
  *
+ *		ldrb	r9, [r10, #0]
+ *		ldrb	lr, [r10, #1]
+ *		orr	r9, r9, lr, lsl #8
+ *		ldrb	lr, [r10, #2]
+ *		ldrb	r10, [r10, #3]
+ *		orr	r9, r9, lr, lsl #16
+ *		orr	r9, r9, r10, lsl #24
+ *
+ *              #ifndef CONFIG_ZBOOT_ROM        ; zImage(uImage, bzImage 포함)는 보통 SDRAM에 로딩하고
+ *                                              ; 그 후 실행되지만 그렇지 않고 바로 ROM/Flash에서
+ *                                              ; 동작시킬 수 있는데 이 때 커널 빌드 시
+ *                                              ; CONFIG_ZBOOT_ROM 옵션을 사용한다.
+ *                                              ; #ifndef 이므로 설정되어있지 않으면 이하 2라인이 수행된다.
+ *		         malloc space is above the relocated stack (64k max) 
+ *                                              ; 압축 커널 이미지의 이동을 위해, Stack Pointer 위에
+ *                                              ; 64k 크기의 버퍼를 할당하여 여유공간을 두기 위함.
+ *		        add	sp, sp, r0
+ *		        add	r10, sp, #0x10000
+ *              #else
+ *		        
+ *		         * With ZBOOT_ROM the bss/stack is non relocatable,
+ *	        	 * but someone could still run this code from RAM,
+ *		         * in which case our reference is _edata.
+ *		         *
+ *		        mov	r10, r6
+ *              #endif
+ *
+ *		mov	r5, #0			@ init dtb size to 0
+ *
+ * #ifdef CONFIG_ARM_APPENDED_DTB
+ * 		ldr	lr, [r6, #0]            ; lr = *(r6 + 0)
+ *                                              ; lr에는 DTB의 매직넘버가 저장된다.
+ * #ifndef __ARMEB__
+ *		ldr	r1, =0xedfe0dd0		@ sig is 0xd00dfeed big endian
+ *                                              ; big endian 사용시
+ * #else
+ *		ldr	r1, =0xd00dfeed         ; little endian 사용시
+ * #endif
+ *		cmp	lr, r1                  ; if(lr != r1) goto dtb_check_done;
+ *		bne	dtb_check_done		@ not found 
+ *                                              ; dtb_check_done은 dtb가 없는 경우이고, 아무작업도 하지 않음.
+ *
+ *
+ * #ifdef CONFIG_ARM_ATAG_DTB_COMPAT
+ * 		*
+ * 		 * OK... Let's do some funky business here.
+ * 		 * If we do have a DTB appended to zImage, and we do have
+ * 		 * an ATAG list around, we want the later to be translated
+ * 		 * and folded into the former here. No GOT fixup has occurred
+ * 		 * yet, but none of the code we're about to call uses any
+ * 		 * global variable.
+ * 		*
+ * 
+ * 		* Get the initial DTB size *
+ *              (참고URL) 현재까지의 메모리 맵 - 대박자료
+ *              http://www.iamroot.org/xe/Kernel_10_ARM/178300
+ * 2015-11-07 시작예정
+ *
+ * 		ldr	r5, [r6, #4]
+ * #ifndef __ARMEB__
+ * 		* convert to little endian *
+ * 		eor	r1, r5, r5, ror #16
+ * 		bic	r1, r1, #0x00ff0000
+ * 		mov	r5, r5, ror #8
+ * 		eor	r5, r5, r1, lsr #8
+ * #endif
+ * 		* 50% DTB growth should be good enough *
+ * 		add	r5, r5, r5, lsr #1
+ * 		* preserve 64-bit alignment *
+ * 		add	r5, r5, #7
+ * 		bic	r5, r5, #7
+ * 		* clamp to 32KB min and 1MB max *
+ * 		cmp	r5, #(1 << 15)
+ * 		movlo	r5, #(1 << 15)
+ * 		cmp	r5, #(1 << 20)
+ * 		movhi	r5, #(1 << 20)
+ * 		* temporarily relocate the stack past the DTB work space *
+ * 		add	sp, sp, r5
+ *
+ *
+ *
+ * 
  */
 restart:	adr	r0, LC0
 		ldmia	r0, {r1, r2, r3, r6, r10, r11, r12}
@@ -1527,7 +1646,6 @@ __armv4_mmu_cache_on:
  *				; N이 0일경우 ARM v5와 ARM v6가 호환이 되고
  *				; 그외의 값의 경우 base address field의 길이를 설정한다
  *				; 2015.10.24
- *-------------------------------------------------------------------------------------
  *			mcrne	p15, 0, r3, c2, c0, 0	@ load page table pointer
  *				; r3 <- page table pointer (0x4000)
  *			mcrne	p15, 0, r1, c3, c0, 0	@ load domain access control
@@ -1536,6 +1654,18 @@ __armv4_mmu_cache_on:
  *			mcrne   p15, 0, r6, c2, c0, 2   @ load ttb control
  * 		#endif
  *			mcr	p15, 0, r0, c7, c5, 4	@ ISB
+ *                              ; Instruction Syncronization Barrier
+ *                              ; ISB 수행 전의 내용을 파이프라인에서 모두 반영하여 비운다.
+ *                              ; 파이프라인을 비워서, 모든 명령들이 cache 나 memory 로 부터 fetch 되도록 한다.
+ *                              ; 따라서, ISB 이전 수행이 완료되었음을 보장한다.
+ *                              ; (참고URL)
+ *                              ; http://forum.falinux.com/zbxe/index.php?document_srl=534002&mid=Kernel_API
+ *                              ; http://www.iamroot.org/xe/Kernel_8_ARM/58427
+ *                              ; (참고) 이전 버전의 커널에서는 ISB를 사용하지 않고, 다음과 같이 처리함.
+ *                              ;       mcr	p15, 0, r0, c1, c0, 0	@ load control register
+ *              		;       mrc	p15, 0, r0, c1, c0, 0	@ and read it back to
+ *		                ;       sub	pc, lr, r0, lsr #32	@ properly flush pipeline
+ *
  *			mcr	p15, 0, r0, c1, c0, 0	@ load control register
  *			mrc	p15, 0, r0, c1, c0, 0	@ and read it back
  *			mov	r0, #0
@@ -1654,9 +1784,9 @@ __common_mmu_cache_on:
  * #endif // CONFIG_CPU_CP15
  *
  * 1:		ldr	r1, [r12, #0]		@ get value
- * 					; r1 = cpu ID : 0x41000000
+ * 					; r1 = cpu ID : 0x410fc075 (라즈베리파이 2 CPU ID)
  * 		ldr	r2, [r12, #4]		@ get mask
- * 					; r2 = cpu ID mask : 0xff00f000
+ * 					; r2 = cpu ID mask : 0x000f0000
  * 		eor	r1, r1, r9		@ (real ^ match)
  * 					; r1 = r1 ^ r9
  * 		tst	r1, r2			@       & mask
