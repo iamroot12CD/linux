@@ -97,6 +97,28 @@ static void merge_fdt_bootargs(void *fdt, const char *fdt_cmdline)
 	setprop_string(fdt, "/chosen", "bootargs", cmdline);
 }
 
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-11-07
+ * ------------------------------------------------------------------
+ *  
+ * 참석자: 곽희범 (andrew@norux.me)
+ *	   임채훈 (im.fehead@gmail.com)
+ *	   박종성 (@minidump)
+ *	   안종찬 (ahnchan2@gmail.com)
+ *	   김건용 (gykim0914@gmail.com)
+ *	   권세홍 (sehongkwon2.24@gmail.com)
+ *	   조훈근 (hoonycho12@gmail.com)
+ *	   김민호 (8891m@naver.com)
+ *	   정종채 (fynia@naver.com)
+ *	   김문영 (m03y29@gmail.com)
+ *
+ *	   참석인원: 10 명
+ *
+ * http://www.iamroot.org/xe/Kernel_10_ARM/178300
+ *
+ * ==================================================================
+ */
 /*
  * Convert and fold provided ATAGs into the provided FDT.
  *
@@ -105,6 +127,7 @@ static void merge_fdt_bootargs(void *fdt, const char *fdt_cmdline)
  *    = 1 -> bad ATAG (may retry with another possible ATAG pointer)
  *    < 0 -> error from libfdt
  */
+ /* fdt의 첫 4byte 값은 MAGIC_NUMBER이고 두번째 4byte 값은 fdt의 size */
 int atags_to_fdt(void *atag_list, void *fdt, int total_space)
 {
 	struct tag *atag = atag_list;
@@ -115,6 +138,8 @@ int atags_to_fdt(void *atag_list, void *fdt, int total_space)
 	int ret, memsize;
 
 	/* make sure we've got an aligned pointer */
+	// 하위 두비트 값 확인  http://www.iamroot.org/xe/Kernel_10_ARM/178300
+	// atag_list = 0x00000100 
 	if ((u32)atag_list & 0x3)
 		return 1;
 
@@ -130,6 +155,7 @@ int atags_to_fdt(void *atag_list, void *fdt, int total_space)
 
 	/* let's give it all the room it could need */
 	ret = fdt_open_into(fdt, fdt, total_space);
+	// 15-11-07 여기 이전.
 	if (ret < 0)
 		return ret;
 

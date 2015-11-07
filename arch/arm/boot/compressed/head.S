@@ -10,21 +10,20 @@
  */
 /* ==================================================================
  * 제 27주차 스터디
- * 날짜: 2015-10-24
+ * 날짜: 2015-11-07
  * 장소: 커널 연구회
  *
  * 팀:     Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
  * 참석자: 곽희범 (andrew@norux.me)
  *	   임채훈 (im.fehead@gmail.com)
- *	   민혜미 (mhyem2@naver.com)
- *	   김영준 (iam.yeongjunkim@gmail.com)
  *	   박종성 (@minidump)
- *	   박병배 (i.billpark@gmail.com)
  *	   안종찬 (ahnchan2@gmail.com)
  *	   김건용 (gykim0914@gmail.com)
  *	   권세홍 (sehongkwon2.24@gmail.com)
  *	   조훈근 (hoonycho12@gmail.com)
  *	   김민호 (8891m@naver.com)
+ *	   정종채 (fynia@naver.com)
+ *	   김문영 (m03y29@gmail.com)
  *
  *	   참석인원: 10 명
  * ==================================================================
@@ -108,9 +107,6 @@
 		.macro	loadsp, rb, tmp
 		.endm
 		.macro	writeb, ch, rb
-		mcr	p14, 0, \ch, c0, c5, 0
-		.endm
-#elif defined(CONFIG_CPU_XSCALE)
 		.macro	loadsp, rb, tmp
 		.endm
 		.macro	writeb, ch, rb
@@ -451,6 +447,7 @@
  *			; r7 = r1
  *
  *		mov	r8, r2			@ save atags pointer
+ *			; bootloader로부터 atag 위치를 전달받음.
  *			; r8 = r2
  *
  *			; [질문] atags pointer는 무엇인가요?
@@ -865,11 +862,11 @@ not_angel:
  *
  * #ifndef __ARMEB__
  *		ldr	r1, =0xedfe0dd0		@ sig is 0xd00dfeed big endian
- *			; big endian 사용시
+ *			; little endian 사용시
  *
  * #else
  *		ldr	r1, =0xd00dfeed
- *			; little endian 사용시
+ *			; big endian 사용시
  *
  * #endif
  *		cmp	lr, r1 
@@ -898,26 +895,85 @@ not_angel:
  * < 2015-11-07 시작예정 >
  *
  * 		ldr	r5, [r6, #4]
- * #ifndef __ARMEB__
+ *			;r5에 dtb의 첫번째 data값을 넣는다. 		
+ *                      ;r6의 +4값은 dtb의 사이즈를 의미하는것으로 생각됨.
+ * #ifndef __ARMEB__   
+ *			;big endian이 아닐때 우리는 __ARMEB__가 정의되어 있지
+ *                      ;않으므로 여기를 타게 됨
  * 		* convert to little endian *
  * 		eor	r1, r5, r5, ror #16
+ *			;r1=(r5)^(r5>>16) ;rotate는 
  * 		bic	r1, r1, #0x00ff0000
+ *			;r1 = r1 & !(0x00ff0000)
  * 		mov	r5, r5, ror #8
+ *			;r5 = r5 >> 8
  * 		eor	r5, r5, r1, lsr #8
+ *			;r5 = r5 ^ (r1 >> 8)
+ *			;여기까지 r5의 빅엔디안 -> 리틀엔디안 수정작업
+ *                      ;ex) r5 = 0x12345678 -> r5 = 0x78563412
  * #endif
  * 		* 50% DTB growth should be good enough *
  * 		add	r5, r5, r5, lsr #1
+ *			;r5 = r5 + (r5 >> 1)  
  * 		* preserve 64-bit alignment *
  * 		add	r5, r5, #7
+ *			;r5 = r5 + 7
  * 		bic	r5, r5, #7
+ *			;r5 = r5 & !(0b...111)
+ *                      ;8올림 연산을 수행하여 값이 8의 배수가 되게함
  * 		* clamp to 32KB min and 1MB max *
  * 		cmp	r5, #(1 << 15)
+ *			;r5와 32k를 비교
  * 		movlo	r5, #(1 << 15)
+ *			;r5 = 32k lo=미만
  * 		cmp	r5, #(1 << 20)
+ *			; r5와 1MB를 비교
  * 		movhi	r5, #(1 << 20)
+ *			;r5 = 1Mb 초과 hi=초과
  * 		* temporarily relocate the stack past the DTB work space *
  * 		add	sp, sp, r5
+ *			;sp = sp+r5 DTB사이즈만큼 그위에 스택위치도 수정되야함
+ *       	stmfd	sp!, {r0-r3, ip, lr}
  *
+ *			;http://recipes.egloos.com/5059742 //stack명령 참고
+ *
+ *			;stmfd 
+ *			;ex) sp = 0x5400, r0=1, r1= 2, r2=3, r3=4, ip=7, lr=8
+ *                          stm명령 수행후 sp값은 아래와 같이 됩니다.
+ *    	                       바뀐 sp=> | r0
+ *		 			 | r1
+ *					 | r2
+ *					 | r3
+ *					 | ip
+ *					 | lr
+ *		      기존 sp = 0x5400   |
+ *
+ *       	mov	r0, r8
+ *			;r8은 기존에 atag pointer가 저장되어 있음.
+ *       	mov	r1, r6
+ *			;r6은 DTB를 가리키는  edata값
+ *       	mov	r2, r5
+ *			;r5는 DTB의 total space 
+ *       	bl	atags_to_fdt
+ *			;c함수로 점프
+ *              ;int atags_to_fdt(void *atag_list, void *fdt, int total_space)
+ *
+ *       	
+ *       	 * If returned value is 1, there is no ATAG at the location
+ *       	 * pointed by r8.  Try the typical 0x100 offset from start
+ *       	 * of RAM and hope for the best.
+ *       	 *
+ *       	cmp	r0, #1
+ *       	sub	r0, r4, #TEXT_OFFSET
+ *       	bic	r0, r0, #1
+ *       	add	r0, r0, #0x100
+ *       	mov	r1, r6
+ *       	mov	r2, r5
+ *       	bleq	atags_to_fdt
+
+ *       	ldmfd	sp!, {r0-r3, ip, lr}
+ *       	sub	sp, sp, r5
+ *#endif
  * ==================================================================
  */
 
@@ -2839,10 +2895,3 @@ __enter_kernel:
  ARM(		mov	pc, r4		)	@ call kernel
  M_CLASS(	add	r4, r4, #1	)	@ enter in Thumb mode for M class
  THUMB(		bx	r4		)	@ entry point is always ARM for A/R classes
-
-reloc_code_end:
-
-		.align
-		.section ".stack", "aw", %nobits
-.L_user_stack:	.space	4096
-.L_user_stack_end:
