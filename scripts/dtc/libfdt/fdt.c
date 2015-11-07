@@ -55,6 +55,7 @@
 
 #include "libfdt_internal.h"
 
+//MAGIC값과 VERSION을 체크해서 문제가 있을 시 음수값을 리턴함.
 int fdt_check_header(const void *fdt)
 {
 	if (fdt_magic(fdt) == FDT_MAGIC) {
