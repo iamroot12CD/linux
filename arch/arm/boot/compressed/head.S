@@ -107,6 +107,9 @@
 		.macro	loadsp, rb, tmp
 		.endm
 		.macro	writeb, ch, rb
+		mcr	p14, 0, \ch, c0, c5, 0
+		.endm
+#elif defined(CONFIG_CPU_XSCALE)
 		.macro	loadsp, rb, tmp
 		.endm
 		.macro	writeb, ch, rb
@@ -2895,3 +2898,10 @@ __enter_kernel:
  ARM(		mov	pc, r4		)	@ call kernel
  M_CLASS(	add	r4, r4, #1	)	@ enter in Thumb mode for M class
  THUMB(		bx	r4		)	@ entry point is always ARM for A/R classes
+
+reloc_code_end:
+
+		.align
+		.section ".stack", "aw", %nobits
+.L_user_stack:	.space	4096
+.L_user_stack_end:
