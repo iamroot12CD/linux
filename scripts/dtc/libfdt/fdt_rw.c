@@ -433,15 +433,20 @@ int fdt_open_into(const void *fdt, void *buf, int bufsize)
 	// 아래 함수에서 fdt의 MAGIC, VERSION 을 체크해서 문제시 에러로 리턴함.
 	FDT_CHECK_HEADER(fdt);
 
+	/* memory reserve map의 총 size를 계산한다. */
 	mem_rsv_size = (fdt_num_mem_rsv(fdt)+1)
 		* sizeof(struct fdt_reserve_entry);
 
+	/* DEFAULT_FDT_VERSION이 17이다. */
 	if (fdt_version(fdt) >= 17) {
 		struct_size = fdt_size_dt_struct(fdt);
 	} else {
 		struct_size = 0;
 		while (fdt_next_tag(fdt, struct_size, &struct_size) != FDT_END)
 			;
+		/* 
+		 * next tag를 계속 구한다. 만약 size가 음수가 된다면, 에러이다.
+		 */
 		if (struct_size < 0)
 			return struct_size;
 	}

@@ -79,11 +79,32 @@ const void *fdt_offset_ptr(const void *fdt, int offset, unsigned int len)
 {
 	const char *p;
 
+	/* 0x11 = 17, Default version */
 	if (fdt_version(fdt) >= 0x11)
+		/* 1. offset의 overflow체크? len은 unsigned int임.
+		 * 2. offset+len은 size_dt_struct보다 작거나 같아야만 한다.
+		 *
+		 *  ex)    dt_struct
+		 *	+-------------+  			+
+		 * 	|             |  			|
+		 * 	|  something  |				| dt_struct_size
+		 * 	|             |  			|
+		 * 	+-------------+  <-- dt_struct_offset	+
+		 *
+		 *  _fdt_offset_ptr 내부에서 dt_struct_offset + offset을 한다.
+		 *  따라서, offset + len 이 dt_struct_size 보다 크면 안된다.
+		 *
+		 * 아래 if를 거꾸로 쓰면,
+		 *  offset < offset + len < fdt_size_dt_struct(fdt)
+		 *
+		 * len이 unsigned!!! 절대 음수가 들어올 수 없음.
+		 * 따라서 오버플로우 방어코드라고 추정..
+		 */
 		if (((offset + len) < offset)
 		    || ((offset + len) > fdt_size_dt_struct(fdt)))
 			return NULL;
 
+	/* offset은 Valid 검증된 이후 */
 	p = _fdt_offset_ptr(fdt, offset);
 
 	if (p + len < p)
@@ -99,6 +120,7 @@ uint32_t fdt_next_tag(const void *fdt, int startoffset, int *nextoffset)
 	const char *p;
 
 	*nextoffset = -FDT_ERR_TRUNCATED;
+	/* FDT_TAGSIZE: sizeof(uint32_t) word사이즈 */
 	tagp = fdt_offset_ptr(fdt, offset, FDT_TAGSIZE);
 	if (!tagp)
 		return FDT_END; /* premature end */
@@ -107,6 +129,13 @@ uint32_t fdt_next_tag(const void *fdt, int startoffset, int *nextoffset)
 
 	*nextoffset = -FDT_ERR_BADSTRUCTURE;
 	switch (tag) {
+	    /*
+		#define FDT_BEGIN_NODE	0x1		
+		#define FDT_END_NODE	0x2
+		#define FDT_PROP	0x3
+
+		[2015-11-07 여기까지 함]
+	    */
 	case FDT_BEGIN_NODE:
 		/* skip name */
 		do {
