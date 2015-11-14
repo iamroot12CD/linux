@@ -96,10 +96,12 @@ int fdt_get_mem_rsv(const void *fdt, int n, uint64_t *address, uint64_t *size)
 	return 0;
 }
 
+/* memory reserve map의 개수를 구한다.*/ 
 int fdt_num_mem_rsv(const void *fdt)
 {
 	int i = 0;
 
+	/* size가 0이 아니면 reserve map이 있다고 판단한다. */
 	while (fdt64_to_cpu(_fdt_mem_rsv(fdt, i)->size) != 0)
 		i++;
 	return i;

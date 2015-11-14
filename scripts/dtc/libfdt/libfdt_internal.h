@@ -69,6 +69,7 @@ int _fdt_node_end_offset(void *fdt, int nodeoffset);
 
 static inline const void *_fdt_offset_ptr(const void *fdt, int offset)
 {
+	/* dt_struct의 시작 지점(offset) + 계산되고 있는 offset */
 	return (const char *)fdt + fdt_off_dt_struct(fdt) + offset;
 }
 

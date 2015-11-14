@@ -412,27 +412,41 @@ static void _fdt_packblocks(const char *old, char *new,
 	fdt_set_off_dt_strings(new, strings_off);
 	fdt_set_size_dt_strings(new, fdt_size_dt_strings(old));
 }
+/*
+val = 0x 30, *val=10
+const int * ptr1=&val;   10을 못바꿈 (data를 못바꿈)
+int * const ptr2 = &val2 ; 30을 못바꿈 (주소 번지를 못바꿈)
 
+fdt = DTB의 시작 주소
+*/
 int fdt_open_into(const void *fdt, void *buf, int bufsize)
 {
 	int err;
 	int mem_rsv_size, struct_size;
 	int newsize;
 	const char *fdtstart = fdt;
+	/*bufsize는 32K 1MB제안을 건것이어서 아래 macro에서 struct에서 가져 온
+	것과 다를 수 있다.*/
 	const char *fdtend = fdtstart + fdt_totalsize(fdt);
 	char *tmp;
 
+	// 아래 함수에서 fdt의 MAGIC, VERSION 을 체크해서 문제시 에러로 리턴함.
 	FDT_CHECK_HEADER(fdt);
 
+	/* memory reserve map의 총 size를 계산한다. */
 	mem_rsv_size = (fdt_num_mem_rsv(fdt)+1)
 		* sizeof(struct fdt_reserve_entry);
 
+	/* DEFAULT_FDT_VERSION이 17이다. */
 	if (fdt_version(fdt) >= 17) {
 		struct_size = fdt_size_dt_struct(fdt);
 	} else {
 		struct_size = 0;
 		while (fdt_next_tag(fdt, struct_size, &struct_size) != FDT_END)
 			;
+		/* 
+		 * next tag를 계속 구한다. 만약 size가 음수가 된다면, 에러이다.
+		 */
 		if (struct_size < 0)
 			return struct_size;
 	}
