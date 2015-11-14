@@ -122,10 +122,17 @@ static void merge_fdt_bootargs(void *fdt, const char *fdt_cmdline)
 /*
  * Convert and fold provided ATAGs into the provided FDT.
  *
+ * atags의 내용을 fdt에 변환하여 넣는다.
+ *
  * REturn values:
  *    = 0 -> pretend success
  *    = 1 -> bad ATAG (may retry with another possible ATAG pointer)
  *    < 0 -> error from libfdt
+ *
+ * head.S 소스 restart 라벨 근처에서 호출됨
+ * in	atags_list	atags 주소 0x00000100
+ * in	fdt		dtb의 주소 .bss 주소
+ * in	total_space	32KB <= (dtb_totalsize * 1.5) <= 1MB
  */
  /* fdt의 첫 4byte 값은 MAGIC_NUMBER이고 두번째 4byte 값은 fdt의 size */
 int atags_to_fdt(void *atag_list, void *fdt, int total_space)
@@ -155,7 +162,6 @@ int atags_to_fdt(void *atag_list, void *fdt, int total_space)
 
 	/* let's give it all the room it could need */
 	ret = fdt_open_into(fdt, fdt, total_space);
-	// 15-11-07 여기 이전.
 	if (ret < 0)
 		return ret;
 
@@ -167,6 +173,22 @@ int atags_to_fdt(void *atag_list, void *fdt, int total_space)
 			 * the device tree and in the tags, the one from the
 			 * tags will be chosen.
 			 */
+			/*
+			 * do_extend_cmdline는 아래 config 가 들어가 있을때 1
+			 *   ARM_ATAG_DTB_COMPAT_CMDLINE_EXTEND
+			 *     "Extend with bootloader kernel arguments"
+			 *     help
+			 *     The command-line arguments provided by the boot
+			 *     loader will be appended to the the device tree
+			 *     bootargs property.
+			 *
+			 * /arch/arm/boot/dts/ *.dts 파일 중 아래 옵션
+			 *   chosen {
+			 *    bootargs = "console=ttyS0,115200 ubi.mtd=4 \
+			 *       root=ubi0:rootfs rootfstype=ubifs";
+			 *   };
+			 */
+			// 2015-11-21 시작할 위치
 			if (do_extend_cmdline)
 				merge_fdt_bootargs(fdt,
 						   atag->u.cmdline.cmdline);

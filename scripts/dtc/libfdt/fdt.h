@@ -3,6 +3,7 @@
 
 #ifndef __ASSEMBLY__
 
+// sizeof(fdt_header)는 40byte
 struct fdt_header {
 	uint32_t magic;			 /* magic word FDT_MAGIC */
 	uint32_t totalsize;		 /* total size of DT block */
