@@ -4,8 +4,19 @@
  * Small subset of simple string routines
  */
 
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-11-14
+ * ------------------------------------------------------------------
+ * 
+ * ==================================================================
+ */
 #include <linux/string.h>
 
+/*
+ * 최적화를 위해 loop unrolling처리
+ * dest가 src보다 작은 경우 복사시 안전
+ */
 void *memcpy(void *__dest, __const void *__src, size_t __n)
 {
 	int i = 0;
@@ -40,6 +51,9 @@ void *memcpy(void *__dest, __const void *__src, size_t __n)
 	return __dest;
 }
 
+/*
+ * 버퍼 끝에서 부터 복사를 하여 항상 안전한 복사가 가능하다.
+ */
 void *memmove(void *__dest, __const void *__src, size_t count)
 {
 	unsigned char *d = __dest;

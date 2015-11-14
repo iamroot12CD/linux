@@ -55,9 +55,36 @@
 
 #include "libfdt_internal.h"
 
+/*
+ * fdt 블럭의 순서들이 올바른지 체크한다.
+ *
+ * return 0 : 올바르다
+ * 	0이 아님 : 옳지 않다
+ */
 static int _fdt_blocks_misordered(const void *fdt,
 			      int mem_rsv_size, int struct_size)
 {
+	/**
+	 * FDT 순서는 아래와 같다.
+	 *  아래의 영역들은 인접한 영역이다.
+	 * +--------------------+ <-- fdt
+	 * | fdt_header(40byte) |
+	 * +--------------------+
+	 * | mem_rsvmap         |
+	 * | ...                |
+	 * +--------------------+
+	 * | dt_struct          |
+	 * | ...                |
+	 * +--------------------+
+	 * | dt_strings         |
+	 * | ...                |
+	 * +--------------------+ <-- total_size
+	 *
+	 * 1. off_mem_rsvmap 은 fdt_header size보다 커야 된다.
+	 * 2. dt_struct 는 mem_rsvmap 뒤에 있어야 한다.
+	 * 3. dt_strings 는 dt_struct 보다 뒤에 있어야 한다.
+	 * 4. totalsize는 dt_strings 보다 뒤에 있어야한다.
+	 */
 	return (fdt_off_mem_rsvmap(fdt) < FDT_ALIGN(sizeof(struct fdt_header), 8))
 		|| (fdt_off_dt_struct(fdt) <
 		    (fdt_off_mem_rsvmap(fdt) + mem_rsv_size))
@@ -391,15 +418,36 @@ int fdt_del_node(void *fdt, int nodeoffset)
 				  endoffset - nodeoffset, 0);
 }
 
+/*
+ * in	old	fdt
+ * out	new	조정된 fdt
+ */
 static void _fdt_packblocks(const char *old, char *new,
 			    int mem_rsv_size, int struct_size)
 {
+	/**
+	 * FDT 순서는 아래와 같다.
+	 *  아래의 영역들은 인접한 영역이다.
+	 * +--------------------+ <-- fdt
+	 * | fdt_header(40byte) |
+	 * +--------------------+ <-- mem_rsv_off
+	 * | mem_rsvmap         |
+	 * | ...                |
+	 * +--------------------+ <-- struct_off
+	 * | dt_struct          |
+	 * | ...                |
+	 * +--------------------+ <-- strings_off
+	 * | dt_strings         |
+	 * | ...                |
+	 * +--------------------+ <-- total_size
+	 */
 	int mem_rsv_off, struct_off, strings_off;
 
 	mem_rsv_off = FDT_ALIGN(sizeof(struct fdt_header), 8);
 	struct_off = mem_rsv_off + mem_rsv_size;
 	strings_off = struct_off + struct_size;
 
+	// 순서에 맞게 fdt의 각각의 블럭들의 정보를 설정 및 복사한다.
 	memmove(new + mem_rsv_off, old + fdt_off_mem_rsvmap(old), mem_rsv_size);
 	fdt_set_off_mem_rsvmap(new, mem_rsv_off);
 
@@ -412,12 +460,21 @@ static void _fdt_packblocks(const char *old, char *new,
 	fdt_set_off_dt_strings(new, strings_off);
 	fdt_set_size_dt_strings(new, fdt_size_dt_strings(old));
 }
-/*
-val = 0x 30, *val=10
-const int * ptr1=&val;   10을 못바꿈 (data를 못바꿈)
-int * const ptr2 = &val2 ; 30을 못바꿈 (주소 번지를 못바꿈)
 
-fdt = DTB의 시작 주소
+/*
+ * fdt struct의 공간 확보를 하는것이 아닐까?
+ *
+ * in	fdt	fdt
+ * out	buf	fdt
+ * in	bufsize	fdt의 총 크기
+ * return	0 성공,
+ * 		0미만 실패
+ *
+ * val = 0x 30, *val=10
+ * const int * ptr1=&val;   10을 못바꿈 (data를 못바꿈)
+ * int * const ptr2 = &val2 ; 30을 못바꿈 (주소 번지를 못바꿈)
+ * 
+ * fdt = DTB의 시작 주소
 */
 int fdt_open_into(const void *fdt, void *buf, int bufsize)
 {
@@ -425,8 +482,13 @@ int fdt_open_into(const void *fdt, void *buf, int bufsize)
 	int mem_rsv_size, struct_size;
 	int newsize;
 	const char *fdtstart = fdt;
-	/*bufsize는 32K 1MB제안을 건것이어서 아래 macro에서 struct에서 가져 온
-	것과 다를 수 있다.*/
+	/*bufsize는 32K 1MB제한을 건것이어서 아래 macro에서 struct에서 가져 온
+	것과 다를 수 있다.
+
+	fdt_totalsize(fdt) 설명:
+		struct fdt_header * pf = fdt;
+		return pf->totalsize
+	 */
 	const char *fdtend = fdtstart + fdt_totalsize(fdt);
 	char *tmp;
 
@@ -441,27 +503,40 @@ int fdt_open_into(const void *fdt, void *buf, int bufsize)
 	if (fdt_version(fdt) >= 17) {
 		struct_size = fdt_size_dt_struct(fdt);
 	} else {
+		/* 버전 17이전에는 dt_struct  struct_size 멤버가 없었다
+		 * struct_size 를 모두 구할때까지 다음 tag를 계속 구한다.
+		 */
 		struct_size = 0;
 		while (fdt_next_tag(fdt, struct_size, &struct_size) != FDT_END)
 			;
-		/* 
-		 * next tag를 계속 구한다. 만약 size가 음수가 된다면, 에러이다.
-		 */
+
+		// 만약 size가 음수가 된다면, 에러이다.
 		if (struct_size < 0)
 			return struct_size;
 	}
 
 	if (!_fdt_blocks_misordered(fdt, mem_rsv_size, struct_size)) {
+		// 순서가 올바른 경우
 		/* no further work necessary */
 		err = fdt_move(fdt, buf, bufsize);
 		if (err)
 			return err;
+
+		/* scripts/dtc/libfdt/libfdt.h 파일에 __fdt_set_hdr(version); 가
+		 * 선언 되어 있으며 이것은 아래와 같은 inline 함수로 대처 된다.
+		 *  static inline void fdt_set_version(void *fdt, uint32_t val)
+		 *  {
+		 *          struct fdt_header *fdth = (struct fdt_header*)fdt;
+		 *          fdth->version = cpu_to_fdt32(val);
+		 *  }
+		 */
 		fdt_set_version(buf, 17);
 		fdt_set_size_dt_struct(buf, struct_size);
 		fdt_set_totalsize(buf, bufsize);
 		return 0;
 	}
 
+	// 순서가 올바르지 않는 경우
 	/* Need to reorder */
 	newsize = FDT_ALIGN(sizeof(struct fdt_header), 8) + mem_rsv_size
 		+ struct_size + fdt_size_dt_strings(fdt);
@@ -472,13 +547,32 @@ int fdt_open_into(const void *fdt, void *buf, int bufsize)
 	/* First attempt to build converted tree at beginning of buffer */
 	tmp = buf;
 	/* But if that overlaps with the old tree... */
+	/*
+	 *                   +-------------+
+	 *                   |             |
+	 *                   |             |
+	 * fdtend  --> +-----+-------+     |
+	 *             |     |       |     |
+	 *             |     +-------+-----+ <-- tmp
+	 *             |             |
+	 *             |             |
+	 *             |     +-------+-----+ <-- tmp + newsize
+	 *             |     |       |     |
+	 * fdtstart -->+-----+-------+     |
+	 *                   |             |
+	 *                   |             |
+	 *                   +-------------+
+	 */
 	if (((tmp + newsize) > fdtstart) && (tmp < fdtend)) {
 		/* Try right after the old tree instead */
+		/* 겹쳤을 경우 tmp를 fdtend로 */
 		tmp = (char *)(uintptr_t)fdtend;
+		// bufsize 보다 크면 에러
 		if ((tmp + newsize) > ((char *)buf + bufsize))
 			return -FDT_ERR_NOSPACE;
 	}
 
+	// tmp에 fdt 정렬에 맞쳐 패키징한다.
 	_fdt_packblocks(fdt, tmp, mem_rsv_size, struct_size);
 	memmove(buf, tmp, newsize);
 

@@ -58,6 +58,11 @@
 //MAGIC값과 VERSION을 체크해서 문제가 있을 시 음수값을 리턴함.
 int fdt_check_header(const void *fdt)
 {
+	/* FDT_MAGIC	0xd00dfeed
+	fdt_magic(fdt) 설명:
+		struct fdt_header * pf = fdt;
+		return pf->magic;
+	*/
 	if (fdt_magic(fdt) == FDT_MAGIC) {
 		/* Complete tree */
 		if (fdt_version(fdt) < FDT_FIRST_SUPPORTED_VERSION)
@@ -112,6 +117,16 @@ const void *fdt_offset_ptr(const void *fdt, int offset, unsigned int len)
 	return p;
 }
 
+/*
+ * 다음 tag를 찾는다.
+ * in	startoffset	현재 시작 offset
+ * out	nextoffset	다음 시작 offset
+ * return FDT_END	에러 혹은 진짜 끝
+ * 	tag 구분값
+ *		define FDT_BEGIN_NODE	0x1		
+ *		#define FDT_END_NODE	0x2
+ *		#define FDT_PROP	0x3
+ */
 uint32_t fdt_next_tag(const void *fdt, int startoffset, int *nextoffset)
 {
 	const uint32_t *tagp, *lenp;
@@ -138,6 +153,12 @@ uint32_t fdt_next_tag(const void *fdt, int startoffset, int *nextoffset)
 	    */
 	case FDT_BEGIN_NODE:
 		/* skip name */
+		/*
+		   struct fdt_node_header {
+			   uint32_t tag;
+			   char name[0];
+		   };
+		 */
 		do {
 			p = fdt_offset_ptr(fdt, offset++, 1);
 		} while (p && (*p != '\0'));
@@ -146,10 +167,21 @@ uint32_t fdt_next_tag(const void *fdt, int startoffset, int *nextoffset)
 		break;
 
 	case FDT_PROP:
+		/*
+		   struct fdt_property {
+			   uint32_t tag;
+			   uint32_t len;
+			   uint32_t nameoff;
+			   char data[0];
+		   };
+		 */
 		lenp = fdt_offset_ptr(fdt, offset, sizeof(*lenp));
 		if (!lenp)
 			return FDT_END; /* premature end */
 		/* skip-name offset, length and value */
+		/* offset += 12 - 4 + (*lenp)
+		sizeof(struct fdt_property) 는 12이다.
+		*/
 		offset += sizeof(struct fdt_property) - FDT_TAGSIZE
 			+ fdt32_to_cpu(*lenp);
 		break;
@@ -163,9 +195,19 @@ uint32_t fdt_next_tag(const void *fdt, int startoffset, int *nextoffset)
 		return FDT_END;
 	}
 
+	// offset값 범위체크
 	if (!fdt_offset_ptr(fdt, startoffset, offset - startoffset))
 		return FDT_END; /* premature end */
+	/*
+	   4 byte align을 맞추기위해
+	#define FDT_ALIGN(x, a)		(((x) + (a) - 1) & ~((a) - 1))
+	#define FDT_TAGALIGN(x)		(FDT_ALIGN((x), FDT_TAGSIZE))
 
+	ex) FDT_TAGALIGN(10)
+		FDT_ALIGN(10, 4)
+		((10 + 4 - 1) & ~(4 - 1)) = 12
+		(13 & ~3) = 0b1101 & ~0b0011 = 0b1100 = 12
+	*/
 	*nextoffset = FDT_TAGALIGN(offset);
 	return tag;
 }
@@ -240,6 +282,13 @@ const char *_fdt_find_string(const char *strtab, int tabsize, const char *s)
 	return NULL;
 }
 
+/*
+ * buf에 fdt를 복사.
+ * in	fdt	fdt
+ * out	buf	fdt
+ * return	0 : 성공
+ * 		-FDT_ERR_NOSPACE : 실패
+ */
 int fdt_move(const void *fdt, void *buf, int bufsize)
 {
 	FDT_CHECK_HEADER(fdt);
