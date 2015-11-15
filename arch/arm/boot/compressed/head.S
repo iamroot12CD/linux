@@ -956,7 +956,7 @@ not_angel:
  *       	mov	r1, r6
  *			;r6은 DTB를 가리키는  edata값
  *       	mov	r2, r5
- *			;r5는 DTB의 total space 
+ *			;r5는 32KB <= (dtb_totalsize * 1.5) <= 1MB
  *       	bl	atags_to_fdt
  *			;c함수로 점프
  *              ;int atags_to_fdt(void *atag_list, void *fdt, int total_space)
