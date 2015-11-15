@@ -500,7 +500,7 @@
  * ==================================================================
  */
 
-		.section ".start", #alloc, #execinstr	/* 할당, 실행 가능한 섹션이다. */
+		.section ".start", #alloc, #execinstr
 /*
  * sort out different calling conventions
  */
@@ -510,25 +510,25 @@
 		 * As of today (2014) that's exactly the members of the A and R
 		 * classes.
 		 */
- AR_CLASS(	.arm	)		/* code32 --> ARM명령어 체계(code16 : THUMB) */
+ AR_CLASS(	.arm	)
 start:
-		.type	start,#function	/* start function */
+		.type	start,#function
 		.rept	7
-		mov	r0, r0			/* 0x00008000 ~ 0x0000801b */
+		mov	r0, r0
 		.endr
-   ARM(		mov	r0, r0		)	/* 0x0000801c ~ 0x0000801f */
-   ARM(		b	1f		)	/* 0x00008020 ~ 0x00008023 */
- THUMB(		adr	r12, BSYM(1f)	)	/* 0x0000801c ~ 0x0000801f */
- THUMB(		bx	r12		)	/* 0x0000801f ~ 0x00008023 */
+   ARM(		mov	r0, r0		)
+   ARM(		b	1f		)
+ THUMB(		adr	r12, BSYM(1f)	)
+ THUMB(		bx	r12		)
 
-		.word	_magic_sig	@ Magic numbers to help the loader 0x8024 ~ 27
-		.word	_magic_start	@ absolute load/run zImage address 0x8028 ~ 2b
-		.word	_magic_end	@ zImage end address		0x802c ~ 2f
-		.word	0x04030201	@ endianness flag		0x8030 ~ 33
+		.word	_magic_sig	@ Magic numbers to help the loader
+		.word	_magic_start	@ absolute load/run zImage address
+		.word	_magic_end	@ zImage end address
+		.word	0x04030201	@ endianness flag
 
- THUMB(		.thumb			)	/* code16 --> THUMB 명령어 체계 */
+ THUMB(		.thumb			)
 1:
- ARM_BE8(	setend	be		)	@ go BE8 if compiled for BE8 - Set the endianness bit in the CPSR
+ ARM_BE8(	setend	be		)	@ go BE8 if compiled for BE8
  AR_CLASS(	mrs	r9, cpsr	)
 #ifdef CONFIG_ARM_VIRT_EXT
 		bl	__hyp_stub_install	@ get into SVC mode, reversibly
@@ -1467,7 +1467,7 @@ __armv3_mpu_cache_on:
  *
  *  Cache Cash : http://recipes.egloos.com/5170809
  *  MMU 에 대한 설명 : http://recipes.egloos.com/5232056
- *  페이징 소스를 C 코드로 구현: http://kth3321.blogspot.kr/2013/04/arm-cortex-1.html
+ *  페이징 소스를 C 코드로 구현 : http://kth3321.blogspot.kr/2013/04/arm-cortex-1.html
  *  소스 관련 참고 : http://www.iamroot.org/xe/Kernel_10_ARM/174738
  *
  * __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
@@ -1668,7 +1668,7 @@ __armv3_mpu_cache_on:
  * to be enabled also for our execution instance...  We map 2MB of it
  * so there is no map overlap problem for up to 1 MB compressed kernel.
  * If the execution is in RAM then we would only be duplicating the above.
- * 2015-10-24 시작부분
+ *
  * 		orr	r1, r6, #0x04		@ ensure B is set for this
  *			; B(Write Buffer)를 on
  *			; r1 = 0x0E
