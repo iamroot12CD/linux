@@ -1,6 +1,4 @@
- 
-Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
-=========================================================
+# Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
 
 ## 제 31주차 스터디
 
