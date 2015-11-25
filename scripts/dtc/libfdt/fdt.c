@@ -230,15 +230,34 @@ int _fdt_check_prop_offset(const void *fdt, int offset)
 	return offset;
 }
 
+/*
+ * offset을 기준으로 다음 노드를 가져옴
+ * 현재 탐색중인 node의 depth를 저장
+*/
 int fdt_next_node(const void *fdt, int offset, int *depth)
 {
 	int nextoffset = 0;
 	uint32_t tag;
 
+	// "chosen" 맨 처음에는 offset는 0
 	if (offset >= 0)
+		/*
+		 * offset의 유효성 체크
+		 * 참고:http://iamroot.org/wiki/lib/exe/fetch.php?media=%EC%8A%A4%ED%84%B0%EB%94%94:dtb_structure.png
+		*/
 		if ((nextoffset = _fdt_check_node_offset(fdt, offset)) < 0)
 			return nextoffset;
 
+	/*
+	 * FDT_BEGIN_NODE
+	 * - 현재 노드의 tag값을 찾는데 만약에 새로운 노드가 시작되면 depth++
+	 * FDT_END_NODE
+	 * - 탐색중인 노드가 끝난 경우 depth를 --
+	 * depth를 감소했을때 음수가 아닌경우
+	 * - childNode가 더이상 없는 경우 nextoffset(0) 리턴
+
+	 * childNode안에 또 childNode가 있을수 있으니 depth로 판별?
+	*/
 	do {
 		offset = nextoffset;
 		tag = fdt_next_tag(fdt, offset, &nextoffset);

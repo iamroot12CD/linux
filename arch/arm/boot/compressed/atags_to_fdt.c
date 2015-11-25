@@ -44,14 +44,23 @@ static int setprop_cell(void *fdt, const char *node_path,
 	return fdt_setprop_cell(fdt, offset, property, val);
 }
 
+/*
+ * chosen {
+ * bootargs="console=ttyS0,115200 ubi.mtd=4 root=ubi0:rootfs rootfstype=ubifs";
+ * };
+
+ * 호출: fdt_bootargs = getprop(fdt, "/chosen", "bootargs", &len);
+ */
 static const void *getprop(const void *fdt, const char *node_path,
 			   const char *property, int *len)
 {
+	// node "/chosen"의 offset을 가져옴
 	int offset = fdt_path_offset(fdt, node_path);
 
 	if (offset == -FDT_ERR_NOTFOUND)
 		return NULL;
 
+	// 이젠 node "/chosen" 안에 있는 property "bootargs"를 가져옴
 	return fdt_getprop(fdt, offset, property, len);
 }
 
@@ -73,8 +82,30 @@ static void merge_fdt_bootargs(void *fdt, const char *fdt_cmdline)
 	char *ptr = cmdline;
 	int len = 0;
 
+	/*
+	 * fdt_node 예
+	 * /{
+	 * ...
+	 * chosen {
+	 * bootargs="root=/dev/nfs rw nfsroot=192.168.1.1 console=ttyS0,115200";
+	 * };
+	 * ...
+	 * };
+
+	 * 위 예제에서
+	 * 노드명: "/chosen"
+	 * property: "bootargs"
+	 * 더 많은 참고: http://xillybus.com/tutorials/device-tree-zynq-2
+
+	 * fdt_bootargs에 받아오는 내용은 아래와 같음
+	 * "root=/dev/nfs rw nfsroot=192.168.1.1 console=ttyS0,115200";
+	 * len에 길이가 저장됨
+	*/
+
+	// node "/chosen"의 property "bootargs"의 value과 길이를 받아옴
 	/* copy the fdt command line into the buffer */
 	fdt_bootargs = getprop(fdt, "/chosen", "bootargs", &len);
+	// [2015.11.28 여기서부터 시작]
 	if (fdt_bootargs)
 		if (len < COMMAND_LINE_SIZE) {
 			memcpy(ptr, fdt_bootargs, len);

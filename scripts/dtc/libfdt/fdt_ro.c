@@ -58,6 +58,15 @@
 static int _fdt_nodename_eq(const void *fdt, int offset,
 			    const char *s, int len)
 {
+	/*
+	 * struct fdt_node_header {
+	 * uint32_t tag;
+	 * char name[0];
+	 * };
+
+	 * fdt_node_header의 name을 가져옴
+	 * (len+1)만큼 가져오는 것은 밑에서 '@'을 체크하기 위해?
+	*/
 	const char *p = fdt_offset_ptr(fdt, offset + FDT_TAGSIZE, len+1);
 
 	if (! p)
@@ -80,6 +89,11 @@ const char *fdt_string(const void *fdt, int stroffset)
 	return (const char *)fdt + fdt_off_dt_strings(fdt) + stroffset;
 }
 
+/*
+ * stroffset: property name offset
+ * s: 찾고자하는 propert의 이름
+ * 찾고자 하는 property가 맞는지 propert명 체크
+*/
 static int _fdt_string_eq(const void *fdt, int stroffset,
 			  const char *s, int len)
 {
@@ -107,30 +121,63 @@ int fdt_num_mem_rsv(const void *fdt)
 	return i;
 }
 
+/*
+ * 다음 property를 찾아서 해당 offset을 리턴
+*/
 static int _nextprop(const void *fdt, int offset)
 {
 	uint32_t tag;
 	int nextoffset;
 
 	do {
+		/*
+		 * offset: property의 offset
+		 * nextoffset: property offset의 다음 offset
+		*/
 		tag = fdt_next_tag(fdt, offset, &nextoffset);
 
 		switch (tag) {
 		case FDT_END:
+			/*
+			 * 이미 FDT_END인데 nextoffset이 있다면 에러
+			 * (FDT_END인데 다음 offset이 있다가 말이 안됨)
+			 * nextoffset<0 라면 에러값이 들어가 있음
+			*/
 			if (nextoffset >= 0)
 				return -FDT_ERR_BADSTRUCTURE;
 			else
 				return nextoffset;
 
+		// property라면 해당 offset 리턴
 		case FDT_PROP:
 			return offset;
 		}
+		// property를 찾을때까지 다음 offset으로 이동
 		offset = nextoffset;
 	} while (tag == FDT_NOP);
 
 	return -FDT_ERR_NOTFOUND;
 }
 
+/*
+ * fdt에서 offset를 기준으로 하위 노드를 탐색
+ * (참고로 꼭 root가 아닐수 있음 즉, offset는 상대적인 위치임)
+
+ * 참고: http://iamroot.org/wiki/lib/exe/fetch.php?media=%EC%8A%A4%ED%84%B0%EB%94%94:dtb_structure.png
+ * +------+-------------------------+
+ * | Node | FDT_BEGIN_NODE          |
+ * |      +-------------------------+
+ * |      | Node Name               |
+ * |      +----------+--------------+
+ * |      | Property | FDT_PROP     |
+ * |      |          +--------------+
+ * |      |          | Value Length |
+ * |      |          +--------------+
+ * |      |          | Name Offset  |
+ * |      |          +--------------+
+ * |      |          | Value        |
+ * +------+----------+--------------+
+*/
 int fdt_subnode_offset_namelen(const void *fdt, int offset,
 			       const char *name, int namelen)
 {
@@ -138,13 +185,22 @@ int fdt_subnode_offset_namelen(const void *fdt, int offset,
 
 	FDT_CHECK_HEADER(fdt);
 
+	/*
+	 * root부터 시작해서(depth=0) node를 탐색
+	 * 현재 탐색중인 node의 depth를 받아와서
+	*/
 	for (depth = 0;
 	     (offset >= 0) && (depth >= 0);
 	     offset = fdt_next_node(fdt, offset, &depth))
+		/*
+		 * root 입장으로 봤을때 depth가 1인 node들 중에서
+		 * 찾고자 하는 node가 맞다면 node offset을 리턴
+		*/
 		if ((depth == 1)
 		    && _fdt_nodename_eq(fdt, offset, name, namelen))
 			return offset;
 
+	// 탐색했더니 찾고자 하는 node가 없는 상황
 	if (depth < 0)
 		return -FDT_ERR_NOTFOUND;
 	return offset; /* error */
@@ -156,8 +212,19 @@ int fdt_subnode_offset(const void *fdt, int parentoffset,
 	return fdt_subnode_offset_namelen(fdt, parentoffset, name, strlen(name));
 }
 
+/*
+ * chosen {
+ * bootargs = "console=ttyS0,115200 ubi.mtd=4 root=ubi0:rootfs rootfstype=ubifs";
+ * };
+
+ * 호출: int offset = fdt_path_offset(fdt, "/chosen");
+*/
 int fdt_path_offset(const void *fdt, const char *path)
 {
+	/*
+	 * p : "chosen"의 시작 주소
+	 * end : "chosen"의 끝 주소
+	*/
 	const char *end = path + strlen(path);
 	const char *p = path;
 	int offset = 0;
@@ -166,12 +233,20 @@ int fdt_path_offset(const void *fdt, const char *path)
 
 	/* see if we have an alias */
 	if (*path != '/') {
+		// path가 '/'로 시작하지 않으면 path내에서 '/' 위치 찾음
 		const char *q = strchr(path, '/');
 
+		// path내에 '/'가 없으면 끝 주소로 지정
 		if (!q)
 			q = end;
 
+		/*
+		 * '/'로 시작하지 않았다면 alias라고 가정하고 원래 node명 탐색
+		 * p: alias명
+		 * q-p: alias 길이
+		*/ 
 		p = fdt_get_alias_namelen(fdt, p, q - p);
+		// alias도 아닌경우 에러 리턴
 		if (!p)
 			return -FDT_ERR_BADPATH;
 		offset = fdt_path_offset(fdt, p);
@@ -179,17 +254,27 @@ int fdt_path_offset(const void *fdt, const char *path)
 		p = q;
 	}
 
+	/*
+	 * "chosen"의 alias가 없으면 여기서 탐색
+	 * 여기서는 node의 이름이 "chosen"인지 아닌지 탐색
+	*/
 	while (*p) {
 		const char *q;
 
+		// path내에서 '/'가 아닌곳까지 이동
 		while (*p == '/')
 			p++;
+		// path 끝까지 이동한 경우
 		if (! *p)
 			return offset;
+		// p를 기준으로 다음 '/' 위치까지 찾아서
 		q = strchr(p, '/');
+		// 다음 '/'가 없다면 path의 끝으로 지정
 		if (! q)
 			q = end;
-
+	
+		// path에서 '/'로 split 해보면서
+		// 하위 node들중 해당 이름의 node가 있는지 탐색
 		offset = fdt_subnode_offset_namelen(fdt, offset, p, q-p);
 		if (offset < 0)
 			return offset;
@@ -220,16 +305,23 @@ const char *fdt_get_name(const void *fdt, int nodeoffset, int *len)
 	return NULL;
 }
 
+/*
+ * 첫번째 property의 offset을 가져온다.
+*/
 int fdt_first_property_offset(const void *fdt, int nodeoffset)
 {
 	int offset;
 
+	// node 유효성 체크
 	if ((offset = _fdt_check_node_offset(fdt, nodeoffset)) < 0)
 		return offset;
 
 	return _nextprop(fdt, offset);
 }
 
+/*
+ * 그 다음 property의 offset을 가져온다.
+*/
 int fdt_next_property_offset(const void *fdt, int offset)
 {
 	if ((offset = _fdt_check_prop_offset(fdt, offset)) < 0)
@@ -238,6 +330,11 @@ int fdt_next_property_offset(const void *fdt, int offset)
 	return _nextprop(fdt, offset);
 }
 
+/*
+ * offset: propert의 offset
+ * lenp: propert내의 value 길이 저장
+ * offset을 이용하여 property에 접근 및 property 구조체와, value 길이를 받아옴
+*/
 const struct fdt_property *fdt_get_property_by_offset(const void *fdt,
 						      int offset,
 						      int *lenp)
@@ -245,41 +342,73 @@ const struct fdt_property *fdt_get_property_by_offset(const void *fdt,
 	int err;
 	const struct fdt_property *prop;
 
+	// property의 유효성을 체크 
 	if ((err = _fdt_check_prop_offset(fdt, offset)) < 0) {
 		if (lenp)
 			*lenp = err;
 		return NULL;
 	}
 
+	// property 구조체를 가져옴
 	prop = _fdt_offset_ptr(fdt, offset);
 
+	// property의 value의 길이 저장
 	if (lenp)
 		*lenp = fdt32_to_cpu(prop->len);
 
 	return prop;
 }
 
+/*
+ * chosen {
+ * bootargs="console=ttyS0,115200 ubi.mtd=4 root=ubi0:rootfs rootfstype=ubifs";
+ * };
+
+ * offset: node "/chosen"의 offset
+ * name: property "bootargs"
+ * namelen: property "bootargs" 길이
+ * lenp: property 내용의 길이
+*/
 const struct fdt_property *fdt_get_property_namelen(const void *fdt,
 						    int offset,
 						    const char *name,
 						    int namelen, int *lenp)
 {
+	/*
+	 * node안의 property들을 순회하면서 찾고자 하는 name의 property 리턴
+	 * 참고로 아래 for문에서 offset을 계속 받아오면서 값을 체크하고 있음
+	 * 즉, 순회하면서 찾는 property가 없거나 탐색시 에러가 나면 탐색 중단
+	*/
 	for (offset = fdt_first_property_offset(fdt, offset);
 	     (offset >= 0);
 	     (offset = fdt_next_property_offset(fdt, offset))) {
 		const struct fdt_property *prop;
 
+		/*
+		 * offset만큼 위치한 property에 접근해서
+		 * lenp에 property의 value의 길이를 저장
+		 * 하지만 에러가 나는 경우엔 for문을 빠져나감
+		*/
 		if (!(prop = fdt_get_property_by_offset(fdt, offset, lenp))) {
 			offset = -FDT_ERR_INTERNAL;
 			break;
 		}
+		/*
+		 * 찾고자 하는 property가 맞는지 확인하고
+		 * 맞다면 가져온 property 구조체를 리턴
+		*/
 		if (_fdt_string_eq(fdt, fdt32_to_cpu(prop->nameoff),
 				   name, namelen))
 			return prop;
 	}
 
+	/*
+	 * 찾는 property가 없는경우 or property 접근하다 에러가 난 경우
+	 * lenp에 에러값 저장
+	*/
 	if (lenp)
 		*lenp = offset;
+
 	return NULL;
 }
 
@@ -291,15 +420,24 @@ const struct fdt_property *fdt_get_property(const void *fdt,
 					strlen(name), lenp);
 }
 
+/*
+ * nodeoffset: 탐색 대상이되는 node의 offset
+ * name: 찾을 property 이름
+ * namelen: 찾을 property 이름 길이
+ * lenp: property value 길이
+*/
 const void *fdt_getprop_namelen(const void *fdt, int nodeoffset,
 				const char *name, int namelen, int *lenp)
 {
 	const struct fdt_property *prop;
 
+	// 찾고자 하는 property가 있는지 확인하고 property의 구조체를 가져옴
 	prop = fdt_get_property_namelen(fdt, nodeoffset, name, namelen, lenp);
+	// 가져온 property 구조체가 없다면 NULL 리턴
 	if (! prop)
 		return NULL;
 
+	// 가져온 property 구조체가 있다면 value을 리턴
 	return prop->data;
 }
 
@@ -316,6 +454,11 @@ const void *fdt_getprop_by_offset(const void *fdt, int offset,
 	return prop->data;
 }
 
+/*
+ * nodeoffset: 탐색 대상이 되는 node의 offset
+ * name: 찾고자 하는 property 이름
+ * lenp: 찾고자 하는 property의 value 길이
+*/
 const void *fdt_getprop(const void *fdt, int nodeoffset,
 			const char *name, int *lenp)
 {
@@ -339,15 +482,25 @@ uint32_t fdt_get_phandle(const void *fdt, int nodeoffset)
 	return fdt32_to_cpu(*php);
 }
 
+/*
+ * name: alias
+ * namelen: alias 길이
+*/
 const char *fdt_get_alias_namelen(const void *fdt,
 				  const char *name, int namelen)
 {
 	int aliasoffset;
 
+	// aliases에 정의된 alias가 있는지 찾아보고 alias offset을 가져옴
 	aliasoffset = fdt_path_offset(fdt, "/aliases");
+	// alias offset이 에러값이라면 NULL 리턴
 	if (aliasoffset < 0)
 		return NULL;
 
+	/*
+	 * alias offset이 유효하다면
+	 * alias에 해당하는 property의 value를 가져옴
+	*/
 	return fdt_getprop_namelen(fdt, aliasoffset, name, namelen, NULL);
 }
 
