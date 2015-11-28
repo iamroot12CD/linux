@@ -118,10 +118,10 @@ const void *fdt_offset_ptr(const void *fdt, int offset, unsigned int len)
 }
 
 /*
- * 다음 tag를 찾는다.
+ * 다음 tag의 Offset를 찾는다.(nextoffset갱신) 
  * in	startoffset	현재 시작 offset
  * out	nextoffset	다음 시작 offset
- * return FDT_END	에러 혹은 진짜 끝
+ * return FDT_END	에러 혹은 현재의 tag값
  * 	tag 구분값
  *		define FDT_BEGIN_NODE	0x1		
  *		#define FDT_END_NODE	0x2
@@ -211,7 +211,12 @@ uint32_t fdt_next_tag(const void *fdt, int startoffset, int *nextoffset)
 	*nextoffset = FDT_TAGALIGN(offset);
 	return tag;
 }
-
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-11-28
+ * ------------------------------------------------------------------
+ * 1. offset 이 valid 한 range에 있는지 check
+ */
 int _fdt_check_node_offset(const void *fdt, int offset)
 {
 	if ((offset < 0) || (offset % FDT_TAGSIZE)
@@ -288,7 +293,12 @@ int fdt_next_node(const void *fdt, int offset, int *depth)
 
 	return offset;
 }
-
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-11-28
+ * ------------------------------------------------------------------
+ * strtab ~ tabsize 구간에서 s 문자열의 위치를 찾아서 return
+ */
 const char *_fdt_find_string(const char *strtab, int tabsize, const char *s)
 {
 	int len = strlen(s) + 1;

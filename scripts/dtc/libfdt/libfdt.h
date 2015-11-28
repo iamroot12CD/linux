@@ -456,10 +456,20 @@ const struct fdt_property *fdt_get_property_namelen(const void *fdt,
  */
 const struct fdt_property *fdt_get_property(const void *fdt, int nodeoffset,
 					    const char *name, int *lenp);
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-11-28
+ * ------------------------------------------------------------------
+ * bootagrs property 를 찾아서 return
+ */
 static inline struct fdt_property *fdt_get_property_w(void *fdt, int nodeoffset,
 						      const char *name,
 						      int *lenp)
 {
+        /* 
+         * intptr : 32 bit와 64bit 에서
+         * 모두 호환 동작될 수 있도록 하기 위해 사용
+         */
 	return (struct fdt_property *)(uintptr_t)
 		fdt_get_property(fdt, nodeoffset, name, lenp);
 }

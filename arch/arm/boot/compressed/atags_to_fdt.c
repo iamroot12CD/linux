@@ -26,6 +26,13 @@ static int setprop(void *fdt, const char *node_path, const char *property,
 	return fdt_setprop(fdt, offset, property, val_array, size);
 }
 
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-11-28
+ * ------------------------------------------------------------------
+ * 
+ * fdt 에서 지정된 offset 위치의 property를 string 값으로 세팅
+ */
 static int setprop_string(void *fdt, const char *node_path,
 			  const char *property, const char *string)
 {
@@ -115,6 +122,10 @@ static void merge_fdt_bootargs(void *fdt, const char *fdt_cmdline)
 		}
 
 	/* and append the ATAG_CMDLINE */
+	/* fdt_bootargs 로 리턴된 문자열과 
+	 * 인자로 넘어온 fdt_cmdline 문자열을 합치는 구문
+	 * ex) cmdline = fdt_bootargs + ' ' + fdt_cmdline + '\0'
+	 */
 	if (fdt_cmdline) {
 		len = strlen(fdt_cmdline);
 		if (ptr - cmdline + len + 2 < COMMAND_LINE_SIZE) {
@@ -216,8 +227,6 @@ int atags_to_fdt(void *atag_list, void *fdt, int total_space)
 			 * /arch/arm/boot/dts/ *.dts 파일 중 아래 옵션
 			 *   chosen {
 			 *    bootargs = "console=ttyS0,115200 ubi.mtd=4 \
-			 *       root=ubi0:rootfs rootfstype=ubifs";
-			 *   };
 			 */
 			// 2015-11-21 시작할 위치
 			if (do_extend_cmdline)
