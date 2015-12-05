@@ -53,6 +53,12 @@
 #include <fdt.h>
 
 #define FDT_ALIGN(x, a)		(((x) + (a) - 1) & ~((a) - 1))
+/* FDT_TAGALIGN(4byte) 단위로 올림 연산 2015-11-28
+	ex) FDT_TAGALIGN(10)
+		FDT_ALIGN(10, 4)
+		((10 + 4 - 1) & ~(4 - 1)) = 12
+		(13 & ~3) = 0b1101 & ~0b0011 = 0b1100 = 12
+*/
 #define FDT_TAGALIGN(x)		(FDT_ALIGN((x), FDT_TAGSIZE))
 
 #define FDT_CHECK_HEADER(fdt) \
