@@ -959,6 +959,8 @@ not_angel:
  *			;r5는 DTB의 total space 
  *       	bl	atags_to_fdt
  *			;c함수로 점프
+ *			; 2015-12-05 분석 완료.
+ *			; atgs의 내용을 fdt 로 변환하여 내용을 채운다.
  *              ;int atags_to_fdt(void *atag_list, void *fdt, int total_space)
  *
  *       	
@@ -967,16 +969,173 @@ not_angel:
  *       	 * of RAM and hope for the best.
  *       	 *
  *       	cmp	r0, #1
+ *			; atgs_to_fdt의 리턴값(r0)이 1인지 비교한다.
+ *			; 1이 리턴되는 경우는, atag를 찾지 못했을 경우이다.
+ *
  *       	sub	r0, r4, #TEXT_OFFSET
+ * 			; r4에는 0x8000 정도가 들어있을 것이다.
+ *			; r0 = r4 - TEXT_OFFSET  =>  0또는 1(캐시온 보류시)
+ *
  *       	bic	r0, r0, #1
+ *			; CacheOn 보류시 설정되는 1을 제거
+ *
  *       	add	r0, r0, #0x100
+ *			; 0x100: atag의 위치
+ *
  *       	mov	r1, r6
+ *			; r6은 DTB를 가리키는  edata값
+ *
  *       	mov	r2, r5
+ *			; r5는 DTB의 total space 
+ *
  *       	bleq	atags_to_fdt
-
+ *			; r8에 atag 포인터가 담겨있지 않았다면, 직접 0x100을
+ *			; 세팅하여 재시도한다. 일반적으로 atag는 0x100에 있기
+ *			; 때문이다.
+ *			;
+ *			; [Like C Style]
+ *			; r0 = r8; r1 = r6; r2 = r5;
+ *			; r0 = atags_to_fdt( r0, r1, r2 );
+ *			; if( r0 == 1 )
+ *			; {
+ *			;	r0 = 0x100; r1 = r6; r2 = r5;
+ *			;	r0 = atags_to_fdt( r0, r1, r2 );
+ *			; }
+ *
  *       	ldmfd	sp!, {r0-r3, ip, lr}
+ * 			; 위에서 저장한 ( stmfd	sp!, {r0-r3, ip, lr} )
+ *			; Register들을 복원한다. (push-pop)
+ *
  *       	sub	sp, sp, r5
+ *			; sp = sp - DTB Total Size
+ * 			; 위에서 더했던 ( add	sp, sp, r5 )
+ *			; sp를 복원한다.
  *#endif
+ *
+ *		mov	r8, r6			@ use the appended device tree
+ *			; r6은 DTB를 가리키는  edata값
+ *
+ *		[원문 주석]
+ *		 Make sure that the DTB doesn't end up in the final
+ *		 kernel's .bss area. To do so, we adjust the decompressed
+ *		 kernel size to compensate if that .bss size is larger
+ *		 than the relocated code.
+ *		
+ *		[번역]
+ *		커널의 .bss 영역에 DTB가 완료되지 않았다.
+ *		.bss사이즈가 재배치될 코드보다 크다면, 이를 맞춰주기 위해
+ *		decompressed 커널의 사이즈를 조정한다.
+ *		
+ *		ldr	r5, =_kernel_bss_size
+ *			; kernel_bss_size를 r5에 담는다.
+ *
+ *		adr	r1, wont_overwrite
+ *			; wont_overwrite의 주소를 r1에 로드한다.
+ *
+ *		sub	r1, r6, r1
+ *		subs	r1, r5, r1
+ *		addhi	r9, r9, r1
+ *			; r6: bss_start
+ *			; r5: bss size
+ *			; r9: decompressed kernel size
+ *			; bss사이즈가 재배치될 코드사이즈보다 크다면, 
+ *			; r9을 조정한다.
+ *
+ *		/* Get the current DTB size */
+ *		ldr	r5, [r6, #4]
+ *			; r6의 첫 4바이트는 매직값,
+ *			; 그 다음 4바이트가 dtb_total_size
+ *
+ *#ifndef __ARMEB__
+ *		/* convert r5 (dtb size) to little endian */
+ *		eor	r1, r5, r5, ror #16
+ *		bic	r1, r1, #0x00ff0000
+ *		mov	r5, r5, ror #8
+ *		eor	r5, r5, r1, lsr #8
+ *#endif
+ *
+ *		/* preserve 64-bit alignment */
+ *		add	r5, r5, #7
+ *		bic	r5, r5, #7
+ *
+ *		/* relocate some pointers past the appended dtb */
+ *		add	r6, r6, r5
+ *			; dtb 끝(dtb_start + dtb_size)
+ *
+ *		add	r10, r10, r5
+ *   			; r10 = end of this image, including  bss/stack/malloc 
+ *			        space if non XIP
+ *			; r5(dtb사이즈를 기존에는 알 수 없었기 때문에, r10에도
+ *			  반영이 되어있는 상황은 아닐 것이다. 이제 dtb size를
+ *			  구해와서 알게됐으므로, r10에 반영한다.)
+ *		add	sp, sp, r5
+ *			; sp도 마찬가지로, r5를 더해서 늘려준다.
+ * 
+ *   +-----------------------+
+ *   |                       |
+ *   +-----------------------+  <- sp, r10
+ *   |                       |
+ *   |        D  T  B        |
+ *   |                       |
+ *   +---+---+---+---+---+---+
+ *   |Mg |To |.. |.. |.. |   |
+ *   +-----------------------+  <- r6
+ *   |                       |
+ *   |                       |
+ *   |                       |
+ *   |      K e r n e l      |
+ *   |                       |
+ *   |                       |
+ *   |                       |
+ *   +-----------------------+
+ *   |      Page Table       |
+ *   +-----+-----------------+
+ *   |     |      Atag       |
+ *   |     +-----------------+
+ *   |                       |
+ *   +-----------------------+
+ *   
+ *dtb_check_done:
+ *#endif
+ *
+ * 		*
+ * 		* Check to see if we will overwrite ourselves.
+ * 		*   r4  = final kernel address (possibly with LSB set)
+ * 		*   r9  = size of decompressed image
+ * 		*   r10 = end of this image, including  bss/stack/malloc space if non XIP
+ * 		* We basically want:
+ * 		*   r4 - 16k page directory >= r10 -> OK
+ * 		*   r4 + image length <= address of wont_overwrite -> OK
+ * 		* Note: the possible LSB in r4 is harmless here.
+ * 		*
+ * 		add	r10, r10, #16384
+ * 		cmp	r4, r10
+ * 		bhs	wont_overwrite
+ * 		add	r10, r4, r9
+ * 		adr	r9, wont_overwrite
+ * 		cmp	r10, r9
+ * 		bls	wont_overwrite
+ * 
+ *		*
+ *		* Relocate ourselves past the end of the decompressed kernel.
+ *		*   r6  = _edata
+ *		*   r10 = end of the decompressed kernel
+ *		* Because we always copy ahead, we need to do it from the end and go
+ *		* backward in case the source and destination overlap.
+ *		*
+ * 		*
+ * 		* Bump to the next 256-byte boundary with the size of
+ * 		* the relocation code added. This avoids overwriting
+ * 		* ourself when the offset is small.
+ * 		*
+ *
+ * 		add	r10, r10, #((reloc_code_end - restart + 256) & ~255)
+ * 		bic	r10, r10, #255
+ * 
+ * 		* Get start of code we want to copy and align it down. *
+ * 		adr	r5, restart
+ * 		bic	r5, r5, #31
+ * 
  * ==================================================================
  */
 
