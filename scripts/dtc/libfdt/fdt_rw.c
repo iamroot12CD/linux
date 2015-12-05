@@ -507,12 +507,36 @@ int fdt_add_subnode_namelen(void *fdt, int parentoffset,
 
 	FDT_RW_CHECK_HEADER(fdt);
 
+	/* 여기서는 추가하는 중이기때문에 서브노드에 추가할 같은 이름이 있어서는
+	   안된다. 따라서 아래 함수의 결과는 에러값(NOT_FOUND)가 나올것이다. */
 	offset = fdt_subnode_offset_namelen(fdt, parentoffset, name, namelen);
 	if (offset >= 0)
 		return -FDT_ERR_EXISTS;
 	else if (offset != -FDT_ERR_NOTFOUND)
 		return offset;
 
+	/* 
+	 * +------+-------------------------+
+	 * | Node | FDT_BEGIN_NODE          |
+	 * |      +-------------------------+
+	 * |      | Node Name               |
+	 * |      +----------+--------------+
+	 * |      | Property | FDT_PROP     |
+	 * |      |          +--------------+
+	 * |      |          | Value Length |
+	 * |      |          +--------------+
+	 * |      |          | Name Offset  |
+	 * |      |          +--------------+
+	 * |      |          | Value        |
+	 * +------+----------+--------------+
+	 * | Sub  | FDT_BEGIN_NODE          | << 이렇게 추가(서브노드)
+	 * | Node |                         | 
+	 * |      +-------------------------+
+	 * |      |        ...              |
+	 *
+	 * 다음 노드를 가르키게 한다.
+	 * 즉, 첫번째 서브노드로 add 하겠다는 의미가 된다.
+	 */
 	/* Try to place the new node after the parent's properties */
 	fdt_next_tag(fdt, parentoffset, &nextoffset); /* skip the BEGIN_NODE */
 	do {
@@ -520,6 +544,9 @@ int fdt_add_subnode_namelen(void *fdt, int parentoffset,
 		tag = fdt_next_tag(fdt, offset, &nextoffset);
 	} while ((tag == FDT_PROP) || (tag == FDT_NOP));
 
+	/* fdt_node_header *nh
+	   nodelen을 계산한다.
+	*/
 	nh = _fdt_offset_ptr_w(fdt, offset);
 	nodelen = sizeof(*nh) + FDT_TAGALIGN(namelen+1) + FDT_TAGSIZE;
 
