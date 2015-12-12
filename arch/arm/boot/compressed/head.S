@@ -1022,24 +1022,29 @@ not_angel:
  *		 than the relocated code.
  *		
  *		[번역]
- *		커널의 .bss 영역에 DTB가 완료되지 않았다.
+ *              DTB가 최종적인 커널의 .bss 영역에 포함되지 않는 것을 보장해야
+ *              한다.
  *		.bss사이즈가 재배치될 코드보다 크다면, 이를 맞춰주기 위해
  *		decompressed 커널의 사이즈를 조정한다.
  *		
  *		ldr	r5, =_kernel_bss_size
- *			; kernel_bss_size를 r5에 담는다.
+ *			; kernel_bss_size(압축풀린 커널 bss size)를 r5에 담는다.
  *
  *		adr	r1, wont_overwrite
- *			; wont_overwrite의 주소를 r1에 로드한다.
+ *			; wont_overwrite(wont_overwrite 이하의 영역에는
+ *                      ; 덮어쓰기 해도 상관 없음)의 주소를 r1에 로드한다.
  *
  *		sub	r1, r6, r1
  *		subs	r1, r5, r1
+ *			; r6: 압축된 커널 bss_start
+ *			; r5: 압축 풀린 커널 bss size
+ *                      ; r1 = _kernel_bss_size - (bss_start - wont_overwrite)
  *		addhi	r9, r9, r1
- *			; r6: bss_start
- *			; r5: bss size
+ *                      ; if(r1 > 0)
+ *                      ;       r9 = r9 + r1;
  *			; r9: decompressed kernel size
- *			; bss사이즈가 재배치될 코드사이즈보다 크다면, 
- *			; r9을 조정한다.
+ *			; 압축풀린 커널 bss사이즈가 재배치될 zImage 사이즈보다
+ *                      ; 크다면, r9을 조정한다.
  *
  *		/* Get the current DTB size */
  *		ldr	r5, [r6, #4]
@@ -1061,6 +1066,8 @@ not_angel:
  *		/* relocate some pointers past the appended dtb */
  *		add	r6, r6, r5
  *			; dtb 끝(dtb_start + dtb_size)
+ *                      ; 기존 r6 는 bss 시작점인 동시에 DTB 시작점 이었으나,
+ *                      ; 이 코드에서부터 bss 시작점만을 가리키게 된다.
  *
  *		add	r10, r10, r5
  *   			; r10 = end of this image, including  bss/stack/malloc 
@@ -1071,20 +1078,26 @@ not_angel:
  *		add	sp, sp, r5
  *			; sp도 마찬가지로, r5를 더해서 늘려준다.
  * 
+ *
+ * 
+ *   +-----------------------+  <- r10
+ *   | buffer(64K),heap 영역 |     (848라인) add r10, sp, #0x10000
+ *   +-----------------------+  <- sp
+ *   |        stack          |
  *   +-----------------------+
- *   |                       |
- *   +-----------------------+  <- sp, r10
- *   |                       |
- *   |        D  T  B        |
- *   |                       |
- *   +---+---+---+---+---+---+
- *   |Mg |To |.. |.. |.. |   |
+ *   |         bss           |
  *   +-----------------------+  <- r6
  *   |                       |
+ *   |        D  T  B        |  r5 = 갱신된 DTB size
+ *   |                       |
+ *   |Magic|TotalSize|.. |.. |
+ *   +-----------------------+  <- DTB 시작
  *   |                       |
  *   |                       |
- *   |      K e r n e l      |
- *   |                       |
+ *   |                       |  - 해결되지 않은 의문점
+ *   |      K e r n e l      |    _kernal_bss_size 가 zImage 보다 작을 경우,
+ *   |                       |    DTB 가 복사될 위치가 _kernel_bss 마지막 영역과
+ *   |      (compressed)     |    일치하지 않게 되는데, 이 때의 처리가 아직없다.
  *   |                       |
  *   |                       |
  *   +-----------------------+
