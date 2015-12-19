@@ -1,5 +1,22 @@
 # Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
 
+## 제 35주차 스터디
+
+#### 날짜: 2015-12-19
+#### 장소: 커널연구회
+
+#### 참석자
+ - 소스 드라이빙 : 박종성 (jongsong.park@gmail.com)
+ - 안종찬 (ahnchan2@gmail.com)
+ - 임채훈 (im.fehead@gmail.com)
+ - 곽승준 (rialtoksj@yahoo.com)
+ - 곽희범 (andrew@norux.me)
+ - 김지은 (yeswldms@gmail.com)
+ - 김건용 (gykim0914@gmail.com)
+
+**참석인원: 7 명**
+
+
 ## 제 34주차 스터디
 
 #### 날짜: 2015-12-12

@@ -1110,45 +1110,6 @@ not_angel:
  *   
  *dtb_check_done:
  *#endif
- *
- * 		*
- * 		* Check to see if we will overwrite ourselves.
- * 		*   r4  = final kernel address (possibly with LSB set)
- * 		*   r9  = size of decompressed image
- * 		*   r10 = end of this image, including  bss/stack/malloc space if non XIP
- * 		* We basically want:
- * 		*   r4 - 16k page directory >= r10 -> OK
- * 		*   r4 + image length <= address of wont_overwrite -> OK
- * 		* Note: the possible LSB in r4 is harmless here.
- * 		*
- * 		add	r10, r10, #16384
- * 		cmp	r4, r10
- * 		bhs	wont_overwrite
- * 		add	r10, r4, r9
- * 		adr	r9, wont_overwrite
- * 		cmp	r10, r9
- * 		bls	wont_overwrite
- * 
- *		*
- *		* Relocate ourselves past the end of the decompressed kernel.
- *		*   r6  = _edata
- *		*   r10 = end of the decompressed kernel
- *		* Because we always copy ahead, we need to do it from the end and go
- *		* backward in case the source and destination overlap.
- *		*
- * 		*
- * 		* Bump to the next 256-byte boundary with the size of
- * 		* the relocation code added. This avoids overwriting
- * 		* ourself when the offset is small.
- * 		*
- *
- * 		add	r10, r10, #((reloc_code_end - restart + 256) & ~255)
- * 		bic	r10, r10, #255
- * 
- * 		* Get start of code we want to copy and align it down. *
- * 		adr	r5, restart
- * 		bic	r5, r5, #31
- * 
  * ==================================================================
  */
 
@@ -1310,6 +1271,26 @@ restart:	adr	r0, LC0
 dtb_check_done:
 #endif
 
+
+/* IAMROOT-12D (2015-12-19):
+ * -------------------------
+ * 오늘부터 위와 같이 주석 탭플릿을 변경해서 사용하고자 합니다.
+ * - 기존: 코드 블록을 복사해서 주석을 그 안에 추가
+ * - 변경: 원본 소스 블록 사이에 주석을 추가
+ *
+ * -------------------------
+ * 현재 상태는 다음과 같고
+ *  r4 = 최종 커널의 주소(커널이 풀려질 주소, 0x8000)
+ *  r9 = 압축이 풀릴 이미지의 크기
+ *  r10= 압축된 커널 이미지의 끝 주소
+ * 지금 하려고 하는건
+ *  (r4 - 16k) >= r10
+ *  (r4 + image length) <= &wont_overwrite
+ *
+ * @TODO: 그런데 Note에서 적혀진 내용에서
+ * r4의 LSB(최하위 비트)가 있다면(?) 좋지 않다는건지 의미가 궁금함
+ */
+ 
 /*
  * Check to see if we will overwrite ourselves.
  *   r4  = final kernel address (possibly with LSB set)
@@ -1320,6 +1301,18 @@ dtb_check_done:
  *   r4 + image length <= address of wont_overwrite -> OK
  * Note: the possible LSB in r4 is harmless here.
  */
+
+/* IAMROOT-12D (2015-12-19):
+ * -------------------------
+ * r10 += 16k;
+ * if(r4 >= r10)
+ *	goto wont_overwrite;
+ *
+ * r10 = r4 + r9
+ * r9 = &wont_overwrite;
+ * if( r10 <= r9)
+ *	goto wont_overwrite;
+ */
 		add	r10, r10, #16384
 		cmp	r4, r10
 		bhs	wont_overwrite
@@ -1328,12 +1321,28 @@ dtb_check_done:
 		cmp	r10, r9
 		bls	wont_overwrite
 
+/* IAMROOT-12D (2015-12-19):
+ * -------------------------
+ * http://iamroot.org/wiki/doku.php?id=kernel_original_12_a:%EB%B6%80%ED%8A%B8_%EA%B4%80%EB%A0%A8
+ * @TODO: 그림 "4) 1st start ~ relocation 수행 과정"에서 "Target커널의 끝에 약간의 
+ * 공간 확보"라는 내용이 있는데, 이게 오해한거 아니냐?는 의견이 나옴
+ * (r10에 16k를 더한걸 약간의 공간이라고?) -> 검토 필요
+ * 
+ * r6 = _edata, 재배치전의 zImage의 끝 주소와 동일
+ * r10 = 압축이 풀릴 커널의 끝 주소
+ */
 /*
  * Relocate ourselves past the end of the decompressed kernel.
  *   r6  = _edata
  *   r10 = end of the decompressed kernel
  * Because we always copy ahead, we need to do it from the end and go
  * backward in case the source and destination overlap.
+ */
+
+/* IAMROOT-12D (2015-12-19):
+ * -------------------------
+ * 재배치시킬 zImage와 압축이 풀릴 커널이 서로 겹치지 않도록 약간의 공간을 확보
+ * (256바이트 영역을 인접시킴(bump))
  */
 		/*
 		 * Bump to the next 256-byte boundary with the size of
@@ -1343,10 +1352,18 @@ dtb_check_done:
 		add	r10, r10, #((reloc_code_end - restart + 256) & ~255)
 		bic	r10, r10, #255
 
+/* IAMROOT-12D (2015-12-19):
+ * -------------------------
+ * restart 주소를 가져와서 4byte얼라인 시킴
+ */
 		/* Get start of code we want to copy and align it down. */
 		adr	r5, restart
 		bic	r5, r5, #31
 
+/* IAMROOT-12D (2015-12-19):
+ * -------------------------
+ * 아래 코드(가상화)는 생략함 
+ */
 /* Relocate the hyp vector base if necessary */
 #ifdef CONFIG_ARM_VIRT_EXT
 		mrs	r0, spsr
@@ -1361,17 +1378,59 @@ dtb_check_done:
 1:
 #endif
 
+/* IAMROOT-12D (2015-12-19):
+ * -------------------------
+ * r6 = _edata;
+ * r5 = &restart;(4바이트 정렬)
+ * r9 = r6 - r5; (zImage + DTB = 복사할 zImage의 크기)
+ * r9 += 31; (32바이트 정렬을 위해 round up계산)
+ *	     (8개의 레지스터 단위로 블록 복사하기 아래쪽에 나옴)
+ * r9 ~= 31;
+ * r6 = r9 + r5; (초기 _edata에서 얼라인 적용만큼 살짝 변경된 값)
+ * r9 += r10; (압축풀릴 커널 끝 주소 + 재배치될 zImage + DTB를 더한 끝 위치)
+ */
 		sub	r9, r6, r5		@ size to copy
 		add	r9, r9, #31		@ rounded up to a multiple
 		bic	r9, r9, #31		@ ... of 32 bytes
 		add	r6, r9, r5
 		add	r9, r9, r10
 
-1:		ldmdb	r6!, {r0 - r3, r10 - r12, lr}
+/* IAMROOT-12D (2015-12-19):
+ * -------------------------
+ * ldmdb(load register muliple decrement before)
+ * r6가 가리키고 있는 주소에 r0~r3, r10~r12, lr를 읽어와서 r9이 가리키고 있는
+ * 주소로럭 블록 복사하는 루프 (그래서 32바이트 정렬이 필요했음)
+ * 아래 루프가 끝나면 zImage는 재배치 영역으로 복사 완료됨
+ *
+ * do {
+ *	r0  = *(--r6);
+ *	r1  = *(--r6);
+ *	r2  = *(--r6);
+ *	r3  = *(--r6);
+ *	r10 = *(--r6);
+ *	r11 = *(--r6);
+ *	r12 = *(--r6);
+ *	lr  = *(--r6);
+ *	
+ *	*(--r9) = *r0;
+ *	*(--r9) = *r1;
+ *	*(--r9) = *r2;
+ *	*(--r9) = *r3;
+ *	*(--r9) = *r10;
+ *	*(--r9) = *r11;
+ *	*(--r9) = *r12;
+ *	*(--r9) = *lr;
+ * } while( r6 > r5);
+ */
+ 1:		ldmdb	r6!, {r0 - r3, r10 - r12, lr}
 		cmp	r6, r5
 		stmdb	r9!, {r0 - r3, r10 - r12, lr}
 		bhi	1b
 
+/* IAMROOT-12D (2015-12-19):
+ * -------------------------
+ * r6 = r9 - r6; 재배치전 restart에서 재배치후 restart까지의 오프셋
+ */
 		/* Preserve offset to relocated code. */
 		sub	r6, r9, r6
 
@@ -1380,11 +1439,49 @@ dtb_check_done:
 		add	sp, sp, r6
 #endif
 
+/* IAMROOT-12D (2016-01-09):
+ * -------------------------
+ * 여기부터 시작
+ */
 		bl	cache_clean_flush
 
+/* IAMROOT-12D (2015-12-19):
+ * -------------------------
+ * r0 = &restart; (재배치전 restart)
+ * r0 += r6; (결국 r0는 재배치된 restart의 주소가 됨)
+ * goto r0; (이로써 재배치된 restart에서 재시작)
+ */
 		adr	r0, BSYM(restart)
 		add	r0, r0, r6
 		mov	pc, r0
+
+/* IAMROOT-12D (2015-12-19):
+ * -------------------------
+ * wont_overwirte 분석 시작
+ *
+ * @TODO:
+ * 1.delta가 (다시) 뭐였죠?
+ * A조의 주석에서 발췌:
+ * r0에 현재 실행되는 상태의 LC0의 주소 값이 담기고,
+ * r1은 처음 이미지가 만들어질 때 당시의 주소 값(0을 기준으로)이 담겨 있고
+ * 이 둘의 차이 값이 r0(delta) 값이 된다.이 델타 값으로 Image의 위치를
+ * 가리키는 레지스터들을 보정하는데 사용한다.
+ *
+ * 2.GOT(global offset table)가 뭐죠?
+ * http://eli.thegreenplace.net/2011/11/03/position-independent-code-pic-in-shared-libraries
+ * elf의 데이터 섹션 헤더(section header)에 있는 멤버중 하나로, 전역변수의 주소
+ * 를 저장하고 있는 테이블
+ *
+ * 3.linked란 어떤걸 의미?
+ * (만약 delta가 0이라면, 링크된 주소에서 실행중이란 뜻)
+ *
+ * 4.LC0가 (역시) 뭐였죠?
+ * https://e4deen.wordpress.com/2014/06/21/39/
+ * LC0 는 컴파일러가 임의로 만들어주는 지역레이블로서, 컴파일과 링크 등의
+ * 과정을 거치면서 link script 를 통해 각 section 의 위치를 기록해두는
+ * 레이블로 사용된다. 그리고, LC0 레이블이 위치해야할 주소값을 LC0 레이블의
+ * 첫번째 word 에 기록해둔다.
+ */
 
 wont_overwrite:
 /*
@@ -1399,6 +1496,13 @@ wont_overwrite:
  *   r11 = GOT start
  *   r12 = GOT end
  *   sp  = stack pointer
+ */
+
+/* IAMROOT-12D (2015-12-19):
+ * -------------------------
+ * r1 = r0 | r5 (delta | 덧붙여진 dtb의 크기)
+ * if(r1 == 0)
+ *	goto not_relocated;
  */
 		orrs	r1, r0, r5
 		beq	not_relocated
@@ -1447,6 +1551,16 @@ wont_overwrite:
 		blo	1b
 #endif
 
+
+/* IAMROOT-12D (2015-12-19):
+ * -------------------------
+ *   r2  = BSS start
+ *   r3  = BSS end
+ *
+ * r0 = 0;
+ * while( r2 < r3)
+ *	++r2 = r0;
+ */
 not_relocated:	mov	r0, #0
 1:		str	r0, [r2], #4		@ clear bss
 		str	r0, [r2], #4
@@ -1455,6 +1569,23 @@ not_relocated:	mov	r0, #0
 		cmp	r2, r3
 		blo	1b
 
+/* IAMROOT-12D (2015-12-19):
+ * -------------------------
+ * r4  = kernel execution address (possibly with LSB set)
+ * tst: AND 논리 연산을 이용한 비교명령어
+ * teq: OR 논리 연산을 이용한 비교명령어
+ * blne: branch link register if not equal(z플래그 확인. 즉, 0이 아니면)
+ *
+ * if((r4 & 1) != 0) {
+ *	r4 &= ~1;
+ *	goto cache_on;
+ * }
+ * 
+ * 질문:그런데 왜 LSB(최하위 비트)가 1일때하고 비교를 하나요?
+ * 예전에 start레이블 내에서 cache_on을 검사한 루틴이 있는데, 당시에 중복 영역이
+ * 있다면 cache_on을 보류(skipped)하기위해서 LSB를 1로 설정했었다. 해서 bic로 
+ * LSB값을 다시 초기화 한다.(이해가 안되면 아래 주석을 반드시 참고하세요)
+*/
 		/*
 		 * Did we skip the cache setup earlier?
 		 * That is indicated by the LSB in r4.
