@@ -1046,24 +1046,24 @@ not_angel:
  *			; 압축풀린 커널 bss사이즈가 재배치될 zImage 사이즈보다
  *                      ; 크다면, r9을 조정한다.
  *
- *		/* Get the current DTB size */
+ *		/ * Get the current DTB size * /
  *		ldr	r5, [r6, #4]
  *			; r6의 첫 4바이트는 매직값,
  *			; 그 다음 4바이트가 dtb_total_size
  *
  *#ifndef __ARMEB__
- *		/* convert r5 (dtb size) to little endian */
+ *		/ * convert r5 (dtb size) to little endian * /
  *		eor	r1, r5, r5, ror #16
  *		bic	r1, r1, #0x00ff0000
  *		mov	r5, r5, ror #8
  *		eor	r5, r5, r1, lsr #8
  *#endif
  *
- *		/* preserve 64-bit alignment */
+ *		/ * preserve 64-bit alignment * /
  *		add	r5, r5, #7
  *		bic	r5, r5, #7
  *
- *		/* relocate some pointers past the appended dtb */
+ *		/ * relocate some pointers past the appended dtb * /
  *		add	r6, r6, r5
  *			; dtb 끝(dtb_start + dtb_size)
  *                      ; 기존 r6 는 bss 시작점인 동시에 DTB 시작점 이었으나,
