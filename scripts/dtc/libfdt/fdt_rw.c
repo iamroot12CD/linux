@@ -93,16 +93,29 @@ static int _fdt_blocks_misordered(const void *fdt,
 		|| (fdt_totalsize(fdt) <
 		    (fdt_off_dt_strings(fdt) + fdt_size_dt_strings(fdt)));
 }
-
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-11-28
+ * ------------------------------------------------------------------
+ * 
+ * Description :1.fdt 의 version, magic 값 검사
+ *		2.fdt->version 이 17보다작으면 에러, 17보다 크면 17로 세팅
+ *		3.fdt struct 구조체에 맞는지 체크
+ */		
 static int _fdt_rw_check_header(void *fdt)
 {
+	// fdt 의 magic 과 version 을 check
 	FDT_CHECK_HEADER(fdt);
 
+	// fdt->version return. default fdt 버전은 17
 	if (fdt_version(fdt) < 17)
 		return -FDT_ERR_BADVERSION;
+	// fdt 가 fdt 구조체 순서에 맞게 되어 있는지 check
 	if (_fdt_blocks_misordered(fdt, sizeof(struct fdt_reserve_entry),
 				   fdt_size_dt_struct(fdt)))
 		return -FDT_ERR_BADLAYOUT;
+
+	// fdt->version 이 17보다 큰 값이면 17로 세팅
 	if (fdt_version(fdt) > 17)
 		fdt_set_version(fdt, 17);
 
@@ -118,18 +131,47 @@ static int _fdt_rw_check_header(void *fdt)
 
 static inline int _fdt_data_size(void *fdt)
 {
+	/*
+	 * fdt_off_dt_strings : fdt 구조체의 off_dt_strings 필드 주소 리턴함
+	 * fdt_size_dt_strings : fdt 구조체의 size_dt_strings 필드 주소 리턴함 
+	 * dtstring 필드의 끝 위치를 리턴
+	 */
 	return fdt_off_dt_strings(fdt) + fdt_size_dt_strings(fdt);
 }
-
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-11-28
+ * ------------------------------------------------------------------
+ *  1. splicepoint 유효성 check
+ *  2. splicepoint 의 길이가 변경되므로, 
+ *  splicepoint 뒤의 필드들의 위치를 재조정
+ */
 static int _fdt_splice(void *fdt, void *splicepoint, int oldlen, int newlen)
 {
 	char *p = splicepoint;
 	char *end = (char *)fdt + _fdt_data_size(fdt);
 
+	/* property *p 의 유효성 check */
 	if (((p + oldlen) < p) || ((p + oldlen) > end))
 		return -FDT_ERR_BADOFFSET;
+	/* 새로 갱신되는 길이가 전체 fdt size보다 크면 에러  */
 	if ((end - oldlen + newlen) > ((char *)fdt + fdt_totalsize(fdt)))
 		return -FDT_ERR_NOSPACE;
+	/*
+	 * before memmove =>
+	 * slicepoint   next tag 
+	 * +------------+---------------------+
+	 * | abc        | cpus{cpu0, 1...}    |
+	 * +------------+---------------------+
+	 *		p+oldlen              end
+	 * after memmove =>
+	 * +----------------+---------------------+
+	 * | abc def        | cpus{cpu0, 1...}    |
+	 * +----------------+-----------------^---+
+	 *		    p+newlen          end(end 위치는 동일)
+	 *		    delta 만큼 shift
+	 */
+	// memmove(p + newlen, p + oldlen, end - (p + oldlen) ); 
 	memmove(p + newlen, p + oldlen, end - p - oldlen);
 	return 0;
 }
@@ -146,7 +188,13 @@ static int _fdt_splice_mem_rsv(void *fdt, struct fdt_reserve_entry *p,
 	fdt_set_off_dt_strings(fdt, fdt_off_dt_strings(fdt) + delta);
 	return 0;
 }
-
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-11-28
+ * ------------------------------------------------------------------
+ *  1. _fdt_splice : p 뒤의 필드 재조정 
+ *  2. fdt의 size_dt_struct 와 off_dt_strings 값 갱신
+ */
 static int _fdt_splice_struct(void *fdt, void *p,
 			      int oldlen, int newlen)
 {
@@ -156,11 +204,30 @@ static int _fdt_splice_struct(void *fdt, void *p,
 	if ((err = _fdt_splice(fdt, p, oldlen, newlen)))
 		return err;
 
+	/*
+	 * fdt_set_size_dt_struct : fdt의  size_dt_struct 값 갱신 
+	 * fdt_set_off_dt_strings : fdt의 off_dt_strings 값 갱신 
+	 */
 	fdt_set_size_dt_struct(fdt, fdt_size_dt_struct(fdt) + delta);
 	fdt_set_off_dt_strings(fdt, fdt_off_dt_strings(fdt) + delta);
 	return 0;
 }
-
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-11-28
+ * ------------------------------------------------------------------
+ * fdt 현재 구조 =>
+ * +--------------------------------------------------------+
+ * | FDT header | reserved | dt struct | dtstrings | buffer |
+ * +--------------------------------------------------------+
+ *
+ * fdt_splice_string 수행 후 =>
+ * +--------------------------------------------------------+
+ * | FDT header | reserved | dt struct | dtstrings | buffer |
+ * +------------------------------------------------^-------+
+ *						    |
+ *					   새로운 dt string 필드 추가 됨	
+ */
 static int _fdt_splice_string(void *fdt, int newlen)
 {
 	void *p = (char *)fdt
@@ -173,7 +240,16 @@ static int _fdt_splice_string(void *fdt, int newlen)
 	fdt_set_size_dt_strings(fdt, fdt_size_dt_strings(fdt) + newlen);
 	return 0;
 }
-
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-11-28
+ * ------------------------------------------------------------------
+ * 1. fdt에서 dtsting 에서 S 문자열의 시작위치 offset을 리턴함 
+ * 2. fdt에서 s 문자열이 존재하지 않을 경우
+ *    a. dtstrings 맨 뒤에 s 문자열 추가를 위해 공간 확보 
+ *    b. s 문자열을 추가된 공간에 복사한다
+ *    c. dtsrings 에서 s 문자열의 시작위치 offset을 리턴함
+ */
 static int _fdt_find_add_string(void *fdt, const char *s)
 {
 	char *strtab = (char *)fdt + fdt_off_dt_strings(fdt);
@@ -182,6 +258,9 @@ static int _fdt_find_add_string(void *fdt, const char *s)
 	int len = strlen(s) + 1;
 	int err;
 
+	/* strtab ~ fdt_sisze_dt_strings(fdt) 범위 안에서 
+	* s 문자열을 찾아서 문자열의 시작 주소를 리턴함
+	*/
 	p = _fdt_find_string(strtab, fdt_size_dt_strings(fdt), s);
 	if (p)
 		/* found it */
@@ -229,16 +308,40 @@ int fdt_del_mem_rsv(void *fdt, int n)
 	return 0;
 }
 
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-11-28
+ * ------------------------------------------------------------------
+ * setprop_string(fdt, "/chosen", "bootargs", cmdline); 함수에서 
+ *      호출했다는 전제로  분석
+ * fdt : device tree pointer, 
+ * nodeoffset : "/chosen" node offset, 
+ * name : "bootargs" property, 
+ * len : 새로 갱신될 bootargs 속성의 길이,
+ * prop : fdt_property pointer 변수 
+ * 1. *prop = bootargs 속성 값을 얻어 온다. 
+ *    oldlen = bootargs 속성 값의 길이
+ * 2. prop->data 길이가 변경 되므로, prop 뒤의 필드들이
+ *    변경된 prop->data 뒤에 오도록 재조정
+ */
 static int _fdt_resize_property(void *fdt, int nodeoffset, const char *name,
 				int len, struct fdt_property **prop)
 {
 	int oldlen;
 	int err;
 
+	/* 
+	 * prop = bootargs, oldlen = bootargs의 value 길이
+	 */
 	*prop = fdt_get_property_w(fdt, nodeoffset, name, &oldlen);
 	if (! (*prop))
+		// bootargs를 못 찾으면 error를 return
 		return oldlen;
 
+	// 
+	// (*prop)->data : property의 value 
+	// FDT_TAGALIGN(oldlen) : 현재 property의 길이
+	// FDT_TAGALIGN(len) : update 할 property의 길이 
 	if ((err = _fdt_splice_struct(fdt, (*prop)->data, FDT_TAGALIGN(oldlen),
 				      FDT_TAGALIGN(len))))
 		return err;
@@ -246,7 +349,13 @@ static int _fdt_resize_property(void *fdt, int nodeoffset, const char *name,
 	(*prop)->len = cpu_to_fdt32(len);
 	return 0;
 }
-
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-11-28
+ * ------------------------------------------------------------------
+ * 1. offset 유효성 check 하고 nextoffset에 다음 tag의 offset값 할당
+ * 2. name 필드의 offset값을 찾아서 namestroff값 할당 
+ */
 static int _fdt_add_property(void *fdt, int nodeoffset, const char *name,
 			     int len, struct fdt_property **prop)
 {
@@ -258,17 +367,30 @@ static int _fdt_add_property(void *fdt, int nodeoffset, const char *name,
 	if ((nextoffset = _fdt_check_node_offset(fdt, nodeoffset)) < 0)
 		return nextoffset;
 
+	/* 
+	 * name 문자열을 dtstrings 에서 찾고 없으면 추가한다. 
+	 * 반환값은 dtstrings 시작 위치에서 문자열이 시작되는 위치의 offset 
+	 */ 
 	namestroff = _fdt_find_add_string(fdt, name);
 	if (namestroff < 0)
 		return namestroff;
 
+	/*
+	 * dt_struct 에서 해당 property 주소를 찾는다.
+	 */
 	*prop = _fdt_offset_ptr_w(fdt, nextoffset);
 	proplen = sizeof(**prop) + FDT_TAGALIGN(len);
 
+	/*
+	 * dt_struct 에서 prop를 추가할 공간을 확보한다.
+	 */
 	err = _fdt_splice_struct(fdt, *prop, 0, proplen);
 	if (err)
 		return err;
 
+	/*
+	 * prop member 갱신함 
+	 */
 	(*prop)->tag = cpu_to_fdt32(FDT_PROP);
 	(*prop)->nameoff = cpu_to_fdt32(namestroff);
 	(*prop)->len = cpu_to_fdt32(len);
@@ -297,7 +419,19 @@ int fdt_set_name(void *fdt, int nodeoffset, const char *name)
 	memcpy(namep, name, newlen+1);
 	return 0;
 }
-
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-11-28
+ * ------------------------------------------------------------------
+ * nodeoffset : "/chosen" node 의 offset 
+ * name : "bootargs" property name
+ * val : bootargs property 값과 인자로 넘어온 atags cmdline이 합쳐진 string 
+ * len : strlen(val)
+ * 1. FDT_RW_CHECK_HEADER : fdt 의 유효성 check
+ * 2. _fdt_resize_property : prop 를 갱신해야 되기에 dt_strings size 재조정 및 
+ *			     갱신하려는 prop 뒤의 property를 shift 
+ * 3. memcpy : val를 지정된 prop->data에 저장
+ */
 int fdt_setprop(void *fdt, int nodeoffset, const char *name,
 		const void *val, int len)
 {
@@ -312,6 +446,9 @@ int fdt_setprop(void *fdt, int nodeoffset, const char *name,
 	if (err)
 		return err;
 
+	/*
+	 * property 에 새로운 val 값으로 memcpy 
+	 */
 	memcpy(prop->data, val, len);
 	return 0;
 }
@@ -370,12 +507,36 @@ int fdt_add_subnode_namelen(void *fdt, int parentoffset,
 
 	FDT_RW_CHECK_HEADER(fdt);
 
+	/* 여기서는 추가하는 중이기때문에 서브노드에 추가할 같은 이름이 있어서는
+	   안된다. 따라서 아래 함수의 결과는 에러값(NOT_FOUND)가 나올것이다. */
 	offset = fdt_subnode_offset_namelen(fdt, parentoffset, name, namelen);
 	if (offset >= 0)
 		return -FDT_ERR_EXISTS;
 	else if (offset != -FDT_ERR_NOTFOUND)
 		return offset;
 
+	/* 
+	 * +------+-------------------------+
+	 * | Node | FDT_BEGIN_NODE          |
+	 * |      +-------------------------+
+	 * |      | Node Name               |
+	 * |      +----------+--------------+
+	 * |      | Property | FDT_PROP     |
+	 * |      |          +--------------+
+	 * |      |          | Value Length |
+	 * |      |          +--------------+
+	 * |      |          | Name Offset  |
+	 * |      |          +--------------+
+	 * |      |          | Value        |
+	 * +------+----------+--------------+
+	 * | Sub  | FDT_BEGIN_NODE          | << 이렇게 추가(서브노드)
+	 * | Node |                         | 
+	 * |      +-------------------------+
+	 * |      |        ...              |
+	 *
+	 * 다음 노드를 가르키게 한다.
+	 * 즉, 첫번째 서브노드로 add 하겠다는 의미가 된다.
+	 */
 	/* Try to place the new node after the parent's properties */
 	fdt_next_tag(fdt, parentoffset, &nextoffset); /* skip the BEGIN_NODE */
 	do {
@@ -383,6 +544,9 @@ int fdt_add_subnode_namelen(void *fdt, int parentoffset,
 		tag = fdt_next_tag(fdt, offset, &nextoffset);
 	} while ((tag == FDT_PROP) || (tag == FDT_NOP));
 
+	/* fdt_node_header *nh
+	   nodelen을 계산한다.
+	*/
 	nh = _fdt_offset_ptr_w(fdt, offset);
 	nodelen = sizeof(*nh) + FDT_TAGALIGN(namelen+1) + FDT_TAGSIZE;
 

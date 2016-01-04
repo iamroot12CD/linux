@@ -9,10 +9,22 @@
 
 #define NR_BANKS 16
 
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-12-05
+ * ------------------------------------------------------------------
+ *
+ * 만약, node_path가 존재하지 않으면, add_subnode를 통해 새로 노드를 만든다.
+ *
+ * ==================================================================
+ */
 static int node_offset(void *fdt, const char *node_path)
 {
+	/* node를 찾지못하면 FDT_ERR_NOTFOUND가 나옴 */
 	int offset = fdt_path_offset(fdt, node_path);
 	if (offset == -FDT_ERR_NOTFOUND)
+		/* parent offset이 0인이유는, 루트하위의 노드로 넣겠다는 
+		   의미이다.*/
 		offset = fdt_add_subnode(fdt, 0, node_path);
 	return offset;
 }
@@ -26,6 +38,13 @@ static int setprop(void *fdt, const char *node_path, const char *property,
 	return fdt_setprop(fdt, offset, property, val_array, size);
 }
 
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-11-28
+ * ------------------------------------------------------------------
+ * 
+ * fdt 에서 지정된 offset 위치의 property를 string 값으로 세팅
+ */
 static int setprop_string(void *fdt, const char *node_path,
 			  const char *property, const char *string)
 {
@@ -35,9 +54,20 @@ static int setprop_string(void *fdt, const char *node_path,
 	return fdt_setprop_string(fdt, offset, property, string);
 }
 
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-12-05
+ * ------------------------------------------------------------------
+ * node_path - property 에 val을 세팅한다.
+ * ==================================================================
+ */
 static int setprop_cell(void *fdt, const char *node_path,
 			const char *property, uint32_t val)
 {
+	/*
+	  node_path를 구해온다.
+	  만약, node_path가 없다면 추가 이후 오프셋을 구해온다.
+	*/
 	int offset = node_offset(fdt, node_path);
 	if (offset < 0)
 		return offset;
@@ -64,12 +94,25 @@ static const void *getprop(const void *fdt, const char *node_path,
 	return fdt_getprop(fdt, offset, property, len);
 }
 
+/* ==================================================================
+ * 팀:   Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
+ * 날짜: 2015-12-05
+ * ------------------------------------------------------------------
+ * fdt에서 cell size를 읽어옴
+ *
+ * 32/64bit를 셀사이즈로 판단한다.
+ *
+ * 1: 32bit(*default)
+ * 2: 64bit
+ * ==================================================================
+ */
 static uint32_t get_cell_size(const void *fdt)
 {
 	int len;
 	uint32_t cell_size = 1;
 	const uint32_t *size_len =  getprop(fdt, "/", "#size-cells", &len);
 
+	/* 64bit면 size_len이 2로 올것이다. */
 	if (size_len)
 		cell_size = fdt32_to_cpu(*size_len);
 	return cell_size;
@@ -115,6 +158,10 @@ static void merge_fdt_bootargs(void *fdt, const char *fdt_cmdline)
 		}
 
 	/* and append the ATAG_CMDLINE */
+	/* fdt_bootargs 로 리턴된 문자열과 
+	 * 인자로 넘어온 fdt_cmdline 문자열을 합치는 구문
+	 * ex) cmdline = fdt_bootargs + ' ' + fdt_cmdline + '\0'
+	 */
 	if (fdt_cmdline) {
 		len = strlen(fdt_cmdline);
 		if (ptr - cmdline + len + 2 < COMMAND_LINE_SIZE) {
@@ -171,6 +218,19 @@ int atags_to_fdt(void *atag_list, void *fdt, int total_space)
 	struct tag *atag = atag_list;
 	/* In the case of 64 bits memory size, need to reserve 2 cells for
 	 * address and size for each bank */
+	/* TODO Bank? NR_BANKS:16 */
+	/*
+	  +-------------------------------------------+
+	  |  |  |  |  |  | ...  		   |  |
+	  +-------------------------------------------+
+
+	  64비트 머신에서는 uint64_t로 형변환해서 2칸씩 뛰게된다.
+
+	  Bank의 수는 16개, 16개까지 채울수 있다.
+	   + Address start 과, 사이즈 값을 담을 배열이 필요하여 곱하기 2를 함
+	   + 64비트 머신에서는 Address값이 2칸이 필요함으로 곱하기 2를 함
+	     (reserve)
+	*/
 	uint32_t mem_reg_property[2 * 2 * NR_BANKS];
 	int memcount = 0;
 	int ret, memsize;
@@ -216,8 +276,6 @@ int atags_to_fdt(void *atag_list, void *fdt, int total_space)
 			 * /arch/arm/boot/dts/ *.dts 파일 중 아래 옵션
 			 *   chosen {
 			 *    bootargs = "console=ttyS0,115200 ubi.mtd=4 \
-			 *       root=ubi0:rootfs rootfstype=ubifs";
-			 *   };
 			 */
 			// 2015-11-21 시작할 위치
 			if (do_extend_cmdline)
@@ -226,23 +284,48 @@ int atags_to_fdt(void *atag_list, void *fdt, int total_space)
 			else
 				setprop_string(fdt, "/chosen", "bootargs",
 					       atag->u.cmdline.cmdline);
+
+		/* if (atag->hdr.tag == ATAG_CMDLINE) */
 		} else if (atag->hdr.tag == ATAG_MEM) {
+			/* 
+			  uint32_t[64]배열
+			  sizeof(mem_reg_property) : 64 * 4 = 256
+			  배열의 Entry 개수만 구한듯
+			  4 -> sizeof(uint32_t)
+			  4는 버그같..?
+			  64비트일때의 고려가 되어있지 않음
+
+			  continue: for_each_tag(atag, atag_list)
+			*/
 			if (memcount >= sizeof(mem_reg_property)/4)
+				/* continue: 다음 태그를 읽음 */
 				continue;
 			if (!atag->u.mem.size)
 				continue;
 			memsize = get_cell_size(fdt);
 
+			/* 2cell이라면 64비트 */
+			/* 
+			  mem_reg_property 에다가 Address start, Address Size를
+			  차곡차곡 저장한다.
+			*/
 			if (memsize == 2) {
 				/* if memsize is 2, that means that
 				 * each data needs 2 cells of 32 bits,
 				 * so the data are 64 bits */
 				uint64_t *mem_reg_prop64 =
 					(uint64_t *)mem_reg_property;
+
+				/* 실제로는 아무 문제 없겠지만,
+				   memcount는 코드상으로 63까지 가능하다.
+				   memcount가 32이상이되면 아래의 메모리참조에서
+				   에러가 날 가능성이 있다.
+				*/
 				mem_reg_prop64[memcount++] =
 					cpu_to_fdt64(atag->u.mem.start);
 				mem_reg_prop64[memcount++] =
 					cpu_to_fdt64(atag->u.mem.size);
+			/* 32비트 */
 			} else {
 				mem_reg_property[memcount++] =
 					cpu_to_fdt32(atag->u.mem.start);
@@ -254,13 +337,33 @@ int atags_to_fdt(void *atag_list, void *fdt, int total_space)
 			uint32_t initrd_start, initrd_size;
 			initrd_start = atag->u.initrd.start;
 			initrd_size = atag->u.initrd.size;
+
+			/*
+			[example]
+
+			chosen {
+				bootargs = "console=ttyS0 ip=on root=/dev/ram";
+				linux,stdout-path = "/plb@0/serial@83e00000";
+
+				현재는 아래 두 값이 없지만, 아래 함수에 의해
+				설정될 것이다.
+				linux,initrd-start = <FD36000>;
+				linux,initrd-end = <FEA5F20>;
+			} ;
+			*/
 			setprop_cell(fdt, "/chosen", "linux,initrd-start",
 					initrd_start);
 			setprop_cell(fdt, "/chosen", "linux,initrd-end",
 					initrd_start + initrd_size);
 		}
-	}
+	} /* for_each_tag 종료 */
 
+	/*
+	  memsize: 1(32bit) / 2(64bit)
+	  mem_reg_property 실제 사이즈: (4 * memcount * memsize)
+
+	  i.e. reg = <0x0 0x8000000 0x8000000 0x1000000>;
+	*/
 	if (memcount) {
 		setprop(fdt, "/memory", "reg", mem_reg_property,
 			4 * memcount * memsize);
