@@ -2,6 +2,39 @@
 
 ## 제 35주차 스터디
 
+#### 날짜: 2016-01-09
+#### 장소: 커널연구회
+
+#### 참석자
+ - 소스 드라이빙 : 임채훈 (im.fehead@gmail.com)
+ - 박종성 (jongsong.park@gmail.com)
+ - 안종찬 (ahnchan2@gmail.com)
+ - 곽승준 (rialtoksj@yahoo.com)
+ - 김지은 (yeswldms@gmail.com)
+ - 김건용 (gykim0914@gmail.com)
+ - 박병배 (i.billpark@gmail.com)
+ - 김민호 (8891m@naver.com)
+ - 권세홍 (sehongkwon2.24@gmail.com)
+ - 최일선 (isc0304@naver.com)
+ - 조훈근 (hoonycho12@gmail.com)
+
+**참석인원: 11 명**
+
+
+## 제 37주차 스터디
+
+#### 날짜: 2016-01-02
+#### 동계휴가
+
+
+## 제 36주차 스터디
+
+#### 날짜: 2016-12-26
+#### 동계휴가
+
+
+## 제 35주차 스터디
+
 #### 날짜: 2015-12-19
 #### 장소: 커널연구회
 

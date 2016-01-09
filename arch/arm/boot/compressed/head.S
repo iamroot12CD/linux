@@ -2256,7 +2256,7 @@ __armv4_mmu_cache_on:
  *		mcrne   p15, 0, r6, c2, c0, 2   @ load ttb control
  * #endif
  *		mcr	p15, 0, r0, c7, c5, 4	@ ISB
- *			; Instruction Syncronization Barrier
+ *			; Instruction Synchronization Barrier
  *			; ISB 수행 전의 내용을 파이프라인에서 모두 반영하여 
  *			  비운다.
  *			; 파이프라인을 비워서, 모든 명령들이 cache 나 memory 로
@@ -2421,7 +2421,11 @@ __common_mmu_cache_on:
  * 
  * ====================================================================
  */
-
+/* IAMROOT-12D (2016-01-09):
+ * --------------------------
+ * 두번째 restart에서 들어옴
+ * cache clean & flush : r3 = 16
+ */
 call_cache_fn:	adr	r12, proc_types
 #ifdef CONFIG_CPU_CP15
 		mrc	p15, 0, r9, c0, c0	@ get processor ID
@@ -2590,6 +2594,14 @@ proc_types:
 		W(b)	__armv4_mmu_cache_off
 		W(b)	__armv6_mmu_cache_flush
 
+
+/* IAMROOT-12D (2016-01-09):
+ * --------------------------
+ * 라즈베리 파이 proc_types
+ * 	라즈베리파이 2 cpu ID : 0x410fc075
+ *	( real_cpu_id ^ proc_types_cpu_id ) & mask = 0
+ *	( 0x410fc075 ^ 0x000f0000 ) & 0x000f0000 = 0
+ */
 		.word	0x000f0000		@ new CPU Id
 		.word	0x000f0000
 		W(b)	__armv7_mmu_cache_on
@@ -2729,21 +2741,119 @@ __armv6_mmu_cache_flush:
 		mov	pc, lr
 
 __armv7_mmu_cache_flush:
+
+		/* IAMROOT-12D (2016-01-09):
+		 * --------------------------
+		 * r4는 최종 커널의 시작주소 0x8000
+		 * r4의 LSB가 1이면 cache_on 연기가 셋팅 되어 있는 상태.
+		 * if(r4 & 1 != 0) // cache_on 연기 상태이면 
+		 *	iflush();
+		 *
+		 * 우리가 분석하는 소스에서는 cache_on 연기 상태가 아니므로
+		 * iflush는 호출하지 않는다.
+		 */
 		tst	r4, #1
 		bne	iflush
+
+		/* IAMROOT-12D (2016-01-09):
+		 * --------------------------
+		 * ID_MMFR1: 프로세서의 메모리 관리, 메모리 모델정보를 제공한다.
+		 * https://github.com/iamroot12D/linux/issues/24
+		 * https://cloud.githubusercontent.com/assets/6335376/12215156/da670158-b6f3-11e5-850e-f6d0ffec1170.jpg
+		 * 하버드 구조는  명령어와 데이터가 각각의 버스로 이동하는 구조
+		 * 폰노이드만 구조는 명령어와 데이터가 같은 버스로 이동하는 구조
+		 *
+		 * 만약 계층 캐시 구조라면(멀티 레벨 캐시)
+		 *  hierarchical(계층적인, 트리구조 같은..)를 호출한다.
+		 * 	#0xf << 16 = 0x000f0000
+		 * r10 = id_mmfr1;
+		 * if(r10 & 0x000f0000 == 0)
+		 *	goto hierarchical;
+		 */
 		mrc	p15, 0, r10, c0, c1, 5	@ read ID_MMFR1
 		tst	r10, #0xf << 16		@ hierarchical cache (ARMv7)
 		mov	r10, #0
 		beq	hierarchical
+
+		/* IAMROOT-12D (2016-01-09):
+		 * --------------------------
+		 * 데이터 캐시를 clean & flush하고
+		 * 명령어 캐시를 flush한다.(iflush)
+		 */
 		mcr	p15, 0, r10, c7, c14, 0	@ clean+invalidate D
 		b	iflush
+
+		/* IAMROOT-12D (2016-01-09):
+		 * --------------------------
+		 * DMB : data memory barrier
+		 * 다른 데이터 영역 메모리의 접근을 막는다.
+		 */
 hierarchical:
 		mcr	p15, 0, r10, c7, c10, 5	@ DMB
+		/* IAMROOT-12D (2016-01-09):
+		 * --------------------------
+		 * 스택에 r0 ~ r7, r9 ~ r11 저장
+		 * clidr : cache level id register
+		 */
 		stmfd	sp!, {r0-r7, r9-r11}
 		mrc	p15, 1, r0, c0, c0, 1	@ read clidr
+
+		/* IAMROOT-12D (2016-01-09):
+		 * --------------------------
+		 * L2 캐시 지원 여부를 알아아보는 소스
+		 * http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0464d/BABHCIHB.html
+		 * clidr[26:24]	LoC	
+		 *       Indicates the Level of Coherency for the cache hierarchy:
+		 *       - 0b000 L2 cache not implemented on the processor.
+		 *       - 0b010 L2 cache coherency.
+		 * r3 = clidr & 0x07000000;
+		 * r3 = r3 >> 23;
+		 * if(r3 == 0) 	// L2 캐시 지원하지않음.
+		 *	finished();
+		 */
 		ands	r3, r0, #0x7000000	@ extract loc from clidr
 		mov	r3, r3, lsr #23		@ left align loc bit field
 		beq	finished		@ if loc is 0, then no need to clean
+
+		/* IAMROOT-12D (2016-01-09):
+		 * --------------------------
+		 * r0 = clidr;	
+		 * r10 = 0;
+		 * do {
+		 *	r2 = r10 + (r10 / 2);	// r2 = r10 * 1.5;
+		 *	r1 = r0 >> r2;		// 처음 r1 = clidr;
+		 *	r1 = r1 & 0b0111;	// r1 = Indicates the type of
+		 *				//  cache implemented at level 1
+        	 *	// +------+-----------+
+        	 *	// |00    |no cache   |
+        	 *	// +------+-----------+
+        	 *	// |01    |icache     |
+        	 *	// +------+-----------+
+        	 *	// |10    |data cache |
+        	 *	// +------+-----------+
+        	 *	// |11    |I/D Cache  |
+        	 *	// +------+-----------+
+		 *	if(r1 < 2)		// instruction cache skip
+		 *		goto skip;
+		 *	cssr = r10;
+		 *	// ISB : Instruction Synchronization Barrier.
+		 *	cssr, csidr = r10;	@ isb to sych the new cssr&csidr
+		 *	r1 = csidr;
+		 *	r2 = r1 & 0b0111;	// 하위 3비트를 가져온다.
+		 *	r2 = r2 + 4;
+		 *	r4 = 0x3ff;
+		 *	r4 = r4 & (r1 >> 3);
+		 *		ands	r4, r4, r1, lsr #3	@ find maximum number on the way size
+		 *	r5 = clz r4	// 최초 0이 아닌 인 비트까지의 개수.
+		 *	r7 = 0x7fff & (r1 >> 13);
+		 * loop2:
+		 *	
+		 * 2016-01-16 부터
+		 *	....
+		 * 	r10 += 2;
+		 * } while (r3 <= r10);
+		 *	
+		 */
 		mov	r10, #0			@ start clean at cache level 0
 loop1:
 		add	r2, r10, r10, lsr #1	@ work out 3x current cache level
@@ -2752,12 +2862,27 @@ loop1:
 		cmp	r1, #2			@ see what cache we have at this level
 		blt	skip			@ skip if no cache, or just i-cache
 		mcr	p15, 2, r10, c0, c0, 0	@ select current cache level in cssr
+
+		/* IAMROOT-12D (2016-01-09):
+		 * --------------------------
+		 * Instruction Synchronization Barrier
+		 * ISB 수행 전의 내용을 파이프라인에서 모두 반영하여 비운다.
+		 * 파이프라인을 비워서, 모든 명령들이 cache 나 memory 로
+		 * 부터 fetch 되도록 한다.
+		 * 따라서, ISB 이전 수행이 완료되었음을 보장한다.
+		 */
 		mcr	p15, 0, r10, c7, c5, 4	@ isb to sych the new cssr&csidr
 		mrc	p15, 1, r1, c0, c0, 0	@ read the new csidr
 		and	r2, r1, #7		@ extract the length of the cache lines
 		add	r2, r2, #4		@ add 4 (line length offset)
 		ldr	r4, =0x3ff
 		ands	r4, r4, r1, lsr #3	@ find maximum number on the way size
+
+		/* IAMROOT-12D (2016-01-09):
+		 * --------------------------
+		 * clz	count leading zeros
+		 *	최초 0이 아닌 비트까지의 0 개수
+		 */
 		clz	r5, r4			@ find bit position of way size increment
 		ldr	r7, =0x7fff
 		ands	r7, r7, r1, lsr #13	@ extract max number of the index size
@@ -2784,6 +2909,23 @@ finished:
 		mov	r10, #0			@ swith back to cache level 0
 		mcr	p15, 2, r10, c0, c0, 0	@ select current cache level in cssr
 iflush:
+		/* IAMROOT-12D (2016-01-09):
+		 * --------------------------
+		 * BTB branch target buffer
+		 * instruction cache를 flush한다.
+		 * 
+		 * DSB : 배리어의 특별한 형태로써 이 명령이 수행되기 전에 명령어
+		 *  의 수행이 모두 완료된 다는 것이다. 추가로 캐쉬, 분기예측
+		 *  , TLB(가상/물리 어드레스 변환테이블의 캐쉬) 수행 명령도
+		 *  모두 완료되는 것을 보장한다.
+		 *
+		 * ISB : 명령어 동기화로서 프로세서의 파이프라인을 모두 비운다.
+		 *  따라서 ISB 뒤에서 실행되는 명령어는 이 명령어의 수행이 끝난
+		 *  후 캐쉬나 메모리로부터 다시 읽혀지게 된다.  뒤에 무엇에 의한
+		 *  영향을 피하기 위해서라고 설명하는데 어쨋건 중요한 것은 이
+		 *  명령어 수행하고 나면 파이프라인이 비워진다는 것이 다.
+		 * 참고 URL : http://forum.falinux.com/zbxe/index.php?document_srl=534002&mid=Kernel_API
+		 */
 		mcr	p15, 0, r10, c7, c10, 4	@ DSB
 		mcr	p15, 0, r10, c7, c5, 0	@ invalidate I+BTB
 		mcr	p15, 0, r10, c7, c10, 4	@ DSB
