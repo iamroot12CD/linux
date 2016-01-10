@@ -2814,7 +2814,7 @@ hierarchical:
 		 * r3 = clidr & 0x07000000;
 		 * r3 = r3 >> 23;
 		 * if(r3 == 0) 	// L2 캐시 지원하지않음.
-		 *	finished();
+		 *	goto finished;
 		 */
 		ands	r3, r0, #0x7000000	@ extract loc from clidr
 		mov	r3, r3, lsr #23		@ left align loc bit field
@@ -2823,6 +2823,7 @@ hierarchical:
 		/* IAMROOT-12D (2016-01-09):
 		 * --------------------------
 		 * r0 = clidr;	
+		 * r3 = 0b0010 ~ 0b1110;	// clidr[26:24] << 1
 		 * r10 = 0;
 		 * do {
 		 *	r2 = r10 + (r10 / 2);	// r2 = r10 * 1.5;
