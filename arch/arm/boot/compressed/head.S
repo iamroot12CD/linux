@@ -1302,17 +1302,17 @@ dtb_check_done:
  * Note: the possible LSB in r4 is harmless here.
  */
 
-/* IAMROOT-12D (2015-12-19):
- * -------------------------
- * r10 += 16k;
- * if(r4 >= r10)
- *	goto wont_overwrite;
- *
- * r10 = r4 + r9
- * r9 = &wont_overwrite;
- * if( r10 <= r9)
- *	goto wont_overwrite;
- */
+		/* IAMROOT-12D (2015-12-19):
+		 * -------------------------
+		 * r10 += 16k;
+		 * if(r4 >= r10)
+		 *	goto wont_overwrite;
+		 *
+		 * r10 = r4 + r9
+		 * r9 = &wont_overwrite;
+		 * if( r10 <= r9)
+		 *	goto wont_overwrite;
+		 */
 		add	r10, r10, #16384
 		cmp	r4, r10
 		bhs	wont_overwrite
@@ -1339,11 +1339,11 @@ dtb_check_done:
  * backward in case the source and destination overlap.
  */
 
-/* IAMROOT-12D (2015-12-19):
- * -------------------------
- * 재배치시킬 zImage와 압축이 풀릴 커널이 서로 겹치지 않도록 약간의 공간을 확보
- * (256바이트 영역을 인접시킴(bump))
- */
+		/* IAMROOT-12D (2015-12-19):
+		 * -------------------------
+		 * 재배치시킬 zImage와 압축이 풀릴 커널이 서로 겹치지 않도록 약
+		 * 간의 공간을 확보 (256바이트 영역을 인접시킴(bump))
+		 */
 		/*
 		 * Bump to the next 256-byte boundary with the size of
 		 * the relocation code added. This avoids overwriting
@@ -1352,10 +1352,10 @@ dtb_check_done:
 		add	r10, r10, #((reloc_code_end - restart + 256) & ~255)
 		bic	r10, r10, #255
 
-/* IAMROOT-12D (2015-12-19):
- * -------------------------
- * restart 주소를 가져와서 4byte얼라인 시킴
- */
+		/* IAMROOT-12D (2015-12-19):
+		 * -------------------------
+		 * restart 주소를 가져와서 4byte얼라인 시킴
+		 */
 		/* Get start of code we want to copy and align it down. */
 		adr	r5, restart
 		bic	r5, r5, #31
@@ -1378,59 +1378,62 @@ dtb_check_done:
 1:
 #endif
 
-/* IAMROOT-12D (2015-12-19):
- * -------------------------
- * r6 = _edata;
- * r5 = &restart;(4바이트 정렬)
- * r9 = r6 - r5; (zImage + DTB = 복사할 zImage의 크기)
- * r9 += 31; (32바이트 정렬을 위해 round up계산)
- *	     (8개의 레지스터 단위로 블록 복사하기 아래쪽에 나옴)
- * r9 ~= 31;
- * r6 = r9 + r5; (초기 _edata에서 얼라인 적용만큼 살짝 변경된 값)
- * r9 += r10; (압축풀릴 커널 끝 주소 + 재배치될 zImage + DTB를 더한 끝 위치)
- */
+		/* IAMROOT-12D (2015-12-19):
+		 * -------------------------
+		 * r6 = _edata;
+		 * r5 = &restart;(4바이트 정렬)
+		 * r9 = r6 - r5; (zImage + DTB = 복사할 zImage의 크기)
+		 * r9 += 31; (32바이트 정렬을 위해 round up계산)
+		 *	     (8개의 레지스터 단위로 블록 복사하기 아래쪽에 나옴)
+		 * r9 ~= 31;
+		 * r6 = r9 + r5; (초기 _edata에서 얼라인 적용만큼 살짝 변경된 값)
+		 * r9 += r10; (압축풀릴 커널 끝 주소 + 재배치될 zImage + DTB를
+		 * 	더한 끝 위치)
+		 */
 		sub	r9, r6, r5		@ size to copy
 		add	r9, r9, #31		@ rounded up to a multiple
 		bic	r9, r9, #31		@ ... of 32 bytes
 		add	r6, r9, r5
 		add	r9, r9, r10
 
-/* IAMROOT-12D (2015-12-19):
- * -------------------------
- * ldmdb(load register muliple decrement before)
- * r6가 가리키고 있는 주소에 r0~r3, r10~r12, lr를 읽어와서 r9이 가리키고 있는
- * 주소로럭 블록 복사하는 루프 (그래서 32바이트 정렬이 필요했음)
- * 아래 루프가 끝나면 zImage는 재배치 영역으로 복사 완료됨
- *
- * do {
- *	r0  = *(--r6);
- *	r1  = *(--r6);
- *	r2  = *(--r6);
- *	r3  = *(--r6);
- *	r10 = *(--r6);
- *	r11 = *(--r6);
- *	r12 = *(--r6);
- *	lr  = *(--r6);
- *	
- *	*(--r9) = *r0;
- *	*(--r9) = *r1;
- *	*(--r9) = *r2;
- *	*(--r9) = *r3;
- *	*(--r9) = *r10;
- *	*(--r9) = *r11;
- *	*(--r9) = *r12;
- *	*(--r9) = *lr;
- * } while( r6 > r5);
- */
+		/* IAMROOT-12D (2015-12-19):
+		 * -------------------------
+		 * ldmdb(load register muliple decrement before)
+		 * r6가 가리키고 있는 주소에 r0~r3, r10~r12, lr를 읽어와서 r9이
+		 * 가리키고 있는 주소로럭 블록 복사하는 루프 (그래서 32바이트 정
+		 * 렬이 필요했음) 아래 루프가 끝나면 zImage는 재배치 영역으로 복
+		 * 사 완료됨
+		 *
+		 * do {
+		 *	r0  = *(--r6);
+		 *	r1  = *(--r6);
+		 *	r2  = *(--r6);
+		 *	r3  = *(--r6);
+		 *	r10 = *(--r6);
+		 *	r11 = *(--r6);
+		 *	r12 = *(--r6);
+		 *	lr  = *(--r6);
+		 *	
+		 *	*(--r9) = *r0;
+		 *	*(--r9) = *r1;
+		 *	*(--r9) = *r2;
+		 *	*(--r9) = *r3;
+		 *	*(--r9) = *r10;
+		 *	*(--r9) = *r11;
+		 *	*(--r9) = *r12;
+		 *	*(--r9) = *lr;
+		 * } while( r6 > r5);
+		 */
  1:		ldmdb	r6!, {r0 - r3, r10 - r12, lr}
 		cmp	r6, r5
 		stmdb	r9!, {r0 - r3, r10 - r12, lr}
 		bhi	1b
 
-/* IAMROOT-12D (2015-12-19):
- * -------------------------
- * r6 = r9 - r6; 재배치전 restart에서 재배치후 restart까지의 오프셋
- */
+		/* IAMROOT-12D (2015-12-19):
+		 * -------------------------
+		 * r6 = r9 - r6; 재배치전 restart에서 재배치후 restart까지의 오
+		 *  프셋
+		 */
 		/* Preserve offset to relocated code. */
 		sub	r6, r9, r6
 
@@ -1439,18 +1442,18 @@ dtb_check_done:
 		add	sp, sp, r6
 #endif
 
-/* IAMROOT-12D (2016-01-09):
- * -------------------------
- * 여기부터 시작
- */
+		/* IAMROOT-12D (2016-01-09):
+		 * -------------------------
+		 * 여기부터 시작
+		 */
 		bl	cache_clean_flush
 
-/* IAMROOT-12D (2015-12-19):
- * -------------------------
- * r0 = &restart; (재배치전 restart)
- * r0 += r6; (결국 r0는 재배치된 restart의 주소가 됨)
- * goto r0; (이로써 재배치된 restart에서 재시작)
- */
+		/* IAMROOT-12D (2015-12-19):
+		 * -------------------------
+		 * r0 = &restart; (재배치전 restart)
+		 * r0 += r6; (결국 r0는 재배치된 restart의 주소가 됨)
+		 * goto r0; (이로써 재배치된 restart에서 재시작)
+		 */
 		adr	r0, BSYM(restart)
 		add	r0, r0, r6
 		mov	pc, r0
@@ -1498,12 +1501,12 @@ wont_overwrite:
  *   sp  = stack pointer
  */
 
-/* IAMROOT-12D (2015-12-19):
- * -------------------------
- * r1 = r0 | r5 (delta | 덧붙여진 dtb의 크기)
- * if(r1 == 0)
- *	goto not_relocated;
- */
+		/* IAMROOT-12D (2015-12-19):
+		 * -------------------------
+		 * r1 = r0 | r5 (delta | 덧붙여진 dtb의 크기)
+		 * if(r1 == 0)
+		 *	goto not_relocated;
+		 */
 		orrs	r1, r0, r5
 		beq	not_relocated
 
@@ -1569,23 +1572,25 @@ not_relocated:	mov	r0, #0
 		cmp	r2, r3
 		blo	1b
 
-/* IAMROOT-12D (2015-12-19):
- * -------------------------
- * r4  = kernel execution address (possibly with LSB set)
- * tst: AND 논리 연산을 이용한 비교명령어
- * teq: OR 논리 연산을 이용한 비교명령어
- * blne: branch link register if not equal(z플래그 확인. 즉, 0이 아니면)
- *
- * if((r4 & 1) != 0) {
- *	r4 &= ~1;
- *	goto cache_on;
- * }
- * 
- * 질문:그런데 왜 LSB(최하위 비트)가 1일때하고 비교를 하나요?
- * 예전에 start레이블 내에서 cache_on을 검사한 루틴이 있는데, 당시에 중복 영역이
- * 있다면 cache_on을 보류(skipped)하기위해서 LSB를 1로 설정했었다. 해서 bic로 
- * LSB값을 다시 초기화 한다.(이해가 안되면 아래 주석을 반드시 참고하세요)
-*/
+		/* IAMROOT-12D (2015-12-19):
+		 * -------------------------
+		 * r4  = kernel execution address (possibly with LSB set)
+		 * tst: AND 논리 연산을 이용한 비교명령어
+		 * teq: OR 논리 연산을 이용한 비교명령어
+		 * blne: branch link register if not equal(z플래그 확인. 즉, 0이
+		 *	아니면)
+		 *
+		 * if((r4 & 1) != 0) {
+		 *	r4 &= ~1;
+		 *	goto cache_on;
+		 * }
+		 * 
+		 * 질문:그런데 왜 LSB(최하위 비트)가 1일때하고 비교를 하나요?
+		 * 예전에 start레이블 내에서 cache_on을 검사한 루틴이 있는데,
+		 * 당시에 중복 영역이 있다면 cache_on을 보류(skipped)하기위해서
+		 * LSB를 1로 설정했었다. 해서 bic로 LSB값을 다시 초기화 한다.
+		 * (이해가 안되면 아래 주석을 반드시 참고하세요)
+		*/
 		/*
 		 * Did we skip the cache setup earlier?
 		 * That is indicated by the LSB in r4.
