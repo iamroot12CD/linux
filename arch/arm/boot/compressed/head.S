@@ -760,6 +760,8 @@ not_angel:
  *
  *restart:	adr	r0, LC0	
  *			; r0 = &LC0
+ *			; [2nd] r0에는 재정렬된(복사된) LC0(delta + 0x240)주소값
+ *			;	이 들어간다.
  *
  *		ldmia	r0, {r1, r2, r3, r6, r10, r11, r12}
  *			; ldmia r0 주소에 있는 값을 차례로 다음 레지스터들에
@@ -790,8 +792,8 @@ not_angel:
  *
  *		sub	r0, r0, r1		@ calculate the delta offset
  *			; r0 = r0 - r1 : &LC0(메모리 주소) - &LC0(파일 offset값)
- *			; Q) delta 란 무엇인가?  A) 0번지부터 이미지 최초위치
- *			;   12 A팀 부팅관련 문서 참고
+ *			; Q) delta 란 무엇인가?  A) 0번지부터 램에 로드된 이미지
+ *			; 최초위치 12 A팀 부팅관련 문서 참고
  *
  *		add	r6, r6, r0		@ _edata
  *			; r6 = _edata + delta
@@ -1484,6 +1486,11 @@ dtb_check_done:
  * 과정을 거치면서 link script 를 통해 각 section 의 위치를 기록해두는
  * 레이블로 사용된다. 그리고, LC0 레이블이 위치해야할 주소값을 LC0 레이블의
  * 첫번째 word 에 기록해둔다.
+ */
+
+/* IAMROOT-12D (2016-01-23):
+ * --------------------------
+ * 여기서 부터
  */
 
 wont_overwrite:
@@ -2795,15 +2802,23 @@ __armv7_mmu_cache_flush:
 		 */
 hierarchical:
 		mcr	p15, 0, r10, c7, c10, 5	@ DMB
-		/* IAMROOT-12D (2016-01-09):
+		/* IAMROOT-12D (2016-01-16):
 		 * --------------------------
 		 * 스택에 r0 ~ r7, r9 ~ r11 저장
+		 *
 		 * clidr : cache level id register
+		 * Figure 4.19. CLIDR bit assignments
+		 *  29 27  24    21     18     15     12      9      6      3      0
+		 *+-----------------------------------------------------------------+
+		 *| |LoUU|Loc|LoUIS|Ctype7|Ctype6|Ctype5|Ctype4|Ctype3|Ctype2|Ctype1|
+		 *+-----------------------------------------------------------------+
+		 * Ctype1 : Level 1 cache의 구현 type
+		 * Ctype2 : Level 2 Cache의 구현 type
 		 */
 		stmfd	sp!, {r0-r7, r9-r11}
 		mrc	p15, 1, r0, c0, c0, 1	@ read clidr
 
-		/* IAMROOT-12D (2016-01-09):
+		/* IAMROOT-12D (2016-01-16):
 		 * --------------------------
 		 * L2 캐시 지원 여부를 알아아보는 소스
 		 * http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0464d/BABHCIHB.html
@@ -2867,6 +2882,23 @@ loop1:
 		and	r1, r1, #7		@ mask of the bits for current cache only
 		cmp	r1, #2			@ see what cache we have at this level
 		blt	skip			@ skip if no cache, or just i-cache
+
+		/* IAMROOT-12D (2016-01-16):
+		 * --------------------------
+		 * Cache Size Selection Register
+		 * Figure 4.26. CSSELR bit assignments
+		 *  31              4     1 0
+		 * +-----------------+-----+-+
+		 * |  Reserved(SBZ)  |Level| |
+		 * +-----------------+-----+-+
+		 * 			    ^
+		 *		     InD ---+
+		 * Level : cache level : 0-level1, 1-level2 ...
+		 * InD : 명령어 혹은 데이터 캐쉬를 사용하는지
+		 *   0 : data, 1:instruction
+		 *
+		 * clean and flush할 L1, L2, L3 캐시를 선택한다.
+		 */
 		mcr	p15, 2, r10, c0, c0, 0	@ select current cache level in cssr
 
 		/* IAMROOT-12D (2016-01-09):
@@ -2878,18 +2910,64 @@ loop1:
 		 * 따라서, ISB 이전 수행이 완료되었음을 보장한다.
 		 */
 		mcr	p15, 0, r10, c7, c5, 4	@ isb to sych the new cssr&csidr
+
+		/* IAMROOT-12D (2016-01-16):
+		 * --------------------------
+		 * ccsidr : Cache Size ID Register
+		 * 캐시 아키텍쳐 정보를 제공.
+		 *
+		 * Figure 4.18. CCSIDR bit assignments
+		 *	 31302928         13              3  0
+		 *	+-+-+-+-+----------+---------------+--+
+		 *	| | | | | NumSets  | Associativity |LS|
+		 *	+-+-+-+-+----------+---------------+--+
+		 *
+		 *  [27:13] NumSets  Indicates number of sets
+		 *    0x7F = 16KB cache size
+		 *    0xFF = 32KB cache size
+		 *    0x1FF = 64KB cache size.
+		 *	라즈베리 파이2 B는 L1 32K, L2 512K이다.
+		 *  
+		 *  [12:3] Associativity  Indicates number of ways.
+		 *  	 b0000000011. Four ways.
+		 *  
+		 *  [2:0] LineSize  Indicates the (log 2 (number of words in
+		 *  		cache line)) - 2:
+		 *	 b001 = 8  words per line.
+		 *	 b010 = 16 words per line.
+		 */
 		mrc	p15, 1, r1, c0, c0, 0	@ read the new csidr
+
+		/* IAMROOT-12D (2016-01-16):
+		 * --------------------------
+		 * r2 = CCSIDR[2:0] LineSize + 4
+		 */
 		and	r2, r1, #7		@ extract the length of the cache lines
 		add	r2, r2, #4		@ add 4 (line length offset)
+
+		/* IAMROOT-12D (2016-01-16):
+		 * --------------------------
+		 * r4 = CCSIDR[12:3] Associativity
+		 */
 		ldr	r4, =0x3ff
 		ands	r4, r4, r1, lsr #3	@ find maximum number on the way size
 
-		/* IAMROOT-12D (2016-01-09):
+		/* IAMROOT-12D (2016-01-16):
 		 * --------------------------
 		 * clz	count leading zeros
 		 *	최초 0이 아닌 비트까지의 0 개수
+		 *
+		 * 여기서는 0이 아닌 비트를 최상단으로 옮기기 위해 사용했다.
+		 * 예)  a = 0b 0000 0000 0000 0011 
+		 * 	b = clz a = 14
+		 *	a << b = 0b 1100 0000 0000 0000
 		 */
 		clz	r5, r4			@ find bit position of way size increment
+
+		/* IAMROOT-12D (2016-01-16):
+		 * --------------------------
+		 * r7 = CCSIDR[27:13] NumSets
+		 */
 		ldr	r7, =0x7fff
 		ands	r7, r7, r1, lsr #13	@ extract max number of the index size
 loop2:
@@ -2901,6 +2979,17 @@ loop3:
  THUMB(		orr	r11, r10, r6		) @ factor way and cache number into r11
  THUMB(		lsl	r6, r7, r2		)
  THUMB(		orr	r11, r11, r6		) @ factor index number into r11
+
+		/* IAMROOT-12D (2016-01-12):
+		 * --------------------------
+		 * r11 register
+		 *      30       13           5     0
+		 *    +---+--------+-----------+-----+
+		 *    |Way|  SBZ   |    Set    | SBZ |
+		 *    +---+--------+-----------+-----+
+		 *
+		 * Set 위치는 cache line size(word) 사이즈에 따라 바뀐다
+		 */
 		mcr	p15, 0, r11, c7, c14, 2	@ clean & invalidate by set/way
 		subs	r9, r9, #1		@ decrement the way
 		bge	loop3
