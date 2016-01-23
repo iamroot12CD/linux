@@ -1474,7 +1474,7 @@ dtb_check_done:
  *
  * 2.GOT(global offset table)가 뭐죠?
  * http://eli.thegreenplace.net/2011/11/03/position-independent-code-pic-in-shared-libraries
- * elf의 데이터 섹션 헤더(section header)에 있는 멤버중 하나로, 전역변수의 주소
+ * elf의 데이터 섹션 헤더(section header)에 있는 멤버중 하나로, 모든 외부 함수의 주소
  * 를 저장하고 있는 테이블
  *
  * 3.linked란 어떤걸 의미?
@@ -1533,6 +1533,14 @@ wont_overwrite:
 		 * Relocate all entries in the GOT table.
 		 * Bump bss entries to _edata + dtb size
 		 */
+                /* IAMROOT-12D (2016-01-23):
+                 * --------------------------
+                 * got의 각 엔트리가 가리키는 영역이 bss 영역 이라면,
+                 * DTB 사이즈만큼을 더하여 최종적으로
+                 * bss 영역이 되도록 조정한다.
+                 * (바로 아래에서 bss 영역이 조정된다.)
+                 * (got 엔트리를 하나씩 돌면서 영역 조정)
+                 */
 1:		ldr	r1, [r11, #0]		@ relocate entries in the GOT
 		add	r1, r1, r0		@ This fixes up C references
 		cmp	r1, r2			@ if entry >= bss_start &&
@@ -1542,6 +1550,11 @@ wont_overwrite:
 		cmp	r11, r12
 		blo	1b
 
+                /* IAMROOT-12D (2016-01-23):
+                 * --------------------------
+                 * bss 영역에 DTB size를 더하여 bss 영역 조정
+                 * bss 영역을 DTB 영역 위에 놓는다.
+                 */
 		/* bump our bss pointers too */
 		add	r2, r2, r5
 		add	r3, r3, r5
@@ -1562,15 +1575,15 @@ wont_overwrite:
 #endif
 
 
-/* IAMROOT-12D (2015-12-19):
- * -------------------------
- *   r2  = BSS start
- *   r3  = BSS end
- *
- * r0 = 0;
- * while( r2 < r3)
- *	++r2 = r0;
- */
+                /* IAMROOT-12D (2015-12-19):
+                 * -------------------------
+                 *   r2  = BSS start
+                 *   r3  = BSS end
+                 *
+                 * r0 = 0;
+                 * while( r2 < r3)
+                 *	++r2 = r0;
+                 */
 not_relocated:	mov	r0, #0
 1:		str	r0, [r2], #4		@ clear bss
 		str	r0, [r2], #4
@@ -2695,6 +2708,12 @@ __armv7_mmu_cache_off:
 		bl	__armv7_mmu_cache_flush
 		mov	r0, #0
 #ifdef CONFIG_MMU
+                /* IAMROOT-12D (2016-01-23):
+                 * --------------------------
+                 * TLB : 가상메모리주소를 물리메모리주소로 변환하는 속도를
+                 *       높이기 위해 사용되는 캐시.
+                 * BTC : Branch Target Cache
+                 */
 		mcr	p15, 0, r0, c8, c7, 0	@ invalidate whole TLB
 #endif
 		mcr	p15, 0, r0, c7, c5, 6	@ invalidate BTC
