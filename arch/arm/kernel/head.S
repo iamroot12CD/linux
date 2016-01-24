@@ -77,6 +77,10 @@
 	.arm
 
 	__HEAD
+/* IAMROOT-12D (2016-01-30):
+ * --------------------------
+ * 여기부터 시작
+ */
 ENTRY(stext)
  ARM_BE8(setend	be )			@ ensure we are in BE8 mode
 
