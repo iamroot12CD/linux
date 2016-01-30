@@ -1238,6 +1238,13 @@ restart:	adr	r0, LC0
 		sub	sp, sp, r5
 #endif
 
+		/* IAMROOT-12D (2016-01-30):
+		 * --------------------------
+		 * 처음에 돌때 atag이 담겨있는 r8레지스터에 DTB를 담는다.
+		 * 따라서 restart때, 두 번째 atags_to_fdt()를 수행하는 것이
+		 * 아니다. r8에는 DTB가 담겨있기때문에 함수를 수행하지않고
+		 * 진행되게 된다.
+		 */
 		mov	r8, r6			@ use the appended device tree
 
 		/*
