@@ -86,7 +86,10 @@
 
 /* IAMROOT-12D (2016-01-30):
  * --------------------------
- *  page table을 구하기 위한 매크로?
+ *  page table 물리주소를 구하기 위한 매크로
+ *	rd = phys + TEXT_OFFSET - PG_DIR_SIZE;
+ *	rd = phys + 0x8000 - 0x4000;
+ *	rd = phys + 0x4000
  */
 	.macro	pgtbl, rd, phys
 	add	\rd, \phys, #TEXT_OFFSET
@@ -212,22 +215,39 @@ ENTRY(stext)
 	 * r8 = phys_offset, r9 = cpuid, r10 = procinfo
 	 */
 
-/* IAMROOT-12D (2016-01-30):
- * --------------------------
- * atags 포인터의 유효성 검사
- */
+	/* IAMROOT-12D (2016-01-30):
+	 * --------------------------
+	 * atags 포인터의 유효성 검사
+	 */
 	bl	__vet_atags
 
-/* IAMROOT-12D (2016-01-30):
- * --------------------------
- * SMP: Symmetric multiprocessing
- */
+	/* IAMROOT-12D (2016-01-30):
+	 * --------------------------
+	 * SMP: Symmetric Multi Processing
+	 *
+	 * __fixup_smp를 call 하는 목적
+	 *  : UP환경에서 SMP명령어를 교체하기 위해
+	 */
 #ifdef CONFIG_SMP_ON_UP
 	bl	__fixup_smp
 #endif
+
+	/* IAMROOT-12D (2016-02-13):
+	 * --------------------------
+	 * PV : Physical Virtual
+	 *
+	 * __fixup_pv_table를 call하는 목적
+	 *  : TODO
+	 */
 #ifdef CONFIG_ARM_PATCH_PHYS_VIRT
 	bl	__fixup_pv_table
 #endif
+
+	/* IAMROOT-12D (2016-02-13):
+	 * --------------------------
+	 * __create_page_talbes 를 call하는 목적
+	 *  : page table들을 만들기 위해
+	 */
 	bl	__create_page_tables
 
 	/*
@@ -291,6 +311,17 @@ ENDPROC(stext)
  *  r0, r3, r5-r7 corrupted
  *  r4 = page table (see ARCH_PGD_SHIFT in asm/memory.h)
  */
+
+	/* IAMROOT-12D (2016-02-13):
+	 * --------------------------
+	 * __create_page_table :
+	 * 	memset(&page_table, 0, sizeof(&page_table))
+	 * 	
+	 * 		&page_tabe = 0x80004000
+	 * 		sizeof(&page_table) = 0x4000
+	 *
+	 */
+
 __create_page_tables:
 	pgtbl	r4, r8				@ page table address
 
@@ -306,6 +337,12 @@ __create_page_tables:
 	str	r3, [r0], #4
 	teq	r0, r6
 	bne	1b
+	
+	/* IAMROOT-12D (2016-02-13):
+	 * --------------------------
+	 * LPAE : 32bit 주소 범위를 넘어서는 address 접근을 위한
+	 * address 확장 feature. raspberrypi는 스킵
+	 */
 
 #ifdef CONFIG_ARM_LPAE
 	/*
@@ -335,8 +372,13 @@ __create_page_tables:
 #endif
 #endif
 
+	/* IAMROOT-12D (2016-02-13):
+	 * --------------------------
+	 * r10 : procinfo address
+	 * r7 = proc_info->mm_mmuflags;
+	 * TODO
+	 */
 	ldr	r7, [r10, #PROCINFO_MM_MMUFLAGS] @ mm_mmuflags
-
 	/*
 	 * Create identity mapping to cater for __enable_mmu.
 	 * This identity mapping will be removed by paging_init().
@@ -667,8 +709,14 @@ __fixup_smp:
 	/* IAMROOT-12D (2016-02-13):
 	 * --------------------------
 	 * 2016-02-13부터 행복하게 시작
+	 * SCU (Snoop Control Unit) 이란?
+	 * 	L1과 L2와의 일관성을 중재하기 위한 제어장치이다.
+	 *
+	 * 다만, raspberrypi는 ARM Cortex-A7이므로 아래 코드를 타지 않는다.
+	 * 
+	 * TODO: what is ACP?
+	 * 	manage ACP accesses.
 	 */
-	@ If a future SoC *does* use 0x0 as the PERIPH_BASE, then the
 	@ below address check will need to be #ifdef'd or equivalent
 	@ for the Aegis platform.
 	mrc	p15, 4, r0, c15, c0	@ get SCU base address
@@ -679,7 +727,14 @@ ARM_BE8(rev	r0, r0)			@ byteswap if big endian
 	and	r0, r0, #0x3		@ number of CPUs
 	teq	r0, #0x0		@ is 1?
 	retne	lr
-
+	
+	/* IAMROOT-12D (2016-02-13):
+	 * --------------------------
+	 * __fixup_smp_on_up은 UP(uni processor - core 1개) 로 설정되어 있을 때
+	 * 반드시 실행되는 코드이다.
+	 * 
+	 * 역할 : SMP용 코드를 UP용 코드로 모두 교체한다.
+	 */
 __fixup_smp_on_up:
 	adr	r0, 1f
 	ldmia	r0, {r3 - r5}
