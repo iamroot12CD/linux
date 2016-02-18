@@ -264,9 +264,9 @@ ENTRY(stext)
  * struct proc_info_list {
  * 	unsigned int		cpu_val;
  * 	unsigned int		cpu_mask;
- * 	unsigned long		__cpu_mm_mmu_flags;	/* used by head.S */
- * 	unsigned long		__cpu_io_mmu_flags;	/* used by head.S */
- * 	unsigned long		__cpu_flush;		/* used by head.S */
+ * 	unsigned long		__cpu_mm_mmu_flags;	/ * used by head.S * /
+ * 	unsigned long		__cpu_io_mmu_flags;	/ * used by head.S * /
+ * 	unsigned long		__cpu_flush;		/ * used by head.S * /
  * 	const char		*arch_name;
  * 	const char		*elf_name;
  * 	unsigned int		elf_hwcap;
@@ -379,6 +379,7 @@ __create_page_tables:
 	 * TODO
 	 */
 	ldr	r7, [r10, #PROCINFO_MM_MMUFLAGS] @ mm_mmuflags
+
 	/*
 	 * Create identity mapping to cater for __enable_mmu.
 	 * This identity mapping will be removed by paging_init().
@@ -717,6 +718,7 @@ __fixup_smp:
 	 * TODO: what is ACP?
 	 * 	manage ACP accesses.
 	 */
+	@ If a future SoC *does* use 0x0 as the PERIPH_BASE, then the
 	@ below address check will need to be #ifdef'd or equivalent
 	@ for the Aegis platform.
 	mrc	p15, 4, r0, c15, c0	@ get SCU base address
@@ -727,7 +729,7 @@ ARM_BE8(rev	r0, r0)			@ byteswap if big endian
 	and	r0, r0, #0x3		@ number of CPUs
 	teq	r0, #0x0		@ is 1?
 	retne	lr
-	
+
 	/* IAMROOT-12D (2016-02-13):
 	 * --------------------------
 	 * __fixup_smp_on_up은 UP(uni processor - core 1개) 로 설정되어 있을 때

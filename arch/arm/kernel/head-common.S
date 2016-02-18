@@ -60,7 +60,7 @@
  * 	};
  *      union{
  * 		struct tag_core {
- * 			__u32 flags;            /* bit 0 = read-only */
+ * 			__u32 flags;            / * bit 0 = read-only * /
  * 			__u32 pagesize;
  * 			__u32 rootdev;                                                          
  * 		};
@@ -113,7 +113,7 @@ ENDPROC(__vet_atags)
 __mmap_switched:
 	adr	r3, __mmap_switched_data
 
-	ldmia	r3!, {44, r5, r6, r7}
+	ldmia	r3!, {r4, r5, r6, r7}
 	cmp	r4, r5				@ Copy data segment if needed
 1:	cmpne	r5, r6
 	ldrne	fp, [r4], #4
