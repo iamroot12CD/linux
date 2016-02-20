@@ -1,5 +1,17 @@
 # Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
 
+## 제 44주차 스터디
+
+#### 날짜: 2016-02-19
+#### 장소: 힐 스터디 강남점
+
+#### 참석자
+ - **곽승준 (rialtoksj@yahoo.com)**
+ - 김민호 (8891m@naver.com)
+ - 안종찬 (ahnchan2@gmail.com)
+ - 임채훈 (im.fehead@gmail.com)
+ - 조훈근 (hoonycho12@gmail.com)
+
 ## 제 43주차 스터디
 
 #### 날짜: 2016-02-13

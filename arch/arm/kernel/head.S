@@ -319,7 +319,15 @@ ENDPROC(stext)
 	 * 	
 	 * 		&page_tabe = 0x80004000
 	 * 		sizeof(&page_table) = 0x4000
+	 * pgtbl r4, r8
 	 *
+	 * add	r4, r8, #TEXT_OFFSET
+	 * sub	r4, r4, #PG_DIR_SIZE
+	 *
+         * rd = phys + TEXT_OFFSET - PG_DIR_SIZE;
+         * rd = phys + 0x8000 - 0x4000;
+	 *
+	 * r4 = 0x80004000
 	 */
 
 __create_page_tables:
@@ -327,6 +335,16 @@ __create_page_tables:
 
 	/*
 	 * Clear the swapper page table
+	 */
+	/* IAMROOT-12D (2016-02-20):
+	 * --------------------------
+	 * r0 = r4; ( 0x80004000 페이지테이블 시작점 )
+	 * r3 = 0;
+	 * r6 = 0x80008000 ( 페이지테이블 끝지점 )
+	 * for(r0 = r4; r0<r6; r0++){
+	 * 	*(r0) = 0;
+	 * }
+	 *
 	 */
 	mov	r0, r4
 	mov	r3, #0

@@ -487,10 +487,41 @@ __v7_setup_stack:
 	 * Standard v7 proc info content
 	 */
 .macro __v7_proc name, initfunc, mm_mmuflags = 0, io_mmuflags = 0, hwcaps = 0, proc_fns = v7_processor_functions
+	/* IAMROOT-12D (2016-02-20):
+	 * --------------------------
+	 * PMD_TYPE_SECT           (_AT(pmdval_t, 2) << 0)              0x2
+	 * PMD_SECT_AP_WRITE       (_AT(pmdval_t, 1) << 10)             0x400
+	 * PMD_SECT_AP_READ        (_AT(pmdval_t, 1) << 11)             0x800
+	 * PMD_SECT_AF             (_AT(pmdval_t, 0))                   0x0
+	 * PMD_FLAGS_SMP = PMD_SECT_WBWA = (PMD_SECT_TEX(1) | PMD_SECT_CACHEABLE
+	 * 		| PMD_SECT_BUFFERABLE) = 0x100c
+	 *
+	 * .long	0x1c0e
+	 *
+	 * http://kth3321.blogspot.kr/2013/04/arm-cortex-1.html
+	 * http://kth3321.blogspot.kr/2013/06/arm-cortex-2.html
+	 */
 	ALT_SMP(.long	PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_SECT_AP_READ | \
 			PMD_SECT_AF | PMD_FLAGS_SMP | \mm_mmuflags)
+
+	/* IAMROOT-12D (2016-02-20):
+	 * --------------------------
+	 * PMD_FLAGS_UP = PMD_SECT_WB =
+	 * 	(PMD_SECT_CACHEABLE | PMD_SECT_BUFFERABLE) 0x8|0x4 = 0xc
+	 *
+	 * .long	0xc0e
+	 */
 	ALT_UP(.long	PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_SECT_AP_READ | \
 			PMD_SECT_AF | PMD_FLAGS_UP | \mm_mmuflags)
+	/* IAMROOT-12D (2016-02-20):
+	 * --------------------------
+	 * PMD_TYPE_SECT           (_AT(pmdval_t, 2) << 0)	0x2
+	 * PMD_SECT_AP_WRITE       (_AT(pmdval_t, 1) << 10)	0x400
+	 * PMD_SECT_AP_READ        (_AT(pmdval_t, 1) << 11)	0x800
+	 * PMD_SECT_AF             (_AT(pmdval_t, 0))		0x0
+	 *
+	 * .long	0xc02
+	 */
 	.long	PMD_TYPE_SECT | PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ | PMD_SECT_AF | \io_mmuflags
 	initfn	\initfunc, \name
@@ -631,7 +662,28 @@ __krait_proc_info:
 	 */
 	.type	__v7_proc_info, #object
 __v7_proc_info:
+/* IAMROOT-12D (2016-02-20):
+ * --------------------------
+ *매크로 변환후 
+ *
+ *__v7_proc_info:
+ *    .long   0x000f0000              @ Required ID value 
+ *    .long   0x000f0000              @ Mask for ID
+ *    .long   PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_SECT_AP_READ | PMD_SECT_AF | PMD_FLAGS_SMP
+ *    .long PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_SECT_AP_READ | PMD_SECT_AF
+ *    initfn  __v7_setup, __v7_proc
+ *    .long   cpu_arch_name                                                   
+ *    .long   cpu_elf_name                                                    
+ *    .long   HWCAP_SWP | HWCAP_HALF | HWCAP_THUMB | HWCAP_FAST_MULT | HWCAP_EDSP | HWCAP_TLS
+ *    .long   cpu_v7_name
+ *    .long   v7_processor_functions
+ *    .long   v7wbi_tlb_fns
+ *    .long   v6_user_fns
+ *    .long   v7_cache_fns
+ *    .size   __v7_proc_info, . - __v7_proc_info 
+ */
 	.long	0x000f0000		@ Required ID value
 	.long	0x000f0000		@ Mask for ID
 	__v7_proc __v7_proc_info, __v7_setup
 	.size	__v7_proc_info, . - __v7_proc_info
+
