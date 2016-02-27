@@ -493,10 +493,10 @@ __v7_setup_stack:
 	 * PMD_SECT_AP_WRITE       (_AT(pmdval_t, 1) << 10)             0x400
 	 * PMD_SECT_AP_READ        (_AT(pmdval_t, 1) << 11)             0x800
 	 * PMD_SECT_AF             (_AT(pmdval_t, 0))                   0x0
-	 * PMD_FLAGS_SMP = PMD_SECT_WBWA = (PMD_SECT_TEX(1) | PMD_SECT_CACHEABLE
-	 * 		| PMD_SECT_BUFFERABLE) = 0x100c
+	 * PMD_FLAGS_SMP = PMD_SECT_WBWA|PMD_SECT_S = (PMD_SECT_TEX(1) | PMD_SECT_CACHEABLE
+	 * 		| PMD_SECT_BUFFERABLE) = 0x1100c
 	 *
-	 * .long	0x1c0e
+	 * .long	0x11c0e
 	 *
 	 * http://kth3321.blogspot.kr/2013/04/arm-cortex-1.html
 	 * http://kth3321.blogspot.kr/2013/06/arm-cortex-2.html

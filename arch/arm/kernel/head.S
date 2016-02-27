@@ -197,9 +197,13 @@ ENTRY(stext)
  *
  * MMU가 Off상태이기 때문에 물리주소를 직접 이용한다.
  *
- *   r3: 2번 레이블의 주소가 담긴다. (예: 0x8100)
- *   r4: TEXT_OFFSET (0x8000)
- *   r8: 커널 물리메모리 시작 Offset (0x80000000 + 0x8000)
+ *   r3: 2번 레이블의 물리주소가 담긴다. (예: 0x8080)
+ *   r4: 2번 레이블의 가상주소 (0x80008080)
+ *       (r4 = r3 - r4 = 0x8080 - 0x80008080 = 0x80000000)
+ *   r8: 가상 메모리 시작 Offset (0x80000000)
+ *       오버플로우 발생으로 인해 더한값이 0 이 된다.
+ *       add 연산 후, 물리 메모리 Offset 이 된다.
+ *       (r8 = r8 + r4 = 0x80000000 + 0x80000000 = 0x0)
  */
 #ifndef CONFIG_XIP_KERNEL
 	adr	r3, 2f
@@ -317,17 +321,23 @@ ENDPROC(stext)
 	 * __create_page_table :
 	 * 	memset(&page_table, 0, sizeof(&page_table))
 	 * 	
-	 * 		&page_tabe = 0x80004000
+	 * 		&page_tabe = 0x4000
 	 * 		sizeof(&page_table) = 0x4000
-	 * pgtbl r4, r8
+	 * 
+         * r8 = 0x0
+         *
+	 * pgtbl r4, r8 분석
 	 *
 	 * add	r4, r8, #TEXT_OFFSET
 	 * sub	r4, r4, #PG_DIR_SIZE
 	 *
          * rd = phys + TEXT_OFFSET - PG_DIR_SIZE;
          * rd = phys + 0x8000 - 0x4000;
-	 *
-	 * r4 = 0x80004000
+         *
+         * 계산 과정
+	 * r4 = r8 + 0x8000 - 0x4000
+	 * r4 = 0x0 + 0x8000 - 0x4000
+	 * r4 = 0x4000
 	 */
 
 __create_page_tables:
@@ -338,9 +348,9 @@ __create_page_tables:
 	 */
 	/* IAMROOT-12D (2016-02-20):
 	 * --------------------------
-	 * r0 = r4; ( 0x80004000 페이지테이블 시작점 )
+	 * r0 = r4; ( 0x4000 페이지테이블 시작점 )
 	 * r3 = 0;
-	 * r6 = 0x80008000 ( 페이지테이블 끝지점 )
+	 * r6 = 0x8000 ( 페이지테이블 끝지점 )
 	 * for(r0 = r4; r0<r6; r0++){
 	 * 	*(r0) = 0;
 	 * }
@@ -394,7 +404,21 @@ __create_page_tables:
 	 * --------------------------
 	 * r10 : procinfo address
 	 * r7 = proc_info->mm_mmuflags;
-	 * TODO
+         *
+         * #PROCINFO_MM_MMUFLAGS 를 따라가면, 아래와 같이 선언되어 있고,
+         *
+         * DEFINE(PROCINFO_MM_MMUFLAGS,
+         *               offsetof(struct proc_info_list, __cpu_mm_mmu_flags));
+         *
+	 * #define DEFINE(sym, val) \
+	 *        asm volatile("\n->" #sym " %0 " #val : : "i" (val))
+	 *
+	 * 결과적으로 다음 형태와 같은 뜻이 된다.
+	 * #define PROCINFO_MM_MMUFLAGS  8
+	 *
+	 * r7 = 0x11c0e
+	 * /arch/arm/mm/proc-v7.S 의 __v7_proc 매크로 주석 참고
+         *
 	 */
 	ldr	r7, [r10, #PROCINFO_MM_MMUFLAGS] @ mm_mmuflags
 
@@ -402,6 +426,19 @@ __create_page_tables:
 	 * Create identity mapping to cater for __enable_mmu.
 	 * This identity mapping will be removed by paging_init().
 	 */
+        /* IAMROOT-12D (2016-02-27):
+         * --------------------------
+         * r0 = __turn_mmu_on_loc 의 물리 주소값 (0x8134)
+         * r3 = __turn_mmu_on_loc 의 가상 주소값 (0x80008134)
+         * r5 = __turn_mmu_on 의 주소값 (0x80008240)
+         * r6 = __turn_mmu_on_end 의 주소값 (0x80008260)
+         *
+         * r0 = r0 - r3 = 0x8134 - 0x80008134 = 0x80000000
+         * r5 = r5 + r0 = 0x80008240 + 0x80000000 = 0x8240
+         * r6 = r6 + r0 = 0x80008260 + 0x80000000 = 0x8260
+         * r5 = r5 >> 20 = 0x0
+         * r6 = r6 >> 20 = 0x0
+         */
 	adr	r0, __turn_mmu_on_loc
 	ldmia	r0, {r3, r5, r6}
 	sub	r0, r0, r3			@ virt->phys offset
@@ -410,6 +447,21 @@ __create_page_tables:
 	mov	r5, r5, lsr #SECTION_SHIFT
 	mov	r6, r6, lsr #SECTION_SHIFT
 
+        /* IAMROOT-12D (2016-02-27):
+         * --------------------------
+         * __turn_mmu_on 과 __turn_mmu_on_end 영역만 page table 매핑.
+         *
+         * r3 = r7 | (r5 << 20) = 0x11c0e | 0x0 = 0x11c0e
+         * *(r4 + (r5 << 2) ) = r3
+         * *(0x4000 + (0x0 << 2) ) = 0x11c0e
+         * *(0x4000) = 0x11c0e
+         *
+         * if( 0x0 < 0x0 ){           분기문 진입하지  않음
+         *      r5 = r5 + 1 = 0x1
+         *      goto 1b
+         * }
+         *
+         */
 1:	orr	r3, r7, r5, lsl #SECTION_SHIFT	@ flags + kernel base
 	str	r3, [r4, r5, lsl #PMD_ORDER]	@ identity mapping
 	cmp	r5, r6
