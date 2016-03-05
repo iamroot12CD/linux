@@ -284,6 +284,21 @@ ENTRY(stext)
  * TTBR1: 페이지테이블의 위치(주소)를 저장하는 CPU 레지스터
  * 
  */
+	/* IAMROOT-12D (2016-03-05):
+	 * --------------------------
+	 * r13: __mmap_switched 레이블의 주소를 가져온다.
+	 *      mmu가 켜진 이후 이곳으로 점프한다.
+	 * 
+	 * lr 레지스터에 b __enable_mmu 의 레이블의 주소를 담는다.
+	 * r12 = *(r10 + 16)  // proc_info_list->cpu_flush 
+	 * r10 + 16 = initfn  __v7_setup, __v7_proc_info
+	 *
+	 * ldr로 r12에 읽어온 값은 __v7_proc_info - __v7_setup의 값이 담긴다.
+	 * 이때의 값은 음수값이다. (__v7_proc_info 주소 < __v7_setup)
+	 * 이렇게 구해진 r12값에 r10을 더하게 되면 __v7_setup의 주소가 된다.
+	 * 
+	 * [결론] r12 = __v7_setup
+	 */
 	ldr	r13, =__mmap_switched		@ address to jump to after
 						@ mmu has been enabled
 	adr	lr, BSYM(1f)			@ return (PIC) address
@@ -468,6 +483,43 @@ __create_page_tables:
 	addlo	r5, r5, #1			@ next section
 	blo	1b
 
+
+	/* IAMROOT-12D (2016-03-05):
+	 * --------------------------
+	 * 커널코드 시작부터 .bss 섹션의 끝까지 메모리를 매핑한다.
+	 * r4: page table 시작위치 (0x4000)
+	 * r4 + ( 0x80000000 >>  (20  -  2) )
+	 *           2^31    / ( 2^20 * 2^-2)
+	 * 즉,
+	 * r4 + ( (2G / 1M) * 4 ) 로 이해하면 편하다.
+	 *        2048 => 1M단위로 계산된 페이지 테이블의 Index이다.
+	 *        2048 * 4 를 하게되면, 이 페이지 테이블 Index의 주소가 나온다.
+	 *        그 주소는 0x2000이다.
+	 *
+	 * r0 = r4 + 0x2000 = 0x6000  >> 페이지테이블의 주소로 매핑한다.
+	 *
+	 * _end(.bss section의 끝) 0x8092378C - 1 상수값을 r6에 넣는다.
+	 * ldr을 이용해서 담는 이유는, ARM 아키텍쳐에서 해당 상수를 담을수 있는 
+	 * 방법이 없기때문이다. (mov로 담을 수 없는 상수)
+	 *
+	 * r6: 0x8092378B  => 약 9.2 MB
+	 * r7: 0x11c0e (mmu_flags값)
+	 * r8: 0x0 (현재 커널의 Base주소)
+	 * 
+	 * r6 = r4 + ( r6 >> (20 - 2) )
+	 * .bss 섹션의 마지막이 매핑되는 페이지 테이블의 주소를 구한다.
+	 *
+	 * r6 = 0x809 (위를 계산하면)   =>  0x2024
+	 * 즉, 0x6000 ~ 0x6024 까지 커널의 .bss 섹션까지의 영역과 매핑한다.
+	 *
+	 * 이 시점에서, r0: 0x6000, r6: 0x6024
+	 * while( r0 < r6 )
+	 * {
+	 *    *r0 = r3;
+	 *    r0++;	// 0x6000, 0x6004, 0x6008... 물리 주소가 증가한다.
+	 *    r3++; 	// 실제로는 r3의 Base Address만 증가한다.
+	 * }
+	 */
 	/*
 	 * Map our RAM from the start to the end of the kernel .bss section.
 	 */
@@ -499,6 +551,36 @@ __create_page_tables:
 	bls	1b
 #endif
 
+	/* IAMROOT-12D (2016-03-05):
+	 * --------------------------
+	 * 만약 ATAGs/DTB가 정의되어있다면 매핑한다.
+	 *
+	 * r2는 .bss 위에 올려놓은 DTB의 시작주소를 가지고 있다.
+	 * r2 >> 20  =>  약 10이 나온다고 가정한다. (정확한 시작주소를 모른다.)
+	 * 
+	 * r2에 만약 atag(0x100)이 있었다면, movs에서 zero flag가 세팅될것이고,
+	 * 아래의 코드는 전부 패스하게 된다.
+	 *
+	 * r8: Kernel의 물리 Base Address (현재 0x00)
+	 *
+	 * r0 = 0x00a00000
+	 * r3 = 0x00a00000 + PAGE_OFFSET(0x80000000)
+	 * r3 = 0x80a00000 (DTB의 주소)
+	 * r7 = 0x11c0e (mmu_flag)
+	 * 
+	 * r3 >> ( 20 -2 )
+	 *    1) r3 >> 20    => 0x80a
+	 *    2) r3 << 2     => 0x2028
+	 * r4: 0x4000 (PAGE_TABLE 시작주소)
+	 *
+	 * r3 = 0x6028 (이곳에다 DTB의 영역을 매핑할 예정이다.)
+	 *
+	 * r6 = 0x00a11c0e
+	 * DTB의 사이즈는 최대 1MB이다. 1MB의 영역이 겹쳐있을 수 있으므로 
+	 * 2MB영역을 페이지 테이블에 매핑한다.
+	 *
+	 * 참조: int atags_to_fdt(void *atag_list, void *fdt, int total_space)
+	 */
 	/*
 	 * Then map boot params address in r2 if specified.
 	 * We map 2 sections in case the ATAGs/DTB crosses a section boundary.
@@ -520,6 +602,16 @@ __create_page_tables:
 
 #ifdef CONFIG_DEBUG_LL
 #if !defined(CONFIG_DEBUG_ICEDCC) && !defined(CONFIG_DEBUG_SEMIHOSTING)
+	/* IAMROOT-12D (2016-03-05):
+	 * --------------------------
+	 * r7: 물리주소 0x20201000 
+	 * r3: 가상주소 0xf0201000
+	 *
+	 * r0 = 0x7c08  (페이지 테이블의 주소)
+	 * r7 = 0xc02 (io의 mmuflag 값)
+	 * 
+	 * r3 = 0x20200000 | 0xc02 = 0x20200c02
+	 */
 	/*
 	 * Map in IO space for serial debugging.
 	 * This allows debug messages to be output
@@ -544,6 +636,14 @@ __create_page_tables:
 	str	r7, [r0], #4
 #endif
 #else
+	/* IAMROOT-12D (2016-03-05):
+	 * --------------------------
+	 * XN : Excutable Not
+	 * 시리얼포트영역이라, 실행되어서는 안되기때문에 XN을 세팅한다.
+	 * 
+	 * r0: 0x7c08 (페이지 테이블의 주소)
+	 * r3: 0x20200c12
+	 */
 	orr	r3, r3, #PMD_SECT_XN
 	str	r3, [r0], #4
 #endif
