@@ -86,6 +86,13 @@ ENDPROC(v7_flush_icache_all)
  *
  *     Corrupted registers: r0-r7, r9-r11 (r6 only in Thumb mode)
  */
+/* IAMROOT-12D (2016-03-12):
+ * --------------------------
+ * 	Cache hierarchy에 존재하는 모든 Cache들 차례대로(L1,L2...)
+ * 	Clean & Flush 를 하는 함수이다.
+ *
+ * 	louis : Level of Unification Inner Shareable
+ */
 
 ENTRY(v7_flush_dcache_louis)
 	dmb					@ ensure ordering with previous memory accesses

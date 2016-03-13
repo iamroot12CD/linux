@@ -23,6 +23,11 @@
 #define TTB_FLAGS_UP	TTB_IRGN_WB|TTB_RGN_OC_WB
 #define PMD_FLAGS_UP	PMD_SECT_WB
 
+/* IAMROOT-12D (2016-03-12):
+ * --------------------------
+ * PTW : Page Table Walks
+ * WBWA : Write Back Write Allocate
+ */
 /* PTWs cacheable, inner WBWA shareable, outer WBWA not shareable */
 #define TTB_FLAGS_SMP	TTB_IRGN_WBWA|TTB_S|TTB_NOS|TTB_RGN_OC_WBWA
 #define PMD_FLAGS_SMP	PMD_SECT_WBWA|PMD_SECT_S
@@ -148,6 +153,23 @@ ENDPROC(cpu_v7_set_pte_ext)
 	 * Macro for setting up the TTBRx and TTBCR registers.
 	 * - \ttb0 and \ttb1 updated with the corresponding flags.
 	 */
+	/* IAMROOT-12D (2016-03-12):
+	 * --------------------------
+	 * TTBCR을 0으로 세팅하여 page table boundary 사이즈를 16KB 설정한다.
+	 * 왜냐하면 N(TTBCR[2:0])가 0이기 때문이다.
+	 *
+	 * TTBR0와 TTBR1의 TTB_FLAG들을 설정한다.
+	 * (ex : TTB_FLAGS_SMP	TTB_IRGN_WBWA|TTB_S|TTB_NOS|TTB_RGN_OC_WBWA)
+	 * TTB : Translation Table Base
+	 *
+	 * WBWA : Write Back Write Allocate
+	 * IRGN/RGN_OC : Inner/Outer Cache Region
+	 * S : Shared
+	 * NOS : Not Outer shareable
+	 *
+	 * TTBR1을 page table address + TTB_FLAG로 설정한다.
+	 */
+
 	.macro	v7_ttb_setup, zero, ttbr0, ttbr1, tmp
 	mcr	p15, 0, \zero, c2, c0, 2	@ TTB control register
 	ALT_SMP(orr	\ttbr0, \ttbr0, #TTB_FLAGS_SMP)
@@ -165,5 +187,14 @@ ENDPROC(cpu_v7_set_pte_ext)
 	 */
 	.align	2
 	.type	v7_crval, #object
+
+/* IAMROOT-12D (2016-03-12):
+ * --------------------------
+ *	.macro	crval, clear, mmuset, ucset
+ *	.word	\clear
+ *	.word	\mmuset
+ *	.endm
+ */
+	
 v7_crval:
 	crval	clear=0x2120c302, mmuset=0x10c03c7d, ucset=0x00c01c7c

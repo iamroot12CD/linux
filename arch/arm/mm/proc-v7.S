@@ -332,6 +332,24 @@ __v7_pj4b_setup:
 	mcr	p15, 1,	r0, c15, c1, 0
 
 #endif /* CONFIG_CPU_PJ4B */
+	/* IAMROOT-12D (2016-03-12):
+	 * --------------------------
+	 * Commit 참조 :
+	 *  - 860ae153d8efa897371453b2d7ba224909b643bc
+	 *  - 메세지 : 38주차 (Cache Clean & Flush)
+	 *  - v7_flush_decache_louis의 목적은 존재하는 모든 Dcache를
+	 *  Clean & Flush 하는 것이다.
+	 *
+	 * main ID register : CPU ID (machine ID)
+	 *  - Raspberry의 main ID = 0x410fc075
+	 *
+	 * ubfx 란? :
+	 *  - unsigned bit field extract
+	 *  - ubfx dst, src, lsb, width
+	 *  - src에서  lsb 만큼의 비트부터 width만 추출하여 dst에 넣는 명령어
+	 *  - ubfx r0, r0, #4, #12 == (r0 = r0[16:4])
+	 *
+	 */
 
 __v7_setup:
 	adr	r12, __v7_setup_stack		@ the local stack
@@ -420,7 +438,19 @@ __v7_setup:
 	orrle	r10, r10, #1 << 1		@ disable loop buffer
 	mcrle	p15, 0, r10, c1, c0, 1		@ write aux control register
 #endif
-
+	/* IAMROOT-12D (2016-03-12):
+	 * --------------------------
+	 * 앞서 4로 오기까지 ARM version을 체크했으며 모두 불 일치시
+	 * 기본적으로 ARM에서 공통적으로 해줘야 할 세팅을 한다.
+	 *
+	 * 1. Cache를 Flush하고, I+D TLB를 Flush 한다. 
+	 * 2. TTBCR과 TTBR1을 세팅한다.
+	 * 3. PRRR과 NMRR을 세팅한다.
+	 * 	- PRRR : Primary Region Remap Register의 약자로서, 메모리 타입 결정
+	 * 	- NMRR : Normal Memory Region Register의 약자로서, inner & outer
+	 * 	  cacheability 결정
+	 *	- 참조 문서 : http://www.iamroot.org/xe/Kernel_10_ARM/185229
+	 */
 4:	mov	r10, #0
 	mcr	p15, 0, r10, c7, c5, 0		@ I+BTB cache invalidate
 #ifdef CONFIG_MMU
@@ -444,6 +474,26 @@ __v7_setup:
 	mcr	p14, 6, r0, c0, c0, 0		@ stop userspace TEEHBR access
 1:
 #endif
+/* IAMROOT-12D (2016-03-12):
+ * --------------------------
+ * v7_crval:
+ *	crval	clear=0x2120c302, mmuset=0x10c03c7d, ucset=0x00c01c7c
+ *
+ *	r5 = clear
+ *	r6 = mmuset
+ * 
+ * v7_crval : v7's control register value
+ *
+ * cp15의 control register를 세팅한다. 이 때 cp15는 mmu 및 cache 관련 모든 설정
+ * 을 관장하고 현재 그 control register에 mmu 관련 설정 bit를 세팅한다.
+ * 
+ * TODO : SWP_EMULATE는 무엇이며 clear & mmuset에 세팅하는 비트가 
+ * 	  어떤 의미를 가지는가?
+ * SWP_EMULATE : http://cateee.net/lkddb/web-lkddb/SWP_EMULATE.html
+ *
+ * 여기서 2016-03-12 study 진행 종료
+ */
+
 	adr	r5, v7_crval
 	ldmia	r5, {r5, r6}
  ARM_BE8(orr	r6, r6, #1 << 25)		@ big-endian page tables

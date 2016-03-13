@@ -282,6 +282,7 @@ ENTRY(stext)
  * };
  *
  * TTBR1: 페이지테이블의 위치(주소)를 저장하는 CPU 레지스터
+ * (Translation Table Base Register 1)
  * 
  */
 	/* IAMROOT-12D (2016-03-05):
@@ -298,6 +299,15 @@ ENTRY(stext)
 	 * 이렇게 구해진 r12값에 r10을 더하게 되면 __v7_setup의 주소가 된다.
 	 * 
 	 * [결론] r12 = __v7_setup
+	 *
+	 * TODO :
+	 * 	- TTBR0와 TTBR1이란 무엇인가?
+	 * 	  : http://www.iamroot.org/xe/Kernel_10_ARM/176798
+	 * 	- BSYM이란??
+	 * 	  : http://www.iamroot.org/xe/Kernel_10_ARM/171562
+	 * 	  : http://www.iamroot.org/xe/Kernel_10_ARM/173070
+	 * 	- ret은 ARM 명령어??
+	 * 	  : 무조건 분기하는 명령어
 	 */
 	ldr	r13, =__mmap_switched		@ address to jump to after
 						@ mmu has been enabled
@@ -306,6 +316,10 @@ ENTRY(stext)
 	ldr	r12, [r10, #PROCINFO_INITFUNC]
 	add	r12, r12, r10
 	ret	r12
+/* IAMROOT-12D (2016-03-12):
+ * --------------------------
+ * 다음주 부터는 여기서 시작한다.
+ */
 1:	b	__enable_mmu
 ENDPROC(stext)
 	.ltorg
