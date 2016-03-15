@@ -442,7 +442,11 @@ __v7_setup:
 	 * --------------------------
 	 * 앞서 4로 오기까지 ARM version을 체크했으며 모두 불 일치시
 	 * 기본적으로 ARM에서 공통적으로 해줘야 할 세팅을 한다.
+	 * r4 = 0x4000(page table entry address)
+	 * r8 = 0x4000(page table entry address)
 	 *
+	 * BTB(Branch Target Buffer:분기예측)
+	 * TLB(page table entry들을 위한 특별한 고속의 cache)
 	 * 1. Cache를 Flush하고, I+D TLB를 Flush 한다. 
 	 * 2. TTBCR과 TTBR1을 세팅한다.
 	 * 3. PRRR과 NMRR을 세팅한다.
@@ -463,6 +467,15 @@ __v7_setup:
 #endif
 	dsb					@ Complete invalidations
 #ifndef CONFIG_ARM_THUMBEE
+	/* IAMROOT-12D (2016-03-15):
+	 * --------------------------
+	 * ID_PFR0 = 라즈베리파이2 0x00001131
+	 * ThumbEE Base Handler register (TEEHBR).
+	 * ThumbEE Ctrl register (TEECR)
+	 *
+	 * UserSpace에서 TEEHR(ThumbEE Base Handler register) 를  사용하지 못하
+	 * 게 한다.
+	 */
 	mrc	p15, 0, r0, c0, c1, 0		@ read ID_PFR0 for ThumbEE
 	and	r0, r0, #(0xf << 12)		@ ThumbEE enabled field
 	teq	r0, #(1 << 12)			@ check if ThumbEE is present
@@ -501,6 +514,17 @@ __v7_setup:
 	orr     r5, r5, #(1 << 10)              @ set SW bit in "clear"
 	bic     r6, r6, #(1 << 10)              @ clear it in "mmuset"
 #endif
+	/* IAMROOT-12D (2016-03-15):
+	 * --------------------------
+	 * r0 = 0x00C50878 (SCTLR)
+	 * r5 = 0x2120c302
+	 * r6 = 0x10c03c7d
+	 * bic r0, r0, r5 = 0x00C50878
+	 * orr r0, r0, r6 = 0x10c53c7d
+	 * System Control Register에 설정할 값들을 r0에 설정한다.
+	 *  예) cache , MMU, 사용여부, endian 설정, TEX remap 설정,
+	 *  vector 테이블 위치등등
+	 */
    	mrc	p15, 0, r0, c1, c0, 0		@ read control register
 	bic	r0, r0, r5			@ clear bits them
 	orr	r0, r0, r6			@ set them
