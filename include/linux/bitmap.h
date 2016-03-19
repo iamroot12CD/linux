@@ -172,6 +172,12 @@ extern unsigned int bitmap_ord_to_pos(const unsigned long *bitmap, unsigned int 
 extern int bitmap_print_to_pagebuf(bool list, char *buf,
 				   const unsigned long *maskp, int nmaskbits);
 
+/* IAMROOT-12D (2016-03-19):
+ * --------------------------
+ * BITS_PER_LONG = 32 bit
+ * BITMAP_FIRST_WORD_MASK(4) = 0xfffffff0
+ * BITMAP_LAST_WORD_MASK(4)  = 0x0000000f
+ */
 #define BITMAP_FIRST_WORD_MASK(start) (~0UL << ((start) & (BITS_PER_LONG - 1)))
 #define BITMAP_LAST_WORD_MASK(nbits) (~0UL >> (-(nbits) & (BITS_PER_LONG - 1)))
 

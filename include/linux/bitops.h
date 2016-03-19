@@ -10,6 +10,12 @@
 #define BIT_ULL_MASK(nr)	(1ULL << ((nr) % BITS_PER_LONG_LONG))
 #define BIT_ULL_WORD(nr)	((nr) / BITS_PER_LONG_LONG)
 #define BITS_PER_BYTE		8
+/* IAMROOT-12D (2016-03-19):
+ * --------------------------
+ *  BITS_TO_LONGS( 4)  = 1
+ *  BITS_TO_LONGS(32)  = 1
+ *  BITS_TO_LONGS(35)  = 2
+ */
 #define BITS_TO_LONGS(nr)	DIV_ROUND_UP(nr, BITS_PER_BYTE * sizeof(long))
 #endif
 

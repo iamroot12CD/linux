@@ -17,6 +17,10 @@
 #include <asm/page.h>
 
 #define THREAD_SIZE_ORDER	1
+/* IAMROOT-12D (2016-03-19):
+ * --------------------------
+ * THREAD_SIZE = 8k
+ */
 #define THREAD_SIZE		(PAGE_SIZE << THREAD_SIZE_ORDER)
 #define THREAD_START_SP		(THREAD_SIZE - 8)
 

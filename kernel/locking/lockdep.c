@@ -4029,6 +4029,10 @@ void lockdep_init(void)
 	if (lockdep_initialized)
 		return;
 
+	/* IAMROOT-12D (2016-03-19):
+	 * --------------------------
+	 * #define CLASSHASH_SIZE	(1UL << 12) = 4k
+	 */
 	for (i = 0; i < CLASSHASH_SIZE; i++)
 		INIT_LIST_HEAD(classhash_table + i);
 
