@@ -109,6 +109,10 @@ ENDPROC(__vet_atags)
  *  r2  = atags/dtb pointer
  *  r9  = processor ID
  */
+/* IAMROOT-12D (2016-03-19):
+* --------------------------
+* 여기서 부터는 0x80000000 으로 시작되는 절대 주소번지를 사용한다.
+*/
 	__INIT
 __mmap_switched:
 	adr	r3, __mmap_switched_data
@@ -120,6 +124,26 @@ __mmap_switched:
 	strne	fp, [r5], #4
 	bne	1b
 
+	/* IAMROOT-12D (2016-03-19):
+	 * --------------------------
+	 * fp(r11) frame pointer
+	 * ip(r12) scratch register
+	 * sp(r13) stack pointer
+	 * lr(r14) link register
+	 * pc(r15) program counter
+	 *
+	 * cc : carry clear : 보다 작음
+	 * cs : carry set : 크거나 같음.
+	 *
+	 * memset(r6, 0, r7 - r6);
+	 * memset(__bss_start, 0, _end - __bss_start);
+	 *
+	 * fp = 0; r6 = __bss_start ; r7 = _end;
+	 * while(r6 < r7) {
+	 * 	*r6 = 0;
+	 * 	r6 += 4;
+	 * }
+	 */
 	mov	fp, #0				@ Clear BSS (and zero fp)
 1:	cmp	r6, r7
 	strcc	fp, [r6],#4
@@ -136,6 +160,13 @@ __mmap_switched:
 	b	start_kernel
 ENDPROC(__mmap_switched)
 
+	/* IAMROOT-12D (2016-03-19):
+	 * --------------------------
+	 * __data_loc 	: .data section 시작위치
+	 * _sdata	: .data section 시작위치
+	 * __bss_start	: .bss section 시작위치
+	 * _end		: .bss section 끝위치
+	 */
 	.align	2
 	.type	__mmap_switched_data, %object
 __mmap_switched_data:

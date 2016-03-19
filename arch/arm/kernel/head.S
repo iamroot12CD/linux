@@ -308,6 +308,10 @@ ENTRY(stext)
 	 * 	  : http://www.iamroot.org/xe/Kernel_10_ARM/173070
 	 * 	- ret은 ARM 명령어??
 	 * 	  : 무조건 분기하는 명령어
+	 *
+	 * adr 은 현재 pc값에 대한 상대 주소를 가져오고
+	 * ldr 은 상수값 그대로를 가져온다.
+	 * r13에는 0x80008???? 의 값이 들어 있다.
 	 */
 	ldr	r13, =__mmap_switched		@ address to jump to after
 						@ mmu has been enabled
@@ -792,6 +796,10 @@ __enable_mmu:
 #ifdef CONFIG_CPU_DCACHE_DISABLE
 	bic	r0, r0, #CR_C
 #endif
+	/* IAMROOT-12D (2016-03-17):
+	 * --------------------------
+	 * 분기 예측 disable
+	 */
 #ifdef CONFIG_CPU_BPREDICT_DISABLE
 	bic	r0, r0, #CR_Z
 #endif
@@ -799,11 +807,36 @@ __enable_mmu:
 	bic	r0, r0, #CR_I
 #endif
 #ifndef CONFIG_ARM_LPAE
+	/* IAMROOT-12D (2016-03-19):
+	 * --------------------------
+	 * #define domain_val(dom,type)	((type) << (2*(dom)))
+	 * #define DOMAIN_KERNEL	0
+	 * #define DOMAIN_TABLE	0
+	 * #define DOMAIN_USER	1
+	 * #define DOMAIN_IO	2
+	 *
+	 * #define DOMAIN_NOACCESS	0
+	 * #define DOMAIN_CLIENT	1
+	 * #define DOMAIN_MANAGER	1
+	 *
+	 * domain_val(1, 1) --> (1 << 2*1) --> 4
+	 * domain_val(0, 1) --> (1 << 2*0) --> 1
+	 * domain_val(0, 1) --> 1
+	 * domain_val(2, 1) --> (1 << 2*2) --> 0x10
+	 * 4 | 1 | 1 | 0x10 --> 0x15
+	 *
+	 * mov r5, 0x15
+	 */
 	mov	r5, #(domain_val(DOMAIN_USER, DOMAIN_MANAGER) | \
 		      domain_val(DOMAIN_KERNEL, DOMAIN_MANAGER) | \
 		      domain_val(DOMAIN_TABLE, DOMAIN_MANAGER) | \
 		      domain_val(DOMAIN_IO, DOMAIN_CLIENT))
 	mcr	p15, 0, r5, c3, c0, 0		@ load domain access register
+	/* IAMROOT-12D (2016-03-17):
+	 * --------------------------
+	 * TTBR0 설정
+	 * TTBR0 = r4(0x4000 - page table pointer)
+	 */
 	mcr	p15, 0, r4, c2, c0, 0		@ load page table pointer
 #endif
 	b	__turn_mmu_on
@@ -823,15 +856,27 @@ ENDPROC(__enable_mmu)
  *
  * other registers depend on the function called upon completion
  */
+/* IAMROOT-12D (2016-03-19):
+* --------------------------
+* MMU를 enable함.
+*/
 	.align	5
 	.pushsection	.idmap.text, "ax"
 ENTRY(__turn_mmu_on)
 	mov	r0, r0
 	instr_sync
 	mcr	p15, 0, r0, c1, c0, 0		@ write control reg
+	/* IAMROOT-12D (2016-03-19):
+	 * --------------------------
+	 * TODO: main id code register를 읽어왔는데 왜 사용하지 않는가?
+	 */
 	mrc	p15, 0, r3, c0, c0, 0		@ read id reg
 	instr_sync
 	mov	r3, r3
+	/* IAMROOT-12D (2016-03-19):
+	 * --------------------------
+	 * r13 =__mmap_switched
+	 */
 	mov	r3, r13
 	ret	r3
 __turn_mmu_on_end:
