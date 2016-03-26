@@ -54,8 +54,16 @@
 #define MPIDR_INVALID (~MPIDR_HWID_BITMASK)
 
 #define MPIDR_LEVEL_BITS 8
+/* IAMROOT-12D (2016-03-26):
+ * --------------------------
+ * ((1 << 8) - 1) = (0x100 - 1) = 0xFF 
+ */
 #define MPIDR_LEVEL_MASK ((1 << MPIDR_LEVEL_BITS) - 1)
 
+/* IAMROOT-12D (2016-03-26):
+ * --------------------------
+ * ((0xF00 >> 0) & 0xFF) = 0x0 
+ */
 #define MPIDR_AFFINITY_LEVEL(mpidr, level) \
 	((mpidr >> (MPIDR_LEVEL_BITS * level)) & MPIDR_LEVEL_MASK)
 
@@ -83,6 +91,11 @@
 
 extern unsigned int processor_id;
 
+/* IAMROOT-12D (2016-03-26):
+ * --------------------------
+ * 라즈베리파이2 의 경우
+ * MRC p15, 0, r0, c0, c0, 5 ---> 0x80000F00 
+ */
 #ifdef CONFIG_CPU_CP15
 #define read_cpuid(reg)							\
 	({								\
@@ -203,6 +216,14 @@ static inline unsigned int __attribute_const__ read_cpuid_tcmstatus(void)
 	return read_cpuid(CPUID_TCM);
 }
 
+/* IAMROOT-12D (2016-03-26):
+ * --------------------------
+ * MPIDR 사용 목적 ?
+ * 멀티 프로세서 시스템에서 스케줄링을 위해 추가 프로세서 식별 메커니즘을
+ * 제공한다.
+ * CPUID_MPIDR = 5
+ * read_cpuid(CPUID_MPIDR) 결과값 = 0x80000F00 
+ */
 static inline unsigned int __attribute_const__ read_cpuid_mpidr(void)
 {
 	return read_cpuid(CPUID_MPIDR);
