@@ -4016,6 +4016,11 @@ out_restore:
 	raw_local_irq_restore(flags);
 }
 
+/* IAMROOT-12D (2016-03-26):
+ * --------------------------
+ * lock dependency의 약자로 커널이 lock을 모니터링하고 디버깅하기 위한 것으로
+ * dead-lock 검출도 한다.
+ */
 void lockdep_init(void)
 {
 	int i;

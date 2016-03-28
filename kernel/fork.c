@@ -317,6 +317,14 @@ int __weak arch_dup_task_struct(struct task_struct *dst,
 	return 0;
 }
 
+/* IAMROOT-12D (2016-03-26):
+ * --------------------------
+ * start_kernel()이 커널 초기화 과정을 수행하는 동안 사용할 최초 커널 스택의
+ * 마지막에 magic value를 기록한다. 이후에 만들어지는 커널 스택은 메모리를
+ * 할당 받아 생성되어 사용되며 태스크가 종료되는 경우 메모리를 회수한다.
+ * 기록된 magic value(STACK_END_MAGIC: 0x57AC6E9D)를 통해
+ * kernel stack overflow를 감지하는데 사용된다.
+ */
 void set_task_stack_end_magic(struct task_struct *tsk)
 {
 	unsigned long *stackend;
