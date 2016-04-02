@@ -96,6 +96,11 @@ register unsigned long current_stack_pointer asm ("sp");
  */
 static inline struct thread_info *current_thread_info(void) __attribute_const__;
 
+/* IAMROOT-12D (2016-04-02):
+ * --------------------------
+ * THREAD_SIZE 는 8k이고 sp포인터에 스택과 thread_info 구조체가 있다.
+ * 8k하위 비트는 날려버린다.
+ */
 static inline struct thread_info *current_thread_info(void)
 {
 	return (struct thread_info *)

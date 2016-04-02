@@ -1853,6 +1853,10 @@ asmlinkage __visible int printk(const char *fmt, ...)
 	va_list args;
 	int r;
 
+	/* IAMROOT-12D (2016-04-02):
+	 * --------------------------
+	 * args에 fmt 다음 인자의 시작 주소(stack)를 구한다.
+	 */
 	va_start(args, fmt);
 
 	/*
