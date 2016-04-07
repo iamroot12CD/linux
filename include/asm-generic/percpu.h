@@ -14,6 +14,11 @@
  * Most arches use the __per_cpu_offset array for those offsets but
  * some arches have their own ways of determining the offset (x86_64, s390).
  */
+/* IAMROOT-12D (2016-04-02):
+ * --------------------------
+ * per_cpu_offset()은 특정 프로세서에 대한 인스턴스를 얻기 위해 percpu 변수에
+ * 더해져야 하는 오프셋이다.
+ */
 #ifndef __per_cpu_offset
 extern unsigned long __per_cpu_offset[NR_CPUS];
 

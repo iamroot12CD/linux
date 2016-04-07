@@ -15,6 +15,10 @@ static struct signal_struct init_signals = INIT_SIGNALS(init_signals);
 static struct sighand_struct init_sighand = INIT_SIGHAND(init_sighand);
 
 /* Initial task structure */
+/* IAMROOT-12D (2016-03-19):
+ * --------------------------
+ * struct task_struct --> include/linux/sched.h
+ */
 struct task_struct init_task = INIT_TASK(init_task);
 EXPORT_SYMBOL(init_task);
 

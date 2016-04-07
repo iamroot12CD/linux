@@ -498,7 +498,15 @@ asmlinkage __visible void __init start_kernel(void)
 	 * Need to run as early as possible, to initialize the
 	 * lockdep hash:
 	 */
+	/* IAMROOT-12D (2016-03-19):
+	 * --------------------------
+	 * classhash_table, chainhash_table double linked list를 초기화 한다.
+	 */
 	lockdep_init();
+	/* IAMROOT-12D (2016-03-19):
+	 * --------------------------
+	 * include/linux/sched.h
+	 */
 	set_task_stack_end_magic(&init_task);
 	smp_setup_processor_id();
 	debug_objects_early_init();

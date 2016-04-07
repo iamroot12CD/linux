@@ -53,6 +53,10 @@ static inline void flush(void)
 	} while ((fr & (UART011_FR_TXFE | UART01x_FR_BUSY)) != UART011_FR_TXFE);
 }
 
+/* IAMROOT-12D (2016-01-23):
+ * --------------------------
+ * 시리얼 통신을 위한 초기화 
+ */
 static inline void arch_decomp_setup(void)
 {
 	int temp, div, rem, frac;

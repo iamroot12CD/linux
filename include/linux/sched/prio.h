@@ -3,6 +3,10 @@
 
 #define MAX_NICE	19
 #define MIN_NICE	-20
+/* IAMROOT-12D (2016-03-19):
+ * --------------------------
+ * NICE 의 폭(40)
+ */
 #define NICE_WIDTH	(MAX_NICE - MIN_NICE + 1)
 
 /*
@@ -21,6 +25,11 @@
 #define MAX_USER_RT_PRIO	100
 #define MAX_RT_PRIO		MAX_USER_RT_PRIO
 
+/* IAMROOT-12D (2016-03-19):
+ * --------------------------
+ * MAX_PRIO = 140
+ * DEFAULT_PRIO = 120
+ */
 #define MAX_PRIO		(MAX_RT_PRIO + NICE_WIDTH)
 #define DEFAULT_PRIO		(MAX_RT_PRIO + NICE_WIDTH / 2)
 

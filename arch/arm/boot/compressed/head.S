@@ -760,6 +760,8 @@ not_angel:
  *
  *restart:	adr	r0, LC0	
  *			; r0 = &LC0
+ *			; [2nd] r0에는 재정렬된(복사된) LC0(delta + 0x240)주소값
+ *			;	이 들어간다.
  *
  *		ldmia	r0, {r1, r2, r3, r6, r10, r11, r12}
  *			; ldmia r0 주소에 있는 값을 차례로 다음 레지스터들에
@@ -790,8 +792,8 @@ not_angel:
  *
  *		sub	r0, r0, r1		@ calculate the delta offset
  *			; r0 = r0 - r1 : &LC0(메모리 주소) - &LC0(파일 offset값)
- *			; Q) delta 란 무엇인가?  A) 0번지부터 이미지 최초위치
- *			;   12 A팀 부팅관련 문서 참고
+ *			; Q) delta 란 무엇인가?  A) 0번지부터 램에 로드된 이미지
+ *			; 최초위치 12 A팀 부팅관련 문서 참고
  *
  *		add	r6, r6, r0		@ _edata
  *			; r6 = _edata + delta
@@ -1236,6 +1238,13 @@ restart:	adr	r0, LC0
 		sub	sp, sp, r5
 #endif
 
+		/* IAMROOT-12D (2016-01-30):
+		 * --------------------------
+		 * 처음에 돌때 atag이 담겨있는 r8레지스터에 DTB를 담는다.
+		 * 따라서 restart때, 두 번째 atags_to_fdt()를 수행하는 것이
+		 * 아니다. r8에는 DTB가 담겨있기때문에 함수를 수행하지않고
+		 * 진행되게 된다.
+		 */
 		mov	r8, r6			@ use the appended device tree
 
 		/*
@@ -1302,17 +1311,17 @@ dtb_check_done:
  * Note: the possible LSB in r4 is harmless here.
  */
 
-/* IAMROOT-12D (2015-12-19):
- * -------------------------
- * r10 += 16k;
- * if(r4 >= r10)
- *	goto wont_overwrite;
- *
- * r10 = r4 + r9
- * r9 = &wont_overwrite;
- * if( r10 <= r9)
- *	goto wont_overwrite;
- */
+		/* IAMROOT-12D (2015-12-19):
+		 * -------------------------
+		 * r10 += 16k;
+		 * if(r4 >= r10)
+		 *	goto wont_overwrite;
+		 *
+		 * r10 = r4 + r9
+		 * r9 = &wont_overwrite;
+		 * if( r10 <= r9)
+		 *	goto wont_overwrite;
+		 */
 		add	r10, r10, #16384
 		cmp	r4, r10
 		bhs	wont_overwrite
@@ -1339,11 +1348,11 @@ dtb_check_done:
  * backward in case the source and destination overlap.
  */
 
-/* IAMROOT-12D (2015-12-19):
- * -------------------------
- * 재배치시킬 zImage와 압축이 풀릴 커널이 서로 겹치지 않도록 약간의 공간을 확보
- * (256바이트 영역을 인접시킴(bump))
- */
+		/* IAMROOT-12D (2015-12-19):
+		 * -------------------------
+		 * 재배치시킬 zImage와 압축이 풀릴 커널이 서로 겹치지 않도록 약
+		 * 간의 공간을 확보 (256바이트 영역을 인접시킴(bump))
+		 */
 		/*
 		 * Bump to the next 256-byte boundary with the size of
 		 * the relocation code added. This avoids overwriting
@@ -1352,10 +1361,10 @@ dtb_check_done:
 		add	r10, r10, #((reloc_code_end - restart + 256) & ~255)
 		bic	r10, r10, #255
 
-/* IAMROOT-12D (2015-12-19):
- * -------------------------
- * restart 주소를 가져와서 4byte얼라인 시킴
- */
+		/* IAMROOT-12D (2015-12-19):
+		 * -------------------------
+		 * restart 주소를 가져와서 4byte얼라인 시킴
+		 */
 		/* Get start of code we want to copy and align it down. */
 		adr	r5, restart
 		bic	r5, r5, #31
@@ -1378,59 +1387,62 @@ dtb_check_done:
 1:
 #endif
 
-/* IAMROOT-12D (2015-12-19):
- * -------------------------
- * r6 = _edata;
- * r5 = &restart;(4바이트 정렬)
- * r9 = r6 - r5; (zImage + DTB = 복사할 zImage의 크기)
- * r9 += 31; (32바이트 정렬을 위해 round up계산)
- *	     (8개의 레지스터 단위로 블록 복사하기 아래쪽에 나옴)
- * r9 ~= 31;
- * r6 = r9 + r5; (초기 _edata에서 얼라인 적용만큼 살짝 변경된 값)
- * r9 += r10; (압축풀릴 커널 끝 주소 + 재배치될 zImage + DTB를 더한 끝 위치)
- */
+		/* IAMROOT-12D (2015-12-19):
+		 * -------------------------
+		 * r6 = _edata;
+		 * r5 = &restart;(4바이트 정렬)
+		 * r9 = r6 - r5; (zImage + DTB = 복사할 zImage의 크기)
+		 * r9 += 31; (32바이트 정렬을 위해 round up계산)
+		 *	     (8개의 레지스터 단위로 블록 복사하기 아래쪽에 나옴)
+		 * r9 ~= 31;
+		 * r6 = r9 + r5; (초기 _edata에서 얼라인 적용만큼 살짝 변경된 값)
+		 * r9 += r10; (압축풀릴 커널 끝 주소 + 재배치될 zImage + DTB를
+		 * 	더한 끝 위치)
+		 */
 		sub	r9, r6, r5		@ size to copy
 		add	r9, r9, #31		@ rounded up to a multiple
 		bic	r9, r9, #31		@ ... of 32 bytes
 		add	r6, r9, r5
 		add	r9, r9, r10
 
-/* IAMROOT-12D (2015-12-19):
- * -------------------------
- * ldmdb(load register muliple decrement before)
- * r6가 가리키고 있는 주소에 r0~r3, r10~r12, lr를 읽어와서 r9이 가리키고 있는
- * 주소로럭 블록 복사하는 루프 (그래서 32바이트 정렬이 필요했음)
- * 아래 루프가 끝나면 zImage는 재배치 영역으로 복사 완료됨
- *
- * do {
- *	r0  = *(--r6);
- *	r1  = *(--r6);
- *	r2  = *(--r6);
- *	r3  = *(--r6);
- *	r10 = *(--r6);
- *	r11 = *(--r6);
- *	r12 = *(--r6);
- *	lr  = *(--r6);
- *	
- *	*(--r9) = *r0;
- *	*(--r9) = *r1;
- *	*(--r9) = *r2;
- *	*(--r9) = *r3;
- *	*(--r9) = *r10;
- *	*(--r9) = *r11;
- *	*(--r9) = *r12;
- *	*(--r9) = *lr;
- * } while( r6 > r5);
- */
+		/* IAMROOT-12D (2015-12-19):
+		 * -------------------------
+		 * ldmdb(load register muliple decrement before)
+		 * r6가 가리키고 있는 주소에 r0~r3, r10~r12, lr를 읽어와서 r9이
+		 * 가리키고 있는 주소로럭 블록 복사하는 루프 (그래서 32바이트 정
+		 * 렬이 필요했음) 아래 루프가 끝나면 zImage는 재배치 영역으로 복
+		 * 사 완료됨
+		 *
+		 * do {
+		 *	r0  = *(--r6);
+		 *	r1  = *(--r6);
+		 *	r2  = *(--r6);
+		 *	r3  = *(--r6);
+		 *	r10 = *(--r6);
+		 *	r11 = *(--r6);
+		 *	r12 = *(--r6);
+		 *	lr  = *(--r6);
+		 *	
+		 *	*(--r9) = *r0;
+		 *	*(--r9) = *r1;
+		 *	*(--r9) = *r2;
+		 *	*(--r9) = *r3;
+		 *	*(--r9) = *r10;
+		 *	*(--r9) = *r11;
+		 *	*(--r9) = *r12;
+		 *	*(--r9) = *lr;
+		 * } while( r6 > r5);
+		 */
  1:		ldmdb	r6!, {r0 - r3, r10 - r12, lr}
 		cmp	r6, r5
 		stmdb	r9!, {r0 - r3, r10 - r12, lr}
 		bhi	1b
 
-/* IAMROOT-12D (2015-12-19):
- * -------------------------
- * r6 = r9 - r6; 재배치전 restart에서 재배치후 restart까지의 오프셋
- */
+		/* IAMROOT-12D (2015-12-19):
+		 * -------------------------
+		 * r6 = r9 - r6; 재배치전 restart에서 재배치후 restart까지의 오
+		 *  프셋
+		 */
 		/* Preserve offset to relocated code. */
 		sub	r6, r9, r6
 
@@ -1439,18 +1451,18 @@ dtb_check_done:
 		add	sp, sp, r6
 #endif
 
-/* IAMROOT-12D (2016-01-09):
- * -------------------------
- * 여기부터 시작
- */
+		/* IAMROOT-12D (2016-01-09):
+		 * -------------------------
+		 * 여기부터 시작
+		 */
 		bl	cache_clean_flush
 
-/* IAMROOT-12D (2015-12-19):
- * -------------------------
- * r0 = &restart; (재배치전 restart)
- * r0 += r6; (결국 r0는 재배치된 restart의 주소가 됨)
- * goto r0; (이로써 재배치된 restart에서 재시작)
- */
+		/* IAMROOT-12D (2015-12-19):
+		 * -------------------------
+		 * r0 = &restart; (재배치전 restart)
+		 * r0 += r6; (결국 r0는 재배치된 restart의 주소가 됨)
+		 * goto r0; (이로써 재배치된 restart에서 재시작)
+		 */
 		adr	r0, BSYM(restart)
 		add	r0, r0, r6
 		mov	pc, r0
@@ -1469,7 +1481,7 @@ dtb_check_done:
  *
  * 2.GOT(global offset table)가 뭐죠?
  * http://eli.thegreenplace.net/2011/11/03/position-independent-code-pic-in-shared-libraries
- * elf의 데이터 섹션 헤더(section header)에 있는 멤버중 하나로, 전역변수의 주소
+ * elf의 데이터 섹션 헤더(section header)에 있는 멤버중 하나로, 모든 외부 함수의 주소
  * 를 저장하고 있는 테이블
  *
  * 3.linked란 어떤걸 의미?
@@ -1481,6 +1493,11 @@ dtb_check_done:
  * 과정을 거치면서 link script 를 통해 각 section 의 위치를 기록해두는
  * 레이블로 사용된다. 그리고, LC0 레이블이 위치해야할 주소값을 LC0 레이블의
  * 첫번째 word 에 기록해둔다.
+ */
+
+/* IAMROOT-12D (2016-01-23):
+ * --------------------------
+ * 여기서 부터
  */
 
 wont_overwrite:
@@ -1498,12 +1515,12 @@ wont_overwrite:
  *   sp  = stack pointer
  */
 
-/* IAMROOT-12D (2015-12-19):
- * -------------------------
- * r1 = r0 | r5 (delta | 덧붙여진 dtb의 크기)
- * if(r1 == 0)
- *	goto not_relocated;
- */
+		/* IAMROOT-12D (2015-12-19):
+		 * -------------------------
+		 * r1 = r0 | r5 (delta | 덧붙여진 dtb의 크기)
+		 * if(r1 == 0)
+		 *	goto not_relocated;
+		 */
 		orrs	r1, r0, r5
 		beq	not_relocated
 
@@ -1523,6 +1540,14 @@ wont_overwrite:
 		 * Relocate all entries in the GOT table.
 		 * Bump bss entries to _edata + dtb size
 		 */
+                /* IAMROOT-12D (2016-01-23):
+                 * --------------------------
+                 * got의 각 엔트리가 가리키는 영역이 bss 영역 이라면,
+                 * DTB 사이즈만큼을 더하여 최종적으로
+                 * bss 영역이 되도록 조정한다.
+                 * (바로 아래에서 bss 영역이 조정된다.)
+                 * (got 엔트리를 하나씩 돌면서 영역 조정)
+                 */
 1:		ldr	r1, [r11, #0]		@ relocate entries in the GOT
 		add	r1, r1, r0		@ This fixes up C references
 		cmp	r1, r2			@ if entry >= bss_start &&
@@ -1532,6 +1557,11 @@ wont_overwrite:
 		cmp	r11, r12
 		blo	1b
 
+                /* IAMROOT-12D (2016-01-23):
+                 * --------------------------
+                 * bss 영역에 DTB size를 더하여 bss 영역 조정
+                 * bss 영역을 DTB 영역 위에 놓는다.
+                 */
 		/* bump our bss pointers too */
 		add	r2, r2, r5
 		add	r3, r3, r5
@@ -1552,15 +1582,15 @@ wont_overwrite:
 #endif
 
 
-/* IAMROOT-12D (2015-12-19):
- * -------------------------
- *   r2  = BSS start
- *   r3  = BSS end
- *
- * r0 = 0;
- * while( r2 < r3)
- *	++r2 = r0;
- */
+                /* IAMROOT-12D (2015-12-19):
+                 * -------------------------
+                 *   r2  = BSS start
+                 *   r3  = BSS end
+                 *
+                 * r0 = 0;
+                 * while( r2 < r3)
+                 *	++r2 = r0;
+                 */
 not_relocated:	mov	r0, #0
 1:		str	r0, [r2], #4		@ clear bss
 		str	r0, [r2], #4
@@ -1569,23 +1599,25 @@ not_relocated:	mov	r0, #0
 		cmp	r2, r3
 		blo	1b
 
-/* IAMROOT-12D (2015-12-19):
- * -------------------------
- * r4  = kernel execution address (possibly with LSB set)
- * tst: AND 논리 연산을 이용한 비교명령어
- * teq: OR 논리 연산을 이용한 비교명령어
- * blne: branch link register if not equal(z플래그 확인. 즉, 0이 아니면)
- *
- * if((r4 & 1) != 0) {
- *	r4 &= ~1;
- *	goto cache_on;
- * }
- * 
- * 질문:그런데 왜 LSB(최하위 비트)가 1일때하고 비교를 하나요?
- * 예전에 start레이블 내에서 cache_on을 검사한 루틴이 있는데, 당시에 중복 영역이
- * 있다면 cache_on을 보류(skipped)하기위해서 LSB를 1로 설정했었다. 해서 bic로 
- * LSB값을 다시 초기화 한다.(이해가 안되면 아래 주석을 반드시 참고하세요)
-*/
+		/* IAMROOT-12D (2015-12-19):
+		 * -------------------------
+		 * r4  = kernel execution address (possibly with LSB set)
+		 * tst: AND 논리 연산을 이용한 비교명령어
+		 * teq: OR 논리 연산을 이용한 비교명령어
+		 * blne: branch link register if not equal(z플래그 확인. 즉, 0이
+		 *	아니면)
+		 *
+		 * if((r4 & 1) != 0) {
+		 *	r4 &= ~1;
+		 *	goto cache_on;
+		 * }
+		 * 
+		 * 질문:그런데 왜 LSB(최하위 비트)가 1일때하고 비교를 하나요?
+		 * 예전에 start레이블 내에서 cache_on을 검사한 루틴이 있는데,
+		 * 당시에 중복 영역이 있다면 cache_on을 보류(skipped)하기위해서
+		 * LSB를 1로 설정했었다. 해서 bic로 LSB값을 다시 초기화 한다.
+		 * (이해가 안되면 아래 주석을 반드시 참고하세요)
+		*/
 		/*
 		 * Did we skip the cache setup earlier?
 		 * That is indicated by the LSB in r4.
@@ -2256,7 +2288,7 @@ __armv4_mmu_cache_on:
  *		mcrne   p15, 0, r6, c2, c0, 2   @ load ttb control
  * #endif
  *		mcr	p15, 0, r0, c7, c5, 4	@ ISB
- *			; Instruction Syncronization Barrier
+ *			; Instruction Synchronization Barrier
  *			; ISB 수행 전의 내용을 파이프라인에서 모두 반영하여 
  *			  비운다.
  *			; 파이프라인을 비워서, 모든 명령들이 cache 나 memory 로
@@ -2421,7 +2453,11 @@ __common_mmu_cache_on:
  * 
  * ====================================================================
  */
-
+/* IAMROOT-12D (2016-01-09):
+ * --------------------------
+ * 두번째 restart에서 들어옴
+ * cache clean & flush : r3 = 16
+ */
 call_cache_fn:	adr	r12, proc_types
 #ifdef CONFIG_CPU_CP15
 		mrc	p15, 0, r9, c0, c0	@ get processor ID
@@ -2590,6 +2626,14 @@ proc_types:
 		W(b)	__armv4_mmu_cache_off
 		W(b)	__armv6_mmu_cache_flush
 
+
+/* IAMROOT-12D (2016-01-09):
+ * --------------------------
+ * 라즈베리 파이 proc_types
+ * 	라즈베리파이 2 cpu ID : 0x410fc075
+ *	( real_cpu_id ^ proc_types_cpu_id ) & mask = 0
+ *	( 0x410fc075 ^ 0x000f0000 ) & 0x000f0000 = 0
+ */
 		.word	0x000f0000		@ new CPU Id
 		.word	0x000f0000
 		W(b)	__armv7_mmu_cache_on
@@ -2671,6 +2715,12 @@ __armv7_mmu_cache_off:
 		bl	__armv7_mmu_cache_flush
 		mov	r0, #0
 #ifdef CONFIG_MMU
+                /* IAMROOT-12D (2016-01-23):
+                 * --------------------------
+                 * TLB : 가상메모리주소를 물리메모리주소로 변환하는 속도를
+                 *       높이기 위해 사용되는 캐시.
+                 * BTC : Branch Target Cache
+                 */
 		mcr	p15, 0, r0, c8, c7, 0	@ invalidate whole TLB
 #endif
 		mcr	p15, 0, r0, c7, c5, 6	@ invalidate BTC
@@ -2729,21 +2779,128 @@ __armv6_mmu_cache_flush:
 		mov	pc, lr
 
 __armv7_mmu_cache_flush:
+
+		/* IAMROOT-12D (2016-01-09):
+		 * --------------------------
+		 * r4는 최종 커널의 시작주소 0x8000
+		 * r4의 LSB가 1이면 cache_on 연기가 셋팅 되어 있는 상태.
+		 * if(r4 & 1 != 0) // cache_on 연기 상태이면 
+		 *	iflush();
+		 *
+		 * 우리가 분석하는 소스에서는 cache_on 연기 상태가 아니므로
+		 * iflush는 호출하지 않는다.
+		 */
 		tst	r4, #1
 		bne	iflush
+
+		/* IAMROOT-12D (2016-01-09):
+		 * --------------------------
+		 * ID_MMFR1: 프로세서의 메모리 관리, 메모리 모델정보를 제공한다.
+		 * https://github.com/iamroot12D/linux/issues/24
+		 * https://cloud.githubusercontent.com/assets/6335376/12215156/da670158-b6f3-11e5-850e-f6d0ffec1170.jpg
+		 * 하버드 구조는  명령어와 데이터가 각각의 버스로 이동하는 구조
+		 * 폰노이드만 구조는 명령어와 데이터가 같은 버스로 이동하는 구조
+		 *
+		 * 만약 계층 캐시 구조라면(멀티 레벨 캐시)
+		 *  hierarchical(계층적인, 트리구조 같은..)를 호출한다.
+		 * 	#0xf << 16 = 0x000f0000
+		 * r10 = id_mmfr1;
+		 * if(r10 & 0x000f0000 == 0)
+		 *	goto hierarchical;
+		 */
 		mrc	p15, 0, r10, c0, c1, 5	@ read ID_MMFR1
 		tst	r10, #0xf << 16		@ hierarchical cache (ARMv7)
 		mov	r10, #0
 		beq	hierarchical
+
+		/* IAMROOT-12D (2016-01-09):
+		 * --------------------------
+		 * 데이터 캐시를 clean & flush하고
+		 * 명령어 캐시를 flush한다.(iflush)
+		 */
 		mcr	p15, 0, r10, c7, c14, 0	@ clean+invalidate D
 		b	iflush
+
+		/* IAMROOT-12D (2016-01-09):
+		 * --------------------------
+		 * DMB : data memory barrier
+		 * 다른 데이터 영역 메모리의 접근을 막는다.
+		 */
 hierarchical:
 		mcr	p15, 0, r10, c7, c10, 5	@ DMB
+		/* IAMROOT-12D (2016-01-16):
+		 * --------------------------
+		 * 스택에 r0 ~ r7, r9 ~ r11 저장
+		 *
+		 * clidr : cache level id register
+		 * Figure 4.19. CLIDR bit assignments
+		 *  29 27  24    21     18     15     12      9      6      3      0
+		 *+-----------------------------------------------------------------+
+		 *| |LoUU|Loc|LoUIS|Ctype7|Ctype6|Ctype5|Ctype4|Ctype3|Ctype2|Ctype1|
+		 *+-----------------------------------------------------------------+
+		 * Ctype1 : Level 1 cache의 구현 type
+		 * Ctype2 : Level 2 Cache의 구현 type
+		 */
 		stmfd	sp!, {r0-r7, r9-r11}
 		mrc	p15, 1, r0, c0, c0, 1	@ read clidr
+
+		/* IAMROOT-12D (2016-01-16):
+		 * --------------------------
+		 * L2 캐시 지원 여부를 알아아보는 소스
+		 * http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0464d/BABHCIHB.html
+		 * clidr[26:24]	LoC	
+		 *       Indicates the Level of Coherency for the cache hierarchy:
+		 *       - 0b000 L2 cache not implemented on the processor.
+		 *       - 0b010 L2 cache coherency.
+		 * r3 = clidr & 0x07000000;
+		 * r3 = r3 >> 23;
+		 * if(r3 == 0) 	// L2 캐시 지원하지않음.
+		 *	goto finished;
+		 */
 		ands	r3, r0, #0x7000000	@ extract loc from clidr
 		mov	r3, r3, lsr #23		@ left align loc bit field
 		beq	finished		@ if loc is 0, then no need to clean
+
+		/* IAMROOT-12D (2016-01-09):
+		 * --------------------------
+		 * r0 = clidr;	
+		 * r3 = 0b0010 ~ 0b1110;	// clidr[26:24] << 1
+		 * r10 = 0;
+		 * do {
+		 *	r2 = r10 + (r10 / 2);	// r2 = r10 * 1.5;
+		 *	r1 = r0 >> r2;		// 처음 r1 = clidr;
+		 *	r1 = r1 & 0b0111;	// r1 = Indicates the type of
+		 *				//  cache implemented at level 1
+        	 *	// +------+-----------+
+        	 *	// |00    |no cache   |
+        	 *	// +------+-----------+
+        	 *	// |01    |icache     |
+        	 *	// +------+-----------+
+        	 *	// |10    |data cache |
+        	 *	// +------+-----------+
+        	 *	// |11    |I/D Cache  |
+        	 *	// +------+-----------+
+		 *	if(r1 < 2)		// instruction cache skip
+		 *		goto skip;
+		 *	cssr = r10;
+		 *	// ISB : Instruction Synchronization Barrier.
+		 *	cssr, csidr = r10;	@ isb to sych the new cssr&csidr
+		 *	r1 = csidr;
+		 *	r2 = r1 & 0b0111;	// 하위 3비트를 가져온다.
+		 *	r2 = r2 + 4;
+		 *	r4 = 0x3ff;
+		 *	r4 = r4 & (r1 >> 3);
+		 *		ands	r4, r4, r1, lsr #3	@ find maximum number on the way size
+		 *	r5 = clz r4	// 최초 0이 아닌 인 비트까지의 개수.
+		 *	r7 = 0x7fff & (r1 >> 13);
+		 * loop2:
+		 *	
+		 * 2016-01-16 부터
+		 *	....
+		 * 	r10 += 2;
+		 * } while (r3 <= r10);
+		 *	
+		 */
 		mov	r10, #0			@ start clean at cache level 0
 loop1:
 		add	r2, r10, r10, lsr #1	@ work out 3x current cache level
@@ -2751,14 +2908,92 @@ loop1:
 		and	r1, r1, #7		@ mask of the bits for current cache only
 		cmp	r1, #2			@ see what cache we have at this level
 		blt	skip			@ skip if no cache, or just i-cache
+
+		/* IAMROOT-12D (2016-01-16):
+		 * --------------------------
+		 * Cache Size Selection Register
+		 * Figure 4.26. CSSELR bit assignments
+		 *  31              4     1 0
+		 * +-----------------+-----+-+
+		 * |  Reserved(SBZ)  |Level| |
+		 * +-----------------+-----+-+
+		 * 			    ^
+		 *		     InD ---+
+		 * Level : cache level : 0-level1, 1-level2 ...
+		 * InD : 명령어 혹은 데이터 캐쉬를 사용하는지
+		 *   0 : data, 1:instruction
+		 *
+		 * clean and flush할 L1, L2, L3 캐시를 선택한다.
+		 */
 		mcr	p15, 2, r10, c0, c0, 0	@ select current cache level in cssr
+
+		/* IAMROOT-12D (2016-01-09):
+		 * --------------------------
+		 * Instruction Synchronization Barrier
+		 * ISB 수행 전의 내용을 파이프라인에서 모두 반영하여 비운다.
+		 * 파이프라인을 비워서, 모든 명령들이 cache 나 memory 로
+		 * 부터 fetch 되도록 한다.
+		 * 따라서, ISB 이전 수행이 완료되었음을 보장한다.
+		 */
 		mcr	p15, 0, r10, c7, c5, 4	@ isb to sych the new cssr&csidr
+
+		/* IAMROOT-12D (2016-01-16):
+		 * --------------------------
+		 * ccsidr : Cache Size ID Register
+		 * 캐시 아키텍쳐 정보를 제공.
+		 *
+		 * Figure 4.18. CCSIDR bit assignments
+		 *	 31302928         13              3  0
+		 *	+-+-+-+-+----------+---------------+--+
+		 *	| | | | | NumSets  | Associativity |LS|
+		 *	+-+-+-+-+----------+---------------+--+
+		 *
+		 *  [27:13] NumSets  Indicates number of sets
+		 *    0x7F = 16KB cache size
+		 *    0xFF = 32KB cache size
+		 *    0x1FF = 64KB cache size.
+		 *	라즈베리 파이2 B는 L1 32K, L2 512K이다.
+		 *  
+		 *  [12:3] Associativity  Indicates number of ways.
+		 *  	 b0000000011. Four ways.
+		 *  
+		 *  [2:0] LineSize  Indicates the (log 2 (number of words in
+		 *  		cache line)) - 2:
+		 *	 b001 = 8  words per line.
+		 *	 b010 = 16 words per line.
+		 */
 		mrc	p15, 1, r1, c0, c0, 0	@ read the new csidr
+
+		/* IAMROOT-12D (2016-01-16):
+		 * --------------------------
+		 * r2 = CCSIDR[2:0] LineSize + 4
+		 */
 		and	r2, r1, #7		@ extract the length of the cache lines
 		add	r2, r2, #4		@ add 4 (line length offset)
+
+		/* IAMROOT-12D (2016-01-16):
+		 * --------------------------
+		 * r4 = CCSIDR[12:3] Associativity
+		 */
 		ldr	r4, =0x3ff
 		ands	r4, r4, r1, lsr #3	@ find maximum number on the way size
+
+		/* IAMROOT-12D (2016-01-16):
+		 * --------------------------
+		 * clz	count leading zeros
+		 *	최초 0이 아닌 비트까지의 0 개수
+		 *
+		 * 여기서는 0이 아닌 비트를 최상단으로 옮기기 위해 사용했다.
+		 * 예)  a = 0b 0000 0000 0000 0011 
+		 * 	b = clz a = 14
+		 *	a << b = 0b 1100 0000 0000 0000
+		 */
 		clz	r5, r4			@ find bit position of way size increment
+
+		/* IAMROOT-12D (2016-01-16):
+		 * --------------------------
+		 * r7 = CCSIDR[27:13] NumSets
+		 */
 		ldr	r7, =0x7fff
 		ands	r7, r7, r1, lsr #13	@ extract max number of the index size
 loop2:
@@ -2770,6 +3005,17 @@ loop3:
  THUMB(		orr	r11, r10, r6		) @ factor way and cache number into r11
  THUMB(		lsl	r6, r7, r2		)
  THUMB(		orr	r11, r11, r6		) @ factor index number into r11
+
+		/* IAMROOT-12D (2016-01-12):
+		 * --------------------------
+		 * r11 register
+		 *      30       13           5     0
+		 *    +---+--------+-----------+-----+
+		 *    |Way|  SBZ   |    Set    | SBZ |
+		 *    +---+--------+-----------+-----+
+		 *
+		 * Set 위치는 cache line size(word) 사이즈에 따라 바뀐다
+		 */
 		mcr	p15, 0, r11, c7, c14, 2	@ clean & invalidate by set/way
 		subs	r9, r9, #1		@ decrement the way
 		bge	loop3
@@ -2784,6 +3030,23 @@ finished:
 		mov	r10, #0			@ swith back to cache level 0
 		mcr	p15, 2, r10, c0, c0, 0	@ select current cache level in cssr
 iflush:
+		/* IAMROOT-12D (2016-01-09):
+		 * --------------------------
+		 * BTB branch target buffer
+		 * instruction cache를 flush한다.
+		 * 
+		 * DSB : 배리어의 특별한 형태로써 이 명령이 수행되기 전에 명령어
+		 *  의 수행이 모두 완료된 다는 것이다. 추가로 캐쉬, 분기예측
+		 *  , TLB(가상/물리 어드레스 변환테이블의 캐쉬) 수행 명령도
+		 *  모두 완료되는 것을 보장한다.
+		 *
+		 * ISB : 명령어 동기화로서 프로세서의 파이프라인을 모두 비운다.
+		 *  따라서 ISB 뒤에서 실행되는 명령어는 이 명령어의 수행이 끝난
+		 *  후 캐쉬나 메모리로부터 다시 읽혀지게 된다.  뒤에 무엇에 의한
+		 *  영향을 피하기 위해서라고 설명하는데 어쨋건 중요한 것은 이
+		 *  명령어 수행하고 나면 파이프라인이 비워진다는 것이 다.
+		 * 참고 URL : http://forum.falinux.com/zbxe/index.php?document_srl=534002&mid=Kernel_API
+		 */
 		mcr	p15, 0, r10, c7, c10, 4	@ DSB
 		mcr	p15, 0, r10, c7, c5, 0	@ invalidate I+BTB
 		mcr	p15, 0, r10, c7, c10, 4	@ DSB

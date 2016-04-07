@@ -21,6 +21,18 @@
  * in the TPIDRPRW. TPIDRPRW only exists on V6K and V7
  */
 #if defined(CONFIG_SMP) && !defined(CONFIG_CPU_V6)
+/* IAMROOT-12D (2016-04-02):
+ * --------------------------
+ * TPIDRPRW can be read write only at PL1 or higher.
+ * http://www.iamroot.org/xe/index.php?mid=Kernel_10_ARM&document_srl=184082&sort_index=readed_count&order_type=desc
+ *
+ * https://lwn.net/Articles/527927/
+ * Use the previously unused TPIDRPRW register to store percpu offsets.
+ * TPIDRPRW is only accessible in PL1, so it can only be used in the kernel.
+ * 이전에 사용되지 않는 TPIDRPRW 레지스터를 percpu 오프셋을 저장하기 위해 사용함
+ * TPIDRPRW는 PL1에만 접근이 가능하므로 커널에서만 사용할 수있다.
+ * (속도 향상을 위해)
+ */
 static inline void set_my_cpu_offset(unsigned long off)
 {
 	/* Set TPIDRPRW */

@@ -7,6 +7,10 @@
 # define __user		__attribute__((noderef, address_space(1)))
 # define __kernel	__attribute__((address_space(0)))
 # define __safe		__attribute__((safe))
+/* IAMROOT-12D (2016-04-02):
+ * --------------------------
+ * __force를 가지고 있으면 sparse 가 warning을 띄우지 않는다.
+ */
 # define __force	__attribute__((force))
 # define __nocast	__attribute__((nocast))
 # define __iomem	__attribute__((noderef, address_space(2)))

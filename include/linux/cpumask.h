@@ -12,6 +12,10 @@
 #include <linux/bug.h>
 
 /* Don't assign or return these: may not be this big! */
+/* IAMROOT-12D (2016-03-19):
+ * --------------------------
+ * typedef struct cpumask { unsigned long bits[1]; } cpumask_t;
+ */
 typedef struct cpumask { DECLARE_BITMAP(bits, NR_CPUS); } cpumask_t;
 
 /**
@@ -794,7 +798,21 @@ cpumap_print_to_pagebuf(bool list, char *buf, const struct cpumask *mask)
 				      nr_cpu_ids);
 }
 
+/* IAMROOT-12D (2016-03-19):
+ * --------------------------
+ * NR_CPUS : 4 (라즈베리파이2 cpu 개수)
+ * BITS_PER_LONG : 32 (라즈베리파이2 32bit cpu)
+ */
 #if NR_CPUS <= BITS_PER_LONG
+/* IAMROOT-12D (2016-03-19):
+ * --------------------------
+ * BITS_TO_LONGS( 3) --> 1  3비트를 몇개의 long으로 표현할수 있는가?
+ * BITS_TO_LONGS(32) --> 1  32비트는 1개의 long으로 표현할수 있다.
+ * BITS_TO_LONGS(35) --> 2  35비트는 2개의 long으로 표현할수 있다.
+ * BITMAP_LAST_WORD_MASK(4) --> 0x0000000f
+ * BITMAP_LAST_WORD_MASK(5) --> 0x0000001f
+ * BITMAP_LAST_WORD_MASK(6) --> 0x0000003f
+ */
 #define CPU_MASK_ALL							\
 (cpumask_t) { {								\
 	[BITS_TO_LONGS(NR_CPUS)-1] = BITMAP_LAST_WORD_MASK(NR_CPUS)	\

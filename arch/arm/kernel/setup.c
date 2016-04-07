@@ -508,6 +508,15 @@ void notrace cpu_init(void)
 
 u32 __cpu_logical_map[NR_CPUS] = { [0 ... NR_CPUS-1] = MPIDR_INVALID };
 
+/* IAMROOT-12D (2016-03-26):
+ * --------------------------
+ * is_smp() = 1
+ * read_cpuid_mpidr() = 0x80000F00
+ * MPIDR_HWID_BITMASK = 0x00FFFFFF
+ * read_cpuid_mpidr() & MPIDR_HWID_BITMASK = 0x00000F00
+ *
+ * cpu = 0x0
+ */
 void __init smp_setup_processor_id(void)
 {
 	int i;

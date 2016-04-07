@@ -11,6 +11,10 @@
  * Maximum supported processors.  Setting this smaller saves quite a
  * bit of memory.  Use nr_cpu_ids instead of this except for static bitmaps.
  */
+/* IAMROOT-12D (2016-03-19):
+ * --------------------------
+ * 라즈베리파는 quad core CONFIG_NR_CPUS 가 4이다.
+ */
 #ifndef CONFIG_NR_CPUS
 /* FIXME: This should be fixed in the arch's Kconfig */
 #define CONFIG_NR_CPUS	1
