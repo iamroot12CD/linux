@@ -962,6 +962,11 @@ static int __init boot_delay_setup(char *str)
 }
 early_param("boot_delay", boot_delay_setup);
 
+/* IAMROOT-12D (2016-04-09):
+ * --------------------------
+ * boot_delay 밀리초만큼 while을 돌며 delay.
+ * touch_nmi_watchdog은 raspberry pi 에서는 함수가 비어있음.
+ */
 static void boot_delay_msec(int level)
 {
 	unsigned long long k;
@@ -1491,6 +1496,12 @@ static int console_trylock_for_printk(void)
 
 int printk_delay_msec __read_mostly;
 
+/* IAMROOT-12D (2016-04-09):
+ * --------------------------
+ * boot_delay_msec와 많은 부분 유사하며 차이는 mdelay입니다.
+ * 하는 일은 printk_delay_msec만큼 딜레이를 합니다.
+ * 이는 udelay관련 루틴을 호출하며, asm으로 loop를 돌게 됩니다.
+ */
 static inline void printk_delay(void)
 {
 	if (unlikely(printk_delay_msec)) {
@@ -1607,6 +1618,11 @@ static size_t cont_print_text(char *text, size_t size)
 	return textlen;
 }
 
+/* IAMROOT-12D (2016-04-09):
+ * --------------------------
+ * level = -1
+ * fmt = 첫번째 인자, args = 두번째 인자
+ */
 asmlinkage int vprintk_emit(int facility, int level,
 			    const char *dict, size_t dictlen,
 			    const char *fmt, va_list args)
@@ -1801,6 +1817,12 @@ asmlinkage int printk_emit(int facility, int level,
 	return r;
 }
 EXPORT_SYMBOL(printk_emit);
+
+/* IAMROOT-12D (2016-04-09):
+ * --------------------------
+ * 기본적으로 호출되는 printk 함수
+ * CONFIG_KGDB_KDB는 정의 되어 있음
+ */
 
 int vprintk_default(const char *fmt, va_list args)
 {

@@ -135,6 +135,17 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 # ifndef likely
 #  define likely(x)	(__builtin_constant_p(x) ? !!(x) : __branch_check__(x, 1))
 # endif
+
+/* IAMROOT-12D (2016-04-09):
+ * --------------------------
+ * !!는 이중 부정을 의미하므로 숫자 0이면 false, 그외 숫자일때 true를 리턴
+ * boolean이 아닌 값을 boolean을 만듬
+ *
+ * __builtin_constant_p = 이 기본 제공 함수는 컴파일 시 값이 상수로 알려져 있는
+ * 지 판단합니다.이 기본 제공 함수는 ARM 컴파일러에서 지원하는 GNU 컴파일러 확
+ * 장입니다.
+ *
+ */
 # ifndef unlikely
 #  define unlikely(x)	(__builtin_constant_p(x) ? !!(x) : __branch_check__(x, 0))
 # endif
@@ -164,6 +175,13 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 #endif /* CONFIG_PROFILE_ALL_BRANCHES */
 
 #else
+/* IAMROOT-12D (2016-04-09):
+ * --------------------------
+ *  __builtin_expect :
+ * 이 내장 함수는 컴파일러에 분기 예상 정보를 제공합니다.
+ * __builtin_expect(expr, , c)를 호출하면 expr == c가 예상됨을
+ * 컴파일러에 알립니다.
+ */
 # define likely(x)	__builtin_expect(!!(x), 1)
 # define unlikely(x)	__builtin_expect(!!(x), 0)
 #endif
