@@ -359,6 +359,10 @@ out:
 	__trace_function(tr, CALLER_ADDR0, parent_ip, flags, pc);
 }
 
+/* IAMROOT-12D (2016-04-16):
+ * --------------------------
+ * ip : instruction pointer(아마도..)
+ */
 static inline void
 start_critical_timing(unsigned long ip, unsigned long parent_ip)
 {

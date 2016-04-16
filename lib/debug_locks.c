@@ -35,6 +35,12 @@ EXPORT_SYMBOL_GPL(debug_locks_silent);
 /*
  * Generic 'turn off all lock debugging' function:
  */
+/* IAMROOT-12D (2016-04-16):
+ * --------------------------
+ * debug_lock을 off(0으로 셋팅)시키고
+ * 기존 debug_lock이 설정되어 있고 debug_locks_silent 가 설정 되어 있지 않으면
+ * console_loglevel를 verbose로 설정.
+ */
 int debug_locks_off(void)
 {
 	if (__debug_locks_off()) {

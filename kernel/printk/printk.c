@@ -227,6 +227,10 @@ struct printk_log {
  * within the scheduler's rq lock. It must be released before calling
  * console_unlock() or anything else that might wake up a process.
  */
+/* IAMROOT-12D (2016-04-16):
+ * --------------------------
+ * raw_spinlock_t logbuf_lock = __RAW_SPIN_LOCK_UNLOCKED(x);
+ */* * *
 static DEFINE_RAW_SPINLOCK(logbuf_lock);
 
 #ifdef CONFIG_PRINTK
@@ -1425,10 +1429,20 @@ static void call_console_drivers(int level, const char *text, size_t len)
  * To leave time for slow consoles to print a full oops,
  * only zap at most once every 30 seconds.
  */
+/* IAMROOT-12D (2016-04-16):
+ * --------------------------
+ * 느린 console에 full oops를 최대 30초마다 출력한다.
+ * 
+ * debug_locks을 off하고 logbuf_lock초기화, console semaphore를 초기화 한다.
+ */
 static void zap_locks(void)
 {
 	static unsigned long oops_timestamp;
 
+	/* IAMROOT-12D (2016-04-16):
+	 * --------------------------
+	 * 30초 이전에 재 호출되었으면 리턴
+	 */
 	if (time_after_eq(jiffies, oops_timestamp) &&
 	    !time_after(jiffies, oops_timestamp + 30 * HZ))
 		return;
@@ -1654,6 +1668,11 @@ asmlinkage int vprintk_emit(int facility, int level,
 	/*
 	 * Ouch, printk recursed into itself!
 	 */
+	/* IAMROOT-12D (2016-04-16):
+	 * --------------------------
+	 * printk 함수가 실행중 crash가 발생하면 printk 함수 crash 메세지를 출력
+	 * 시도 하는데 이는 재귀 호출이 될수 있다. 이를 방지하기위한 코드이다.
+	 */
 	if (unlikely(logbuf_cpu == this_cpu)) {
 		/*
 		 * If a crash is occurring during printk() on this CPU,
@@ -1661,6 +1680,12 @@ asmlinkage int vprintk_emit(int facility, int level,
 		 * we can't deadlock. Otherwise just return to avoid the
 		 * recursion and return - but flag the recursion so that
 		 * it can be printed at the next appropriate moment:
+		 */
+		/* IAMROOT-12D (2016-04-16):
+		 * --------------------------
+		 * 데드락이 발생하지않게 하기위해서 return 하고 대신
+		 * recursion_bug를 셋팅하여 나중에 해당내용을 적절하게 출력하게
+		 * 할수 있게한다.
 		 */
 		if (!oops_in_progress && !lockdep_recursing(current)) {
 			recursion_bug = 1;

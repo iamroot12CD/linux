@@ -115,6 +115,15 @@ static inline void prefetch(const void *ptr)
 }
 
 #if __LINUX_ARM_ARCH__ >= 7 && defined(CONFIG_SMP)
+/* IAMROOT-12D (2016-04-16):
+ * --------------------------
+ * PLD, PLDW
+ * 	데이터 및 명령어 사전 로드. 프로세서는 주소에서 데이터나 명령어를 곧 로
+ * 	드할 것이라는 신호를 메모리 시스템에 보낼 수 있습니다.
+ * 
+ * 	DW	쓰기를 위한 데이터 주소
+ *	D	데이터 주소
+ */
 #define ARCH_HAS_PREFETCHW
 static inline void prefetchw(const void *ptr)
 {

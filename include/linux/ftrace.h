@@ -666,6 +666,15 @@ static inline void __ftrace_enabled_restore(int enabled)
 #endif
 
 /* Archs may use other ways for ADDR1 and beyond */
+/* IAMROOT-12D (2016-04-16):
+ * --------------------------
+ * http://forum.falinux.com/zbxe/index.php?document_srl=550242&mid=lecture_tip
+ * void *__builtin_return_address(unsigned int LEVEL)
+ *	이 함수는 리턴수소, 즉 자신을 호출한 함수의 반환 위치 주소를 돌려 줍니다
+ *	arm 으로 하면 현재 상태에서의 lr 을 반환해 주는 것입니다.
+ *	매개 변수 LEVEL 은 호출 지점을 몇번 거슬러 올라갈지를 지정합니다.
+ *	
+ */
 #ifndef ftrace_return_address
 # ifdef CONFIG_FRAME_POINTER
 #  define ftrace_return_address(n) __builtin_return_address(n)

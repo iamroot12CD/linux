@@ -738,6 +738,13 @@ look_up_lock_class(struct lockdep_map *lock, unsigned int subclass)
  * yet. Otherwise we look it up. We cache the result in the lock object
  * itself, so actual lookup of the hash should be once per lock object.
  */
+/* IAMROOT-12D (2016-04-16):
+ * --------------------------
+ * class가 아직 보이지 않았으면 hash-table에 lock class를 등록한다.
+ * 그렇지 않으면 찾아낸다. lock object 자체의 결과를 cache한다.
+ *
+ * TODO: 읽는것을 보류함.
+ */
 static inline struct lock_class *
 register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
 {
@@ -3065,6 +3072,10 @@ static int __lock_is_held(struct lockdep_map *lock);
  * This gets called for every mutex_lock*()/spin_lock*() operation.
  * We maintain the dependency maps and validate the locking attempt:
  */
+/* IAMROOT-12D (2016-04-16):
+ * --------------------------
+ * mutex_lock*(), spin_lock*() 등의 모든 함수들이 호출 하는 함수다.
+ */
 static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 			  int trylock, int read, int check, int hardirqs_off,
 			  struct lockdep_map *nest_lock, unsigned long ip,
@@ -3085,6 +3096,10 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	 * Lockdep should run with IRQs disabled, otherwise we could
 	 * get an interrupt which would want to take locks, which would
 	 * end up in lockdep and have you got a head-ache already?
+	 */
+	/* IAMROOT-12D (2016-04-16):
+	 * --------------------------
+	 * irq가 enable 되어있으면 WARNING을 출력하고 return 0
 	 */
 	if (DEBUG_LOCKS_WARN_ON(!irqs_disabled()))
 		return 0;

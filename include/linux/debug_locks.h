@@ -11,6 +11,10 @@ extern int debug_locks;
 extern int debug_locks_silent;
 
 
+/* IAMROOT-12D (2016-04-16):
+ * --------------------------
+ * debug_locks에 0을 설정하고 기존 debug_locks 값을 반환한다.
+ */
 static inline int __debug_locks_off(void)
 {
 	return xchg(&debug_locks, 0);
@@ -21,6 +25,10 @@ static inline int __debug_locks_off(void)
  */
 extern int debug_locks_off(void);
 
+/* IAMROOT-12D (2016-04-16):
+ * --------------------------
+ * c 값이 true이면 WARN을 출력
+ */
 #define DEBUG_LOCKS_WARN_ON(c)						\
 ({									\
 	int __ret = 0;							\

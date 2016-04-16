@@ -57,10 +57,10 @@ extern void setup_per_cpu_areas(void);
 #ifndef PER_CPU_BASE_SECTION
 #ifdef CONFIG_SMP
 #define PER_CPU_BASE_SECTION ".data..percpu"
-#else
+#else /* !CONFIG_SMP */
 #define PER_CPU_BASE_SECTION ".data"
-#endif
-#endif
+#endif /* CONFIG_SMP */
+#endif /* PER_CPU_BASE_SECTION */
 
 #ifndef PER_CPU_ATTRIBUTES
 #define PER_CPU_ATTRIBUTES

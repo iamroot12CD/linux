@@ -29,6 +29,10 @@ struct semaphore {
 #define DEFINE_SEMAPHORE(name)	\
 	struct semaphore name = __SEMAPHORE_INITIALIZER(name, 1)
 
+/* IAMROOT-12D (2016-04-16):
+ * --------------------------
+ * 세마포어 count를 val로 설정하고 초기화.
+ */
 static inline void sema_init(struct semaphore *sem, int val)
 {
 	static struct lock_class_key __key;
