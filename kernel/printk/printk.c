@@ -230,7 +230,7 @@ struct printk_log {
 /* IAMROOT-12D (2016-04-16):
  * --------------------------
  * raw_spinlock_t logbuf_lock = __RAW_SPIN_LOCK_UNLOCKED(x);
- */* * *
+ */
 static DEFINE_RAW_SPINLOCK(logbuf_lock);
 
 #ifdef CONFIG_PRINTK
