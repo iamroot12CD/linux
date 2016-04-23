@@ -1431,7 +1431,8 @@ static void call_console_drivers(int level, const char *text, size_t len)
  */
 /* IAMROOT-12D (2016-04-16):
  * --------------------------
- * 느린 console에 full oops를 최대 30초마다 출력한다.
+ * 30초 동안 계속 crash 되어 재귀호출이 일어나면 log, debug락을 풀어버린다.
+ * 왜냐하면 crash메세지를 계속 출력하고 데드락을 발생시키지 않게 하기위해서다.
  * 
  * debug_locks을 off하고 logbuf_lock초기화, console semaphore를 초기화 한다.
  */
@@ -1686,6 +1687,9 @@ asmlinkage int vprintk_emit(int facility, int level,
 		 * 데드락이 발생하지않게 하기위해서 return 하고 대신
 		 * recursion_bug를 셋팅하여 나중에 해당내용을 적절하게 출력하게
 		 * 할수 있게한다.
+		 *
+		 * 재귀 호출이지만 프로세스가 정상이고 락이 풀려있으면
+		 *  recursion_bug 를 1로 설정하여 나중에 처리하도록 한다.
 		 */
 		if (!oops_in_progress && !lockdep_recursing(current)) {
 			recursion_bug = 1;
