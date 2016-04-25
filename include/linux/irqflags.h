@@ -130,12 +130,16 @@
 
 #define local_save_flags(flags)	raw_local_save_flags(flags)
 
+#ifdef CONFIG_TRACE_IRQFLAGS_SUPPORT
 /*
  * Some architectures don't define arch_irqs_disabled(), so even if either
  * definition would be fine we need to use different ones for the time being
  * to avoid build issues.
  */
-#ifdef CONFIG_TRACE_IRQFLAGS_SUPPORT
+ /* IAMROOT-12D (2016-04-16):
+  * --------------------------
+  * 현재의 상태 레지스터 값을 가져와서 irq 상태값이 disable인지 아닌지 알아냄.
+  */
 #define irqs_disabled()					\
 	({						\
 		unsigned long _flags;			\

@@ -227,6 +227,10 @@ struct printk_log {
  * within the scheduler's rq lock. It must be released before calling
  * console_unlock() or anything else that might wake up a process.
  */
+/* IAMROOT-12D (2016-04-16):
+ * --------------------------
+ * raw_spinlock_t logbuf_lock = __RAW_SPIN_LOCK_UNLOCKED(x);
+ */
 static DEFINE_RAW_SPINLOCK(logbuf_lock);
 
 #ifdef CONFIG_PRINTK
@@ -962,6 +966,11 @@ static int __init boot_delay_setup(char *str)
 }
 early_param("boot_delay", boot_delay_setup);
 
+/* IAMROOT-12D (2016-04-09):
+ * --------------------------
+ * boot_delay 밀리초만큼 while을 돌며 delay.
+ * touch_nmi_watchdog은 raspberry pi 에서는 함수가 비어있음.
+ */
 static void boot_delay_msec(int level)
 {
 	unsigned long long k;
@@ -1420,10 +1429,21 @@ static void call_console_drivers(int level, const char *text, size_t len)
  * To leave time for slow consoles to print a full oops,
  * only zap at most once every 30 seconds.
  */
+/* IAMROOT-12D (2016-04-16):
+ * --------------------------
+ * 30초 동안 계속 crash 되어 재귀호출이 일어나면 log, debug락을 풀어버린다.
+ * 왜냐하면 crash메세지를 계속 출력하고 데드락을 발생시키지 않게 하기위해서다.
+ * 
+ * debug_locks을 off하고 logbuf_lock초기화, console semaphore를 초기화 한다.
+ */
 static void zap_locks(void)
 {
 	static unsigned long oops_timestamp;
 
+	/* IAMROOT-12D (2016-04-16):
+	 * --------------------------
+	 * 30초 이전에 재 호출되었으면 리턴
+	 */
 	if (time_after_eq(jiffies, oops_timestamp) &&
 	    !time_after(jiffies, oops_timestamp + 30 * HZ))
 		return;
@@ -1491,6 +1511,12 @@ static int console_trylock_for_printk(void)
 
 int printk_delay_msec __read_mostly;
 
+/* IAMROOT-12D (2016-04-09):
+ * --------------------------
+ * boot_delay_msec와 많은 부분 유사하며 차이는 mdelay입니다.
+ * 하는 일은 printk_delay_msec만큼 딜레이를 합니다.
+ * 이는 udelay관련 루틴을 호출하며, asm으로 loop를 돌게 됩니다.
+ */
 static inline void printk_delay(void)
 {
 	if (unlikely(printk_delay_msec)) {
@@ -1607,6 +1633,11 @@ static size_t cont_print_text(char *text, size_t size)
 	return textlen;
 }
 
+/* IAMROOT-12D (2016-04-09):
+ * --------------------------
+ * level = -1
+ * fmt = 첫번째 인자, args = 두번째 인자
+ */
 asmlinkage int vprintk_emit(int facility, int level,
 			    const char *dict, size_t dictlen,
 			    const char *fmt, va_list args)
@@ -1638,6 +1669,11 @@ asmlinkage int vprintk_emit(int facility, int level,
 	/*
 	 * Ouch, printk recursed into itself!
 	 */
+	/* IAMROOT-12D (2016-04-16):
+	 * --------------------------
+	 * printk 함수가 실행중 crash가 발생하면 printk 함수 crash 메세지를 출력
+	 * 시도 하는데 이는 재귀 호출이 될수 있다. 이를 방지하기위한 코드이다.
+	 */
 	if (unlikely(logbuf_cpu == this_cpu)) {
 		/*
 		 * If a crash is occurring during printk() on this CPU,
@@ -1645,6 +1681,15 @@ asmlinkage int vprintk_emit(int facility, int level,
 		 * we can't deadlock. Otherwise just return to avoid the
 		 * recursion and return - but flag the recursion so that
 		 * it can be printed at the next appropriate moment:
+		 */
+		/* IAMROOT-12D (2016-04-16):
+		 * --------------------------
+		 * 데드락이 발생하지않게 하기위해서 return 하고 대신
+		 * recursion_bug를 셋팅하여 나중에 해당내용을 적절하게 출력하게
+		 * 할수 있게한다.
+		 *
+		 * 재귀 호출이지만 프로세스가 정상이고 락이 풀려있으면
+		 *  recursion_bug 를 1로 설정하여 나중에 처리하도록 한다.
 		 */
 		if (!oops_in_progress && !lockdep_recursing(current)) {
 			recursion_bug = 1;
@@ -1801,6 +1846,12 @@ asmlinkage int printk_emit(int facility, int level,
 	return r;
 }
 EXPORT_SYMBOL(printk_emit);
+
+/* IAMROOT-12D (2016-04-09):
+ * --------------------------
+ * 기본적으로 호출되는 printk 함수
+ * CONFIG_KGDB_KDB는 정의 되어 있음
+ */
 
 int vprintk_default(const char *fmt, va_list args)
 {

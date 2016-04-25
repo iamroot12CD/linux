@@ -53,6 +53,10 @@ static inline void console_silent(void)
 	console_loglevel = CONSOLE_LOGLEVEL_SILENT;
 }
 
+/* IAMROOT-12D (2016-04-16):
+ * --------------------------
+ * console_loglevel을 verbose로 설정.
+ */
 static inline void console_verbose(void)
 {
 	if (console_loglevel)

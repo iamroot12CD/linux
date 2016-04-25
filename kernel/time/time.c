@@ -505,6 +505,13 @@ unsigned long msecs_to_jiffies(const unsigned int m)
 	if ((int)m < 0)
 		return MAX_JIFFY_OFFSET;
 
+/* IAMROOT-12D (2016-04-09):
+ * --------------------------
+ * raspberry pi의 HZ는 100으로 정의됨
+ * 즉 아래의 if는 true
+ * return( m + (1000 / 100) - 1) / (1000 / 100) = 일의자리 올림 / 10
+ * ex) 10 = 1, 11~20 = 2, 21~30 = 3
+ */
 #if HZ <= MSEC_PER_SEC && !(MSEC_PER_SEC % HZ)
 	/*
 	 * HZ is equal to or smaller than 1000, and 1000 is a nice
