@@ -835,6 +835,13 @@ void __init idr_init_cache(void)
  * This function is use to set up the handle (@idp) that you will pass
  * to the rest of the functions.
  */
+/* IAMROOT-12D (2016-04-30):
+ * --------------------------
+ * idr이란 radix tree의 일종으로 정수 id와 포인터 주소를 연결해주는 구조체이다.
+ *
+ * Radix Tree 란?
+ *  https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Patricia_trie.svg/400px-Patricia_trie.svg.png
+ */
 void idr_init(struct idr *idp)
 {
 	memset(idp, 0, sizeof(struct idr));

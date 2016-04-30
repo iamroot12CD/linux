@@ -4947,6 +4947,15 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss, bool early)
  * Initialize cgroups at system boot, and initialize any
  * subsystems that request early init.
  */
+/* IAMROOT-12D (2016-04-30):
+ * --------------------------
+ * cgroup 이란?
+ *  - 프로세스들을 그룹화하여 그룹에 자원을 분배하거나 제어하는
+ *  기능을 제공해준다.
+ *  - 실질적인 자원 분배를 위해서는 subsystem이 필요하며 인터페이스로서 특정 
+ *  파일시스템을 마운트해야하는 것으로 보인다.
+ */
+
 int __init cgroup_init_early(void)
 {
 	static struct cgroup_sb_opts __initdata opts;
@@ -4954,6 +4963,11 @@ int __init cgroup_init_early(void)
 	int i;
 
 	init_cgroup_root(&cgrp_dfl_root, &opts);
+	/* IAMROOT-12D (2016-04-30):
+	 * --------------------------
+	 * cgroup root의 경우 어떠한 subsystem의 영향을 받지 않기에
+	 * CSS NO REF 로 설정한다.
+	 */
 	cgrp_dfl_root.cgrp.self.flags |= CSS_NO_REF;
 
 	RCU_INIT_POINTER(init_task.cgroups, &init_css_set);
