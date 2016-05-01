@@ -21,6 +21,10 @@
  */
 extern void __xchg_called_with_bad_pointer(void);
 
+/* IAMROOT-12D (2016-04-16):
+ * --------------------------
+ * irq를 disable 시키고(값을 바꾼후 원래대로) 값을 바꾼다.
+ */
 static inline
 unsigned long __xchg(unsigned long x, volatile void *ptr, int size)
 {

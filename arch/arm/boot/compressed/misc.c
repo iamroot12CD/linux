@@ -141,7 +141,22 @@ void __stack_chk_fail(void)
 
 extern int do_decompress(u8 *input, int len, u8 *output, void (*error)(char *x));
 
-
+/* IAMROOT-12D (2016-01-23):
+ * --------------------------
+ * 입력 파라미터
+ * output_start = kernal 시작 주소 (0x8000)
+ * free_mem_ptr_p = 스택 시작 주소 (스택은 거꾸로 쌓이므로 낮은 어드레스)
+ * free_mem_ptr_end_p = 스택의 시작 + 64KB (=힙영역으로 추정)
+ * arch_id = 아키텍쳐 ID
+ *
+ *   +-----------------------+  <- free_mem_ptr_end_p
+ *   | buffer(64K),heap 영역 |
+ *   +-----------------------+  <- free_mem_ptr_p
+ *   |        stack          |
+ *   +-----------------------+
+ *   |         bss           |
+ *   +-----------------------+
+ */
 void
 decompress_kernel(unsigned long output_start, unsigned long free_mem_ptr_p,
 		unsigned long free_mem_ptr_end_p,
@@ -159,6 +174,19 @@ decompress_kernel(unsigned long output_start, unsigned long free_mem_ptr_p,
 	arch_decomp_setup();
 
 	putstr("Uncompressing Linux...");
+        /* IAMROOT-12D (2016-01-23):
+         * --------------------------
+         * arch/arm/boot/compressed/piggy.gzip.S 파일에 다음과 같은 내용
+         *
+         *               .section .piggydata,#alloc
+         *               .globl  input_data
+         *       input_data:
+         *               .incbin "arch/arm/boot/compressed/piggy.gzip"
+         *               .globl  input_data_end
+         *       input_data_end:
+         *
+         * input_data = 압축된 커널 시작 위치
+         */
 	ret = do_decompress(input_data, input_data_end - input_data,
 			    output_data, error);
 	if (ret)

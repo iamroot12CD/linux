@@ -50,6 +50,16 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 			: "r" (x), "r" (ptr)
 			: "memory", "cc");
 		break;
+	/* IAMROOT-12D (2016-04-16):
+	 * --------------------------
+	 * LDREX 및 STREX
+	 * 	단독 레지스터 로드 및 저장
+	 *
+	 * 1:	ldrex	&ret, [ptr]		@ ret = *ptr;
+	 * 	strex	&tmp, x, [&ptr]		@ *tmp = *(x + *ptr)
+	 * 	teq	tmp, 0			@ if(tmp != 0) goto 1
+	 * 	bne	1b
+	 */
 	case 4:
 		asm volatile("@	__xchg4\n"
 		"1:	ldrex	%0, [%3]\n"

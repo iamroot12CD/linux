@@ -214,6 +214,14 @@ do {									\
  * to prevent the compiler from making incorrect assumptions about the
  * pointer value.  The weird cast keeps both GCC and sparse happy.
  */
+/* IAMROOT-12D (2016-04-02):
+ * --------------------------
+ * http://egloos.zum.com/studyfoss/v/5374731
+ *
+ * 주어진 ptr을 통해 off 만큼 떨어진 데이터에 접근하는 경우인데
+ * 사실 이 ptr 값이 실제로 메모리 상에 존재하는 데이터 (객체)에 대한 타입이
+ * 아니라 (구현 상의 어떤 제약에 따른) 다른 타입의 포인터인 경우이다.
+ */
 #define SHIFT_PERCPU_PTR(__p, __offset)					\
 	RELOC_HIDE((typeof(*(__p)) __kernel __force *)(__p), (__offset))
 
@@ -300,6 +308,24 @@ extern void __this_cpu_preempt_check(const char *op);
 static inline void __this_cpu_preempt_check(const char *op) { }
 #endif
 
+/* IAMROOT-12D (2016-04-02):
+ * --------------------------
+ * __pcpu_size_call_return(this_cpu_read_, vprintk_default)
+ * {
+ *   typeof(vprintk_default)	pscr_ret__;
+ *   __verify_pcpu_ptr(&vprintk_default);
+ *   switch(sizeof(vprintk_default)) {
+ *   case 1: pscr_ret__ = this_cpu_read_1(vprintk_default); break;			\
+ *   case 2: pscr_ret__ = this_cpu_read_2(vprintk_default); break;			\
+ *   case 4: pscr_ret__ = this_cpu_read_4(vprintk_default); break;			\
+ *   case 8: pscr_ret__ = this_cpu_read_8(vprintk_default); break;			\
+ *   default:
+ *   	__bad_size_call_parameter(); break;	
+ *   }
+ *   pscr_ret__;
+ * }
+ * 
+ */
 #define __pcpu_size_call_return(stem, variable)				\
 ({									\
 	typeof(variable) pscr_ret__;					\

@@ -4,6 +4,11 @@
 #include <uapi/asm-generic/bitsperlong.h>
 
 
+/* IAMROOT-12D (2016-03-19):
+ * --------------------------
+ * 32 bit cpu는 long 이 32비트
+ * 64 bit cpu에서는 long이 64비트
+ */
 #ifdef CONFIG_64BIT
 #define BITS_PER_LONG 64
 #else

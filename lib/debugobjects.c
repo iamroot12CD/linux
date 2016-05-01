@@ -1004,6 +1004,17 @@ static inline void debug_objects_selftest(void) { }
  * the static object pool objects into the poll list. After this call
  * the object tracker is fully operational.
  */
+/* IAMROOT-12D (2016-04-30):
+ * --------------------------
+ * CONFIG_DEBUG_OBJECTS
+ * description :
+ *  If you say Y here, additional code will be inserted into the
+ *  kernel to track the life time of various objects and validate
+ *  the operations on those objects.
+ * 번역 :
+ *  위 feature가 enable 되어 있다면 추가적인 코드가 커널에 삽입되어
+ *  다양한 객체들의 life time은 tracking 및 유효성을 체크할 수 있다.
+ */
 void __init debug_objects_early_init(void)
 {
 	int i;

@@ -389,11 +389,25 @@ typedef char *va_list;
 
 /* Storage alignment properties */
 
+/* IAMROOT-12D (2016-04-02):
+ * --------------------------
+ * _AUPBND = 3
+ * _ADNBND = 3
+ */
 #define  _AUPBND                (sizeof (acpi_native_int) - 1)
 #define  _ADNBND                (sizeof (acpi_native_int) - 1)
 
 /* Variable argument list macro definitions */
 
+/* IAMROOT-12D (2016-04-02):
+ * --------------------------
+ * (void) ((args) = (((char *) &fmt + (_bnd(fmt, _AUPBND))))
+ *  _bnd(X, bnd)            (((sizeof (X)) + (bnd)) & (~(bnd)))
+ *  _bnd(fmt, 3) = (((sizeof(fmt)) + 3) &(~3))
+ *  = (4 + 3) & ~3 = 4
+ *
+ * _bnd : 4바이트 올림정렬(alignment)
+ */
 #define _bnd(X, bnd)            (((sizeof (X)) + (bnd)) & (~(bnd)))
 #define va_arg(ap, T)           (*(T *)(((ap) += (_bnd (T, _AUPBND))) - (_bnd (T,_ADNBND))))
 #define va_end(ap)              (ap = (va_list) NULL)

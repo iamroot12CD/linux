@@ -15,6 +15,10 @@
 
 struct mm_struct init_mm = {
 	.mm_rb		= RB_ROOT,
+	/* IAMROOT-12D (2016-03-19):
+	 * --------------------------
+	 * arch/arm/kernel/head.S swapper_pg_dir 참고 : 0x80004000
+	 */
 	.pgd		= swapper_pg_dir,
 	.mm_users	= ATOMIC_INIT(2),
 	.mm_count	= ATOMIC_INIT(1),

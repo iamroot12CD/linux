@@ -36,6 +36,12 @@
 #define ARRAY_SIZE(_A) (sizeof(_A) / sizeof((_A)[0]))
 #endif /* ARRAY_SIZE */
 
+/* IAMROOT-12D (2016-03-19):
+ * --------------------------
+ * DIV_ROUND_UP(4, 32)  = 1 
+ * DIV_ROUND_UP(32, 32) = 1 
+ * DIV_ROUND_UP(35, 32) = 2 
+ */
 #define DIV_ROUND_UP(x, y)  (((x) + (y) - 1) / (y))
 #define max_t(type, x, y)  ((x) > (y) ? (x) : (y))
 #define min_t(type, x, y)  ((x) < (y) ? (x) : (y))

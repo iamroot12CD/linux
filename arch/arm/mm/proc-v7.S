@@ -332,6 +332,24 @@ __v7_pj4b_setup:
 	mcr	p15, 1,	r0, c15, c1, 0
 
 #endif /* CONFIG_CPU_PJ4B */
+	/* IAMROOT-12D (2016-03-12):
+	 * --------------------------
+	 * Commit 참조 :
+	 *  - 860ae153d8efa897371453b2d7ba224909b643bc
+	 *  - 메세지 : 38주차 (Cache Clean & Flush)
+	 *  - v7_flush_decache_louis의 목적은 존재하는 모든 Dcache를
+	 *  Clean & Flush 하는 것이다.
+	 *
+	 * main ID register : CPU ID (machine ID)
+	 *  - Raspberry의 main ID = 0x410fc075
+	 *
+	 * ubfx 란? :
+	 *  - unsigned bit field extract
+	 *  - ubfx dst, src, lsb, width
+	 *  - src에서  lsb 만큼의 비트부터 width만 추출하여 dst에 넣는 명령어
+	 *  - ubfx r0, r0, #4, #12 == (r0 = r0[16:4])
+	 *
+	 */
 
 __v7_setup:
 	adr	r12, __v7_setup_stack		@ the local stack
@@ -420,7 +438,23 @@ __v7_setup:
 	orrle	r10, r10, #1 << 1		@ disable loop buffer
 	mcrle	p15, 0, r10, c1, c0, 1		@ write aux control register
 #endif
-
+	/* IAMROOT-12D (2016-03-12):
+	 * --------------------------
+	 * 앞서 4로 오기까지 ARM version을 체크했으며 모두 불 일치시
+	 * 기본적으로 ARM에서 공통적으로 해줘야 할 세팅을 한다.
+	 * r4 = 0x4000(page table entry address)
+	 * r8 = 0x4000(page table entry address)
+	 *
+	 * BTB(Branch Target Buffer:분기예측)
+	 * TLB(page table entry들을 위한 특별한 고속의 cache)
+	 * 1. Cache를 Flush하고, I+D TLB를 Flush 한다. 
+	 * 2. TTBCR과 TTBR1을 세팅한다.
+	 * 3. PRRR과 NMRR을 세팅한다.
+	 * 	- PRRR : Primary Region Remap Register의 약자로서, 메모리 타입 결정
+	 * 	- NMRR : Normal Memory Region Register의 약자로서, inner & outer
+	 * 	  cacheability 결정
+	 *	- 참조 문서 : http://www.iamroot.org/xe/Kernel_10_ARM/185229
+	 */
 4:	mov	r10, #0
 	mcr	p15, 0, r10, c7, c5, 0		@ I+BTB cache invalidate
 #ifdef CONFIG_MMU
@@ -433,6 +467,15 @@ __v7_setup:
 #endif
 	dsb					@ Complete invalidations
 #ifndef CONFIG_ARM_THUMBEE
+	/* IAMROOT-12D (2016-03-15):
+	 * --------------------------
+	 * ID_PFR0 = 라즈베리파이2 0x00001131
+	 * ThumbEE Base Handler register (TEEHBR).
+	 * ThumbEE Ctrl register (TEECR)
+	 *
+	 * UserSpace에서 TEEHR(ThumbEE Base Handler register) 를  사용하지 못하
+	 * 게 한다.
+	 */
 	mrc	p15, 0, r0, c0, c1, 0		@ read ID_PFR0 for ThumbEE
 	and	r0, r0, #(0xf << 12)		@ ThumbEE enabled field
 	teq	r0, #(1 << 12)			@ check if ThumbEE is present
@@ -444,6 +487,26 @@ __v7_setup:
 	mcr	p14, 6, r0, c0, c0, 0		@ stop userspace TEEHBR access
 1:
 #endif
+/* IAMROOT-12D (2016-03-12):
+ * --------------------------
+ * v7_crval:
+ *	crval	clear=0x2120c302, mmuset=0x10c03c7d, ucset=0x00c01c7c
+ *
+ *	r5 = clear
+ *	r6 = mmuset
+ * 
+ * v7_crval : v7's control register value
+ *
+ * cp15의 control register를 세팅한다. 이 때 cp15는 mmu 및 cache 관련 모든 설정
+ * 을 관장하고 현재 그 control register에 mmu 관련 설정 bit를 세팅한다.
+ * 
+ * TODO : SWP_EMULATE는 무엇이며 clear & mmuset에 세팅하는 비트가 
+ * 	  어떤 의미를 가지는가?
+ * SWP_EMULATE : http://cateee.net/lkddb/web-lkddb/SWP_EMULATE.html
+ *
+ * 여기서 2016-03-12 study 진행 종료
+ */
+
 	adr	r5, v7_crval
 	ldmia	r5, {r5, r6}
  ARM_BE8(orr	r6, r6, #1 << 25)		@ big-endian page tables
@@ -451,6 +514,17 @@ __v7_setup:
 	orr     r5, r5, #(1 << 10)              @ set SW bit in "clear"
 	bic     r6, r6, #(1 << 10)              @ clear it in "mmuset"
 #endif
+	/* IAMROOT-12D (2016-03-15):
+	 * --------------------------
+	 * r0 = 0x00C50878 (SCTLR)
+	 * r5 = 0x2120c302
+	 * r6 = 0x10c03c7d
+	 * bic r0, r0, r5 = 0x00C50878
+	 * orr r0, r0, r6 = 0x10c53c7d
+	 * System Control Register에 설정할 값들을 r0에 설정한다.
+	 *  예) cache , MMU, 사용여부, endian 설정, TEX remap 설정,
+	 *  vector 테이블 위치등등
+	 */
    	mrc	p15, 0, r0, c1, c0, 0		@ read control register
 	bic	r0, r0, r5			@ clear bits them
 	orr	r0, r0, r6			@ set them
@@ -487,10 +561,41 @@ __v7_setup_stack:
 	 * Standard v7 proc info content
 	 */
 .macro __v7_proc name, initfunc, mm_mmuflags = 0, io_mmuflags = 0, hwcaps = 0, proc_fns = v7_processor_functions
+	/* IAMROOT-12D (2016-02-20):
+	 * --------------------------
+	 * PMD_TYPE_SECT           (_AT(pmdval_t, 2) << 0)              0x2
+	 * PMD_SECT_AP_WRITE       (_AT(pmdval_t, 1) << 10)             0x400
+	 * PMD_SECT_AP_READ        (_AT(pmdval_t, 1) << 11)             0x800
+	 * PMD_SECT_AF             (_AT(pmdval_t, 0))                   0x0
+	 * PMD_FLAGS_SMP = PMD_SECT_WBWA|PMD_SECT_S = (PMD_SECT_TEX(1) | PMD_SECT_CACHEABLE
+	 * 		| PMD_SECT_BUFFERABLE) = 0x1100c
+	 *
+	 * .long	0x11c0e
+	 *
+	 * http://kth3321.blogspot.kr/2013/04/arm-cortex-1.html
+	 * http://kth3321.blogspot.kr/2013/06/arm-cortex-2.html
+	 */
 	ALT_SMP(.long	PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_SECT_AP_READ | \
 			PMD_SECT_AF | PMD_FLAGS_SMP | \mm_mmuflags)
+
+	/* IAMROOT-12D (2016-02-20):
+	 * --------------------------
+	 * PMD_FLAGS_UP = PMD_SECT_WB =
+	 * 	(PMD_SECT_CACHEABLE | PMD_SECT_BUFFERABLE) 0x8|0x4 = 0xc
+	 *
+	 * .long	0xc0e
+	 */
 	ALT_UP(.long	PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_SECT_AP_READ | \
 			PMD_SECT_AF | PMD_FLAGS_UP | \mm_mmuflags)
+	/* IAMROOT-12D (2016-02-20):
+	 * --------------------------
+	 * PMD_TYPE_SECT           (_AT(pmdval_t, 2) << 0)	0x2
+	 * PMD_SECT_AP_WRITE       (_AT(pmdval_t, 1) << 10)	0x400
+	 * PMD_SECT_AP_READ        (_AT(pmdval_t, 1) << 11)	0x800
+	 * PMD_SECT_AF             (_AT(pmdval_t, 0))		0x0
+	 *
+	 * .long	0xc02
+	 */
 	.long	PMD_TYPE_SECT | PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ | PMD_SECT_AF | \io_mmuflags
 	initfn	\initfunc, \name
@@ -631,7 +736,28 @@ __krait_proc_info:
 	 */
 	.type	__v7_proc_info, #object
 __v7_proc_info:
+/* IAMROOT-12D (2016-02-20):
+ * --------------------------
+ *매크로 변환후 
+ *
+ *__v7_proc_info:
+ *    .long   0x000f0000              @ Required ID value 
+ *    .long   0x000f0000              @ Mask for ID
+ *    .long   PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_SECT_AP_READ | PMD_SECT_AF | PMD_FLAGS_SMP
+ *    .long PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_SECT_AP_READ | PMD_SECT_AF
+ *    initfn  __v7_setup, __v7_proc
+ *    .long   cpu_arch_name                                                   
+ *    .long   cpu_elf_name                                                    
+ *    .long   HWCAP_SWP | HWCAP_HALF | HWCAP_THUMB | HWCAP_FAST_MULT | HWCAP_EDSP | HWCAP_TLS
+ *    .long   cpu_v7_name
+ *    .long   v7_processor_functions
+ *    .long   v7wbi_tlb_fns
+ *    .long   v6_user_fns
+ *    .long   v7_cache_fns
+ *    .size   __v7_proc_info, . - __v7_proc_info 
+ */
 	.long	0x000f0000		@ Required ID value
 	.long	0x000f0000		@ Mask for ID
 	__v7_proc __v7_proc_info, __v7_setup
 	.size	__v7_proc_info, . - __v7_proc_info
+

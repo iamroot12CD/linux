@@ -57,5 +57,10 @@ extern char * strstr(const char * s1, const char *s2);
 
 int do_decompress(u8 *input, int len, u8 *output, void (*error)(char *x))
 {
+        /* IAMROOT-12D (2016-01-23):
+         * --------------------------
+         *  /lib/decompress_inflate.c 파일의 gunzip 함수로 이동됨.
+         *  (#define decompress gunzip 로 선언되어 있기 때문)
+         */
 	return decompress(input, len, NULL, NULL, output, NULL, error);
 }

@@ -241,6 +241,11 @@ int atags_to_fdt(void *atag_list, void *fdt, int total_space)
 	if ((u32)atag_list & 0x3)
 		return 1;
 
+	/* IAMROOT-12D (2016-01-30):
+	 * --------------------------
+	 * 만약, 이미 우리가 DTB를 가지고 있다면 리턴한다.
+	 * 이는 에러가 아니라, 두 번째 restart를 돌고 있다는 의미이다.
+	 */
 	/* if we get a DTB here we're done already */
 	if (*(u32 *)atag_list == fdt32_to_cpu(FDT_MAGIC))
 	       return 0;

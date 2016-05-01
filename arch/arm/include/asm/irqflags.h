@@ -20,10 +20,39 @@
 
 #if __LINUX_ARM_ARCH__ >= 6
 
+/* IAMROOT-12D (2016-04-16):
+ * --------------------------
+ * 현재 상태 레지스터를 flags에 저장하고 irq를 disable 시킨다.
+ * @return	현재 상태 레지스터.
+ */
 static inline unsigned long arch_local_irq_save(void)
 {
 	unsigned long flags;
 
+	/* IAMROOT-12D (2016-04-16):
+	 * --------------------------
+	 * mrs		flags, cpsr
+	 * cpsid	i		@ irq 인터럽트를 금지한다.
+	 *
+	 * CPS (프로세서 상태 변경) 는 CPSR에서 하나 이상의 모드와 A, I 및 F
+	 * 비트를 변경 하고 다른 CPSR 비트는 변경하지 않습니다.
+	 *
+	 * CPSeffect iflags{, #mode}
+	 *  인수 설명
+	 *  effect 다음 중 하나입니다.
+	 *  	IE 인터럽트 또는 어보트 사용
+	 *  	ID 인터럽트 또는 어보트 사용 안 함
+	 *
+	 *  iflags 다음 중 하나 이상의 시퀀스입니다.
+	 *	a 부정확한 어보트를 사용하거나 사용하지 않습니다.
+	 *	i IRQ 인터럽트를 사용하거나 사용하지 않습니다.
+	 *	f FIQ 인터럽트를 사용하거나 사용하지 않습니다.
+	 *
+	 * CPSID i 는 CPS + ID + i
+	 *  ID : 다음에 나오는 iflags를 사용 하지 않음
+	 *  i : 인터럽트이므로
+	 *  인터럽트를 사용하지 않게 셋팅
+	 */
 	asm volatile(
 		"	mrs	%0, " IRQMASK_REG_NAME_R "	@ arch_local_irq_save\n"
 		"	cpsid	i"
@@ -135,6 +164,11 @@ static inline void arch_local_irq_disable(void)
 /*
  * Save the current interrupt enable state.
  */
+/* IAMROOT-12D (2016-04-16):
+ * --------------------------
+ * mrs	flags, cpsr
+ * 현재의 상태 플레그 값을 가져온다.
+ */
 static inline unsigned long arch_local_save_flags(void)
 {
 	unsigned long flags;
@@ -166,6 +200,11 @@ static inline void arch_local_irq_restore(unsigned long flags)
 		: "memory", "cc");
 }
 
+/* IAMROOT-12D (2016-04-16):
+ * --------------------------
+ * IRQ 가 disable인지 알아냄.
+ * IRQMASK_I_BIT	0x00000080
+ */
 static inline int arch_irqs_disabled_flags(unsigned long flags)
 {
 	return flags & IRQMASK_I_BIT;

@@ -23,6 +23,11 @@
 #define TTB_FLAGS_UP	TTB_IRGN_WB|TTB_RGN_OC_WB
 #define PMD_FLAGS_UP	PMD_SECT_WB
 
+/* IAMROOT-12D (2016-03-12):
+ * --------------------------
+ * PTW : Page Table Walks
+ * WBWA : Write Back Write Allocate
+ */
 /* PTWs cacheable, inner WBWA shareable, outer WBWA not shareable */
 #define TTB_FLAGS_SMP	TTB_IRGN_WBWA|TTB_S|TTB_NOS|TTB_RGN_OC_WBWA
 #define PMD_FLAGS_SMP	PMD_SECT_WBWA|PMD_SECT_S
@@ -148,6 +153,58 @@ ENDPROC(cpu_v7_set_pte_ext)
 	 * Macro for setting up the TTBRx and TTBCR registers.
 	 * - \ttb0 and \ttb1 updated with the corresponding flags.
 	 */
+	/* IAMROOT-12D (2016-03-12):
+	 * --------------------------
+	 * TTBCR을 0으로 세팅하여 page table boundary 사이즈를 16KB 설정한다.
+	 * 왜냐하면 N(TTBCR[2:0])가 0이기 때문이다. (N이 0이면 이전 아키텍처 버
+	 *  전과 호환됩니다.)
+	 *
+	 *   31    TTBCR       3 2 0
+	 *  +-------------------+---+
+	 *  | UNPREDICTABLE/SBZ | N |
+	 *  +-------------------+---+
+	 * 
+	 * TTBR0, TTBR1
+	 *  31        14-n 13-n 5 43 2 1 0
+	 *  +-------------+------+--+-----+	S : Shareable
+	 *  |    Base     |  SBZ |  |0|S|C|	C : inner cacheable
+	 *  +-------------+------+-++-----+
+	 *                         |	RGN : L1 cache이외의 cacheable상태
+	 *     RGN  <--------------+	00: outer or memory - nonecacheable
+	 *		01: x , 10: outer write-throuth, 11: outer write-back
+	 *
+	 * TTBR0와 TTBR1의 TTB_FLAG들을 설정한다.
+	 * (ex : TTB_FLAGS_SMP	TTB_IRGN_WBWA|TTB_S|TTB_NOS|TTB_RGN_OC_WBWA)
+	 * TTB : Translation Table Base
+	 *
+	 * WBWA : Write Back Write Allocate
+	 * IRGN/RGN_OC : Inner/Outer Cache Region
+	 * S : Shared
+	 * NOS : Not Outer shareable
+	 *
+	 * 일반적으로 L1 캐시를 Inner, L2 캐시를 Outer.
+	 *
+	 * http://iamroot.org/wiki/doku.php?id=%EC%8A%A4%ED%84%B0%EB%94%94:2013.07.13_10%EC%B0%A8_arm_b
+	 * Write back cache에서 Write buffer가 있을 때, write allocate 방식과
+	 *   no write allocate 방식.
+	 *     write allocate 방식 :
+	 *         write miss가 발생했을 때, 우선 메인 메모리로부터 해당 block을
+	 *         fetch하여 cache 내의 block에 allocate한다.  그러면 write hit
+	 *         가 가능해지게 되는데 write hit에 의하여 cache 내 해당 block에
+	 *         write를 수행하면 그 해당 block은 Modified된다.  향후, 다른
+	 *         miss에 의하여 Modified 된 block을 replace하게 되는 경우, miss
+	 *         로 인하여 main memory로부터 요청된 block을 cache로 읽어오는
+	 *         동안, modified된 block은 write buffer에 write된다. 그리고
+	 *         main memory write가 가능해질 때, write buffer는 그 modified된
+	 *         block을 main memory에 write를 한다.
+	 *     no write allocate 방식 :
+	 *         write miss가 발생했을 때, 우선 write buffer에 write한다. 그
+	 *         후, write buffer에 write된 데이터는 메인 메모리에 write를 수
+	 *         행한다. (메인 메모리로부터 해당 block을 fetch하여 cache 내의
+	 *         block에 allocate를 수행하지 않는다.)
+	 *
+	 * TTBR1을 page table address + TTB_FLAG로 설정한다.
+	 */ 
 	.macro	v7_ttb_setup, zero, ttbr0, ttbr1, tmp
 	mcr	p15, 0, \zero, c2, c0, 2	@ TTB control register
 	ALT_SMP(orr	\ttbr0, \ttbr0, #TTB_FLAGS_SMP)
@@ -165,5 +222,14 @@ ENDPROC(cpu_v7_set_pte_ext)
 	 */
 	.align	2
 	.type	v7_crval, #object
+
+/* IAMROOT-12D (2016-03-12):
+ * --------------------------
+ *	.macro	crval, clear, mmuset, ucset
+ *	.word	\clear
+ *	.word	\mmuset
+ *	.endm
+ */
+	
 v7_crval:
 	crval	clear=0x2120c302, mmuset=0x10c03c7d, ucset=0x00c01c7c
