@@ -534,6 +534,11 @@ void __init smp_setup_processor_id(void)
 	 */
 	set_my_cpu_offset(0);
 
+	/* IAMROOT-12D (2016-04-12):
+	 * --------------------------
+	 * 라즈베리파이 실제 로그(dmesg)
+	 * 	[    0.000000] Booting Linux on physical CPU 0xf00
+	 */
 	pr_info("Booting Linux on physical CPU 0x%x\n", mpidr);
 }
 
