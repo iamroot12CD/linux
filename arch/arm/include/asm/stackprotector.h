@@ -23,6 +23,17 @@ extern unsigned long __stack_chk_guard;
  * NOTE: this must only be called from functions that never return,
  * and it must always be inlined.
  */
+
+/* IAMROOT-12D (2016-04-30):
+ * --------------------------
+ * 기본적인 sequence :
+ * 	- 랜덤한 canary 값 생성
+ * 	- 생성한 값을 현재 스텍의 canary 영역에 넣는다.
+ * 	- 앞서 구한 canary 값을 global 변수인 __stack_chk_guard에 넣는다.
+ * 	  이 global 변수로 stack overflow를 체크한다.
+ * 	  다만, __stack_chk_guard는 처음에 지정한 값으로 고정되기에
+ * 	  SMP상에서 프로세스 별로 서로 다른 canary값을 사용할 수 없다.
+ */
 static __always_inline void boot_init_stack_canary(void)
 {
 	unsigned long canary;

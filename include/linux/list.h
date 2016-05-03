@@ -634,7 +634,13 @@ static inline void hlist_del_init(struct hlist_node *n)
 		INIT_HLIST_NODE(n);
 	}
 }
-
+/* IAMROOT-12D (2016-04-30):
+ * --------------------------
+ * pprev가 double pointer로 구현된 이유는?
+ *  - 기본적으로 속도에 이유가 있다.
+ *  - 동작 자체는 list_head와 별 다를 바 없다.
+ *  - double 포인터는 NULL 포인터를 받는 경우가 전혀 없어 분기분을 없앨 수 있다.
+ */
 static inline void hlist_add_head(struct hlist_node *n, struct hlist_head *h)
 {
 	struct hlist_node *first = h->first;

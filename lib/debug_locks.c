@@ -32,6 +32,7 @@
  */
 int debug_locks = 1;
 EXPORT_SYMBOL_GPL(debug_locks);
+
 /*
  * The locking-testsuite uses <debug_locks_silent> to get a
  * 'silent failure': nothing is printed to the console when
