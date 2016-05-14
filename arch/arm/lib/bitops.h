@@ -3,6 +3,15 @@
 
 #if __LINUX_ARM_ARCH__ >= 6
 	.macro	bitop, name, instr
+/* IAMROOT-12D (2016-05-14):
+ * --------------------------
+ * r0 : 몇번째 비트를 세팅 할 것인지
+ * r1 : 비트맵 시작 주소
+ * 예) _set_bit(0,bits[1]) 인 경우
+ *     bits[0] 의 0번째 비트를 세팅한다. (bit offset = 0, word offset = 0)
+ *     _set_bit(33,bits[2]) 인 경우
+ *     bits[1] 의 2번째 비트를 세팅한다. (bit offset = 2, word offset = 1)
+ */
 ENTRY(	\name		)
 UNWIND(	.fnstart	)
 	ands	ip, r1, #3

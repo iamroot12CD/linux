@@ -104,6 +104,12 @@ static inline void mark_rodata_ro(void) { }
  * operations which are not allowed with IRQ disabled are allowed while the
  * flag is set.
  */
+/* IAMROOT-12D (2016-05-14):
+ * --------------------------
+ * 주석 해석
+ * : 이 플래그를 통해서 IRQ가 disabled 된 상태에서 boot processor 가 실행중이며,
+ *   'early bootup code' 안에 있음을 알 수 있다
+ */
 bool early_boot_irqs_disabled __read_mostly;
 
 enum system_states system_state __read_mostly;
@@ -451,6 +457,10 @@ void __init parse_early_param(void)
  *	Activate the first processor.
  */
 
+/* IAMROOT-12D (2016-05-14):
+ * --------------------------
+ * CPU의 상태를 관리하는 전역변수에 현재 CPU상태를 설정한다. 
+ */
 static void __init boot_cpu_init(void)
 {
 	int cpu = smp_processor_id();
