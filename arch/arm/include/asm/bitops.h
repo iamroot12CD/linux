@@ -179,6 +179,12 @@ extern int _find_next_bit_be(const unsigned long *p, int size, int offset);
 #define ATOMIC_BITOP(name,nr,p)			\
 	(__builtin_constant_p(nr) ? ____atomic_##name(nr, p) : _##name(nr,p))
 #else
+/* IAMROOT-12D (2016-05-14):
+ * --------------------------
+ * _##name(nr,p) 는 다음과 같이 변경된다.
+ * _set_bit(nr,p)
+ * _clear_bit(nr,p)
+ */
 #define ATOMIC_BITOP(name,nr,p)		_##name(nr,p)
 #endif
 
