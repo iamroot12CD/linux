@@ -244,19 +244,24 @@ static int __get_cpu_architecture(void)
 	} else if ((read_cpuid_id() & 0x00080000) == 0x00000000) {
 		cpu_arch = (read_cpuid_id() >> 16) & 7;
 		if (cpu_arch)
-			cpu_arch += CPU_ARCH_ARMv3;
+		    cpu_arch += CPU_ARCH_ARMv3;
 	} else if ((read_cpuid_id() & 0x000f0000) == 0x000f0000) {
-		/* Revised CPUID format. Read the Memory Model Feature
-		 * Register 0 and check for VMSAv7 or PMSAv7 */
-		unsigned int mmfr0 = read_cpuid_ext(CPUID_EXT_MMFR0);
-		if ((mmfr0 & 0x0000000f) >= 0x00000003 ||
+	    /* Revised CPUID format. Read the Memory Model Feature
+	     * Register 0 and check for VMSAv7 or PMSAv7 */
+	    /* IAMROOT-12D (2016-05-21):
+	     * --------------------------
+	     * 우리 라즈베리파이에 해당하는 cpu_architecture이다.
+	     * : CPU_ARCH_ARMv7
+	     */
+	    unsigned int mmfr0 = read_cpuid_ext(CPUID_EXT_MMFR0);
+	    if ((mmfr0 & 0x0000000f) >= 0x00000003 ||
 		    (mmfr0 & 0x000000f0) >= 0x00000030)
-			cpu_arch = CPU_ARCH_ARMv7;
-		else if ((mmfr0 & 0x0000000f) == 0x00000002 ||
-			 (mmfr0 & 0x000000f0) == 0x00000020)
-			cpu_arch = CPU_ARCH_ARMv6;
-		else
-			cpu_arch = CPU_ARCH_UNKNOWN;
+		cpu_arch = CPU_ARCH_ARMv7;
+	    else if ((mmfr0 & 0x0000000f) == 0x00000002 ||
+		    (mmfr0 & 0x000000f0) == 0x00000020)
+		cpu_arch = CPU_ARCH_ARMv6;
+	    else
+		cpu_arch = CPU_ARCH_UNKNOWN;
 	} else
 		cpu_arch = CPU_ARCH_UNKNOWN;
 
@@ -369,7 +374,10 @@ void __init early_print(const char *str, ...)
 #endif
 	printk("%s", buf);
 }
-
+/* IAMROOT-12D (2016-05-21):
+ * --------------------------
+ * TODO : isar5는 무엇인가?
+ */
 static void __init cpuid_init_hwcaps(void)
 {
 	int block;
@@ -608,6 +616,28 @@ static void __init smp_build_mpidr_hash(void)
 }
 #endif
 
+/* IAMROOT-12D (2016-05-21):
+ * --------------------------
+ * Start_kernel 이전 시점에 우리는 proc_info_list정보를 모두 담아왔다.
+ * 이미 담겨져 있는 정보를 우리는 lookup_processor_type()을 통해 가져온다.
+ * --------------------------
+ * 참고 사항 : arch/arm/mm/proc-v7.S
+ *__v7_proc_info:
+ *    .long   0x000f0000              @ Required ID value
+ *    .long   0x000f0000              @ Mask for ID
+ *    .long   PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_SECT_AP_READ | PMD_SECT_AF | PMD_FLAGS_SMP
+ *    .long PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_SECT_AP_READ | PMD_SECT_AF
+ *    initfn  __v7_setup, __v7_proc
+ *    .long   cpu_arch_name
+ *    .long   cpu_elf_name
+ *    .long   HWCAP_SWP | HWCAP_HALF | HWCAP_THUMB | HWCAP_FAST_MULT | HWCAP_EDSP | HWCAP_TLS
+ *    .long   cpu_v7_name
+ *    .long   v7_processor_functions
+ *    .long   v7wbi_tlb_fns
+ *    .long   v6_user_fns
+ *    .long   v7_cache_fns
+ *    .size   __v7_proc_info, . - __v7_proc_info
+ */
 static void __init setup_processor(void)
 {
 	struct proc_info_list *list;
@@ -626,7 +656,15 @@ static void __init setup_processor(void)
 
 	cpu_name = list->cpu_name;
 	__cpu_architecture = __get_cpu_architecture();
-
+/* IAMROOT-12D (2016-05-21):
+ * --------------------------
+ * TODO : 아래 5가지 변수의 용도를 알아보자
+ *  - proc  :
+ *  - tlb   :
+ *  - user  :
+ *  - cache :
+ *  - hwcap :
+ */
 #ifdef MULTI_CPU
 	processor = *list->proc;
 #endif
@@ -639,15 +677,18 @@ static void __init setup_processor(void)
 #ifdef MULTI_CACHE
 	cpu_cache = *list->cache;
 #endif
-
+	/* IAMROOT-12D (2016-05-21):
+	 * --------------------------
+	 * CPU: ARMv7 Processor [410fc075] revision 5 (ARMv7), cr=10c5387d
+	 */
 	pr_info("CPU: %s [%08x] revision %d (ARMv%s), cr=%08lx\n",
 		cpu_name, read_cpuid_id(), read_cpuid_id() & 15,
 		proc_arch[cpu_architecture()], get_cr());
 
 	snprintf(init_utsname()->machine, __NEW_UTS_LEN + 1, "%s%c",
-		 list->arch_name, ENDIANNESS);
+		list->arch_name, ENDIANNESS);
 	snprintf(elf_platform, ELF_PLATFORM_SIZE, "%s%c",
-		 list->elf_name, ENDIANNESS);
+		list->elf_name, ENDIANNESS);
 	elf_hwcap = list->elf_hwcap;
 
 	cpuid_init_hwcaps();
@@ -924,6 +965,10 @@ void __init hyp_mode_check(void)
 #endif
 }
 
+/* IAMROOT-12D (2016-05-21):
+ * --------------------------
+ * setup_processor()까지 함.
+ */
 void __init setup_arch(char **cmdline_p)
 {
 	const struct machine_desc *mdesc;

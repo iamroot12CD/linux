@@ -947,6 +947,18 @@ void set_page_address(struct page *page, void *virtual);
 void page_address_init(void);
 #endif
 
+/* IAMROOT-12D (2016-05-21):
+ * --------------------------
+ * Raspberry PI는 메모리가 적은 관계로 Highmem이 설정이 안되어 있기에
+ * 아래 sequence를 탄다.
+ * 결과적으로 page_address_init()은 어떠한 기능도 하지 않는다.
+ * 	
+ *	 HASHED_PAGE_VIRTUAL
+ *  : HIGHMEM의 운용방식을 결정하는 definition으로 일반적인 Virtual Page로
+ * 이를 접근할 것이냐 아니면 따로 Hash table을 만들어 접근할 것인가를 결정한다.
+ * Hash table로 접근하기 위해서 page_address_init()로 초기화 하고, 아래와 같은
+ * 함수들(page_address(), set_page_address())를 사용한다.
+ */
 #if !defined(HASHED_PAGE_VIRTUAL) && !defined(WANT_PAGE_VIRTUAL)
 #define page_address(page) lowmem_page_address(page)
 #define set_page_address(page, address)  do { } while(0)
