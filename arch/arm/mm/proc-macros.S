@@ -258,6 +258,27 @@
 	mcr	p15, 0, ip, c7, c10, 4		@ data write barrier
 	.endm
 
+/* IAMROOT-12D (2016-05-24):
+ * --------------------------
+ * define_processor_functions v7, dabort=v7_early_abort, pabort=v7_pabort, suspend=1
+ *
+ *  .type v7_processor_functions, #object
+ *  .align 2
+ * ENTRY(v7_processor_functions)
+ *	.word	v7_early_abort
+ *	.word	v7_pabort
+ *	.word	cpu_v7_proc_init
+ *	.word	cpu_v7_proc_fin
+ *	.word	cpu_v7_reset
+ *	.word	cpu_v7_do_idle
+ *	.word	cpu_v7_dcache_clean_area
+ *	.word	cpu_v7_switch_mm
+ *	.word	cpu_v7_set_pte_ext
+ *	.word	cpu_v7_suspend_size
+ *	.word	0
+ *	.word	0
+ *	.size	v7_processor_functions, . - v7_processor_functions
+ */
 .macro define_processor_functions name:req, dabort:req, pabort:req, nommu=0, suspend=0
 	.type	\name\()_processor_functions, #object
 	.align 2
