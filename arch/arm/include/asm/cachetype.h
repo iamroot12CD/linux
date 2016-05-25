@@ -1,6 +1,7 @@
 #ifndef __ASM_ARM_CACHETYPE_H
 #define __ASM_ARM_CACHETYPE_H
 
+/* IAMROOT-12D : Virtually Indexed Physically Tagged */
 #define CACHEID_VIVT			(1 << 0)
 #define CACHEID_VIPT_NONALIASING	(1 << 1)
 #define CACHEID_VIPT_ALIASING		(1 << 2)
@@ -26,6 +27,10 @@ extern unsigned int cacheid;
  * - v7+ VIPT never aliases on D-side
  */
 #if __LINUX_ARM_ARCH__ >= 7
+/* IAMROOT-12D (2016-05-25):
+ * --------------------------
+ * 0b0111010 --> 0x0000003a
+ */
 #define __CACHEID_ARCH_MIN	(CACHEID_VIPT_NONALIASING |\
 				 CACHEID_ASID_TAGGED |\
 				 CACHEID_VIPT_I_ALIASING |\
@@ -43,7 +48,7 @@ extern unsigned int cacheid;
 #define __CACHEID_ALWAYS	(CACHEID_VIVT)
 #define __CACHEID_NEVER		(~CACHEID_VIVT)
 #elif !defined(CONFIG_CPU_CACHE_VIVT) && defined(CONFIG_CPU_CACHE_VIPT)
-#define __CACHEID_ALWAYS	(0)
+#define __CACHEID_ALWAYS	(0)		/* IAMROOT-12D : 라즈베리파이2*/
 #define __CACHEID_NEVER		(CACHEID_VIVT)
 #else
 #define __CACHEID_ALWAYS	(0)

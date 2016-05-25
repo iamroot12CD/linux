@@ -200,16 +200,16 @@ static void merge_fdt_bootargs(void *fdt, const char *fdt_cmdline)
 /*
  * Convert and fold provided ATAGs into the provided FDT.
  *
- * atags의 내용을 fdt에 변환하여 넣는다.
- *
  * REturn values:
  *    = 0 -> pretend success
  *    = 1 -> bad ATAG (may retry with another possible ATAG pointer)
  *    < 0 -> error from libfdt
  *
+ * atags의 내용을 fdt에 변환하여 넣는다.
+ *
  * head.S 소스 restart 라벨 근처에서 호출됨
  * in	atags_list	atags 주소 0x00000100
- * in	fdt		dtb의 주소 .bss 주소
+ * out	fdt		dtb의 주소 .bss 주소
  * in	total_space	32KB <= (dtb_totalsize * 1.5) <= 1MB
  */
  /* fdt의 첫 4byte 값은 MAGIC_NUMBER이고 두번째 4byte 값은 fdt의 size */

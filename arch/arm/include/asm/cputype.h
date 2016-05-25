@@ -94,6 +94,7 @@ extern unsigned int processor_id;
 /* IAMROOT-12D (2016-03-26):
  * --------------------------
  * 라즈베리파이2 의 경우
+ * MRC p15, 0, r0, c0, c0, 0 ---> 0x410FC075
  * MRC p15, 0, r0, c0, c0, 5 ---> 0x80000F00 
  */
 #ifdef CONFIG_CPU_CP15
@@ -160,6 +161,26 @@ static inline unsigned int __attribute_const__ read_cpuid_ext(unsigned offset)
  * compiler that it's constant.  Use this function to read the CPU ID
  * rather than directly reading processor_id or read_cpuid() directly.
  */
+/* IAMROOT-12D (2016-05-23):
+ * --------------------------
+ * 프로세서에 대한 정보를 포함하는 디바이스 ID 코드를 반환한다.
+ *
+ * Main ID Register format
+ *
+ *  31         24 23     20 19          16 15          4 3       0
+ *	+------------+---------+--------------+-------------+---------+
+ *	|Implementer | Variant | Architecture | Part number | revison |
+ *	+------------+---------+--------------+-------------+---------+
+ *
+ * 라즈베리파이2 의 경우
+ *  MRC p15, 0, r0, c0, c0, 0 ---> 0x410FC075
+ *
+ *	Implementer :	0x41 (ARM)
+ *	Variant :	0x0	
+ *	Architecture :	0xF	 (ARMv7)
+ *	Part number :	0xc07(Cortex-A7 MPcore)
+ *	revision :	0x5
+ */
 static inline unsigned int __attribute_const__ read_cpuid_id(void)
 {
 	return read_cpuid(CPUID_ID);
@@ -206,6 +227,44 @@ static inline unsigned int __attribute_const__ xscale_cpu_arch_version(void)
 	return read_cpuid_id() & ARM_CPU_XSCALE_ARCH_MASK;
 }
 
+/* IAMROOT-12D (2016-05-25):
+ * --------------------------
+ * Read Cache Type Register
+ *  아키택처의 캐쉬 정보를 제공
+ *  MRC p15, 0, r0, c0, c0, 1 --> 0x84448003 
+ *
+ * 31 29  27   23  19   15 13          3  0
+ * +---+-+----+----+----+--+----------+----+
+ * |100|0|CWG |ERG |DL  |L |0000000000|IL  |
+ * +---+-+----+----+----+--+----------+----+
+ *
+ * [31:29] Format :	Indicates the CTR format:
+ *	0x4	ARMv7 format.
+ *
+ * [27:24] CWG : Cache Write-Back granule. Log 2 of the number of words of the
+ *		maximum size of memory that can be overwritten as a result of
+ *		the eviction of a cache entry that has had a memory location in
+ *		it modified:
+ *	0x4	Cache Write-Back granule size is 16 words.
+ *
+ * [23:20] ERG : Exclusives Reservation Granule. Log 2 of the number of words of
+ *		the maximum size of the reservation granule that has been
+ *		implemented for the Load-Exclusive and Store-Exclusive
+ *		instructions:
+ *	0x4	Exclusive reservation granule size is 16 words.
+ *
+ * [19:16] DminLine : Log 2 of the number of words in the smallest cache line of
+ *		all the data and unified caches that the processor controls:
+ *	0x4	Smallest data cache line size is 16 words.
+ *
+ * [15:14] L1Ip : L1 instruction cache policy. Indicates the indexing and
+ *		tagging policy for the L1 instruction cache:
+ *	0b10	Virtually Indexed Physically Tagged (VIPT).
+ *
+ * [3:0] IminLine : Log 2 of the number of words in the smallest cache line of
+ *		all the instruction caches that the processor controls.
+ *	0x03	Smallest instruction cache line size is 8 words.
+ */
 static inline unsigned int __attribute_const__ read_cpuid_cachetype(void)
 {
 	return read_cpuid(CPUID_CACHETYPE);

@@ -25,11 +25,11 @@ struct debug_obj_descr;
  * @descr:	pointer to an object type specific debug description structure
  */
 struct debug_obj {
-	struct hlist_node	node;
-	enum debug_obj_state	state;
-	unsigned int		astate;
-	void			*object;
-	struct debug_obj_descr	*descr;
+	struct hlist_node	node;	/* 트랙커 리스트에 있는 오브젝트 링크 */
+	enum debug_obj_state	state;	/* 추적된 오브젝트의 상태 */
+	unsigned int		astate;	/* 현재 active 상태 */
+	void			*object;/* 실제 오브젝트에 대한 포인터 */
+	struct debug_obj_descr	*descr;	/* 디버깅용 디스크립터 구조체 포인터 */
 };
 
 /**

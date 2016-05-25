@@ -583,15 +583,14 @@ int fdt_del_node(void *fdt, int nodeoffset)
 }
 
 /*
- * in	old	fdt
- * out	new	조정된 fdt
+ * in	old	순서가 맞지 않은 fdt
+ * out	new	순서를 맞춘 fdt
  */
 static void _fdt_packblocks(const char *old, char *new,
 			    int mem_rsv_size, int struct_size)
 {
 	/**
 	 * FDT 순서는 아래와 같다.
-	 *  아래의 영역들은 인접한 영역이다.
 	 * +--------------------+ <-- fdt
 	 * | fdt_header(40byte) |
 	 * +--------------------+ <-- mem_rsv_off
@@ -712,12 +711,7 @@ int fdt_open_into(const void *fdt, void *buf, int bufsize)
 	tmp = buf;
 	/* But if that overlaps with the old tree... */
 	/*
-	 *                   +-------------+
-	 *                   |             |
-	 *                   |             |
-	 * fdtend  --> +-----+-------+     |
-	 *             |     |       |     |
-	 *             |     +-------+-----+ <-- tmp
+	 * fdtend  --> +-------------+
 	 *             |             |
 	 *             |             |
 	 *             |     +-------+-----+ <-- tmp + newsize
@@ -725,7 +719,7 @@ int fdt_open_into(const void *fdt, void *buf, int bufsize)
 	 * fdtstart -->+-----+-------+     |
 	 *                   |             |
 	 *                   |             |
-	 *                   +-------------+
+	 *                   +-------------+ <-- tmp
 	 */
 	if (((tmp + newsize) > fdtstart) && (tmp < fdtend)) {
 		/* Try right after the old tree instead */

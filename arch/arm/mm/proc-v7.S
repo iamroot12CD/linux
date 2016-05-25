@@ -560,6 +560,28 @@ __v7_setup_stack:
 	/*
 	 * Standard v7 proc info content
 	 */
+	/* IAMROOT-12D (2016-05-25):
+	 * --------------------------
+	 * v7_processor_functions : proc-macros.S 참고
+	 * define_processor_functions v7, dabort=v7_early_abort, pabort=v7_pabort, suspend=1
+	 *
+	 *  .type v7_processor_functions, #object
+	 *  .align 2
+	 * ENTRY(v7_processor_functions)
+	 *	.word	v7_early_abort
+	 *	.word	v7_pabort
+	 *	.word	cpu_v7_proc_init
+	 *	.word	cpu_v7_proc_fin
+	 *	.word	cpu_v7_reset
+	 *	.word	cpu_v7_do_idle
+	 *	.word	cpu_v7_dcache_clean_area
+	 *	.word	cpu_v7_switch_mm
+	 *	.word	cpu_v7_set_pte_ext
+	 *	.word	cpu_v7_suspend_size
+	 *	.word	0
+	 *	.word	0
+	 *	.size	v7_processor_functions, . - v7_processor_functions
+	 */
 .macro __v7_proc name, initfunc, mm_mmuflags = 0, io_mmuflags = 0, hwcaps = 0, proc_fns = v7_processor_functions
 	/* IAMROOT-12D (2016-02-20):
 	 * --------------------------
@@ -605,6 +627,10 @@ __v7_setup_stack:
 		HWCAP_EDSP | HWCAP_TLS | \hwcaps
 	.long	cpu_v7_name
 	.long	\proc_fns
+	/* IAMROOT-12D (2016-05-25):
+	 * --------------------------
+	 * tlb-v7.S 와 proc-macros.S 참고.
+	 */
 	.long	v7wbi_tlb_fns
 	.long	v6_user_fns
 	.long	v7_cache_fns

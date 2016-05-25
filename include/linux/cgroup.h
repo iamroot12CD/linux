@@ -44,6 +44,17 @@ extern int proc_cgroup_show(struct seq_file *m, struct pid_namespace *ns,
 #define SUBSYS(_x) _x ## _cgrp_id,
 enum cgroup_subsys_id {
 #include <linux/cgroup_subsys.h>
+	/* IAMROOT-12D (2016-05-04):
+	 * --------------------------
+	 * cpuset_cgrp_id,
+	 * cpu_cgrp_id,
+	 * cpuacct_cgrp_id,
+	 * blkio_cgrp_id,
+	 * memory_cgrp_id,
+	 * devices_cgrp_id,
+	 * freezer_cgrp_id,
+	 * net_cls_cgrp_id,
+	 */
 	CGROUP_SUBSYS_COUNT,
 };
 #undef SUBSYS

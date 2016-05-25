@@ -31,7 +31,7 @@ struct uts_namespace init_uts_ns = {
 		.nodename	= UTS_NODENAME,
 		.release	= UTS_RELEASE,
 		.version	= UTS_VERSION,
-		.machine	= UTS_MACHINE,
+		.machine	= UTS_MACHINE, /* IAMROOT-12D : "armv7l" */
 		.domainname	= UTS_DOMAINNAME,
 	},
 	.user_ns = &init_user_ns,

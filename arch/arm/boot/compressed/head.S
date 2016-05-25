@@ -958,7 +958,7 @@ not_angel:
  *       	mov	r1, r6
  *			;r6은 DTB를 가리키는  edata값
  *       	mov	r2, r5
- *			;r5는 DTB의 total space 
+ *			;r5는 32KB <= (dtb_totalsize * 1.5) <= 1MB
  *       	bl	atags_to_fdt
  *			;c함수로 점프
  *			; 2015-12-05 분석 완료.
@@ -3141,6 +3141,9 @@ phexbuf:	.space	12
  * 인자
  * 	r0: value,
  * 	r1: length (offset)
+ * phdex(unsigned int value, int len);
+ *	phdexbuf 에 정수값을 string hexa값으로 바꾸어 넣는다.
+ *	예) 0x1234ABCD --> char * phdexbuf = "1234ABCD", '\0';
  *
  *		adr r3, phexbuf
  *			; r3 = &phexbuf

@@ -61,6 +61,10 @@ pmdval_t user_pmd_table = _PAGE_USER_TABLE;
 #define CPOLICY_WRITEBACK	3
 #define CPOLICY_WRITEALLOC	4
 
+/* IAMROOT-12D (2016-05-25):
+ * --------------------------
+ * 라즈베리 파이2는 cachepolicy = 4;	// CPOLICY_WRITEALLOC
+ */
 static unsigned int cachepolicy __initdata = CPOLICY_WRITEBACK;
 static unsigned int ecc_mask __initdata = 0;
 pgprot_t pgprot_user;
@@ -121,6 +125,11 @@ static struct cachepolicy cache_policies[] __initdata = {
 };
 
 #ifdef CONFIG_CPU_CP15
+/* IAMROOT-12D (2016-05-25):
+ * --------------------------
+ * initial_pmd_value = PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_SECT_AP_READ |
+ *		PMD_SECT_AF | PMD_SECT_WBWA|PMD_SECT_S;
+ */
 static unsigned long initial_pmd_value __initdata = 0;
 
 /*
@@ -129,6 +138,11 @@ static unsigned long initial_pmd_value __initdata = 0;
  * the C code sets the page tables up with the same policy as the head
  * assembly code, which avoids an illegal state where the TLBs can get
  * confused.  See comments in early_cachepolicy() for more information.
+ */
+/* IAMROOT-12D (2016-05-25):
+ * --------------------------
+ * cmd = PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_SECT_AP_READ | PMD_SECT_AF |
+ *	| PMD_SECT_WBWA|PMD_SECT_S;
  */
 void __init init_default_cache_policy(unsigned long pmd)
 {
@@ -140,7 +154,7 @@ void __init init_default_cache_policy(unsigned long pmd)
 
 	for (i = 0; i < ARRAY_SIZE(cache_policies); i++)
 		if (cache_policies[i].pmd == pmd) {
-			cachepolicy = i;
+			cachepolicy = i;	/* IAMROOT-12D : 4 */
 			break;
 		}
 
