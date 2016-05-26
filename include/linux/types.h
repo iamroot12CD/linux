@@ -161,7 +161,7 @@ typedef unsigned __bitwise__ oom_flags_t;
 #ifdef CONFIG_PHYS_ADDR_T_64BIT
 typedef u64 phys_addr_t;
 #else
-typedef u32 phys_addr_t;
+typedef u32 phys_addr_t;	/* IAMROOT-12D: 라즈베리파이2에서 사용 */
 #endif
 
 typedef phys_addr_t resource_size_t;

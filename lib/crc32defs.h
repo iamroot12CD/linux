@@ -14,7 +14,7 @@
 #define CRC32C_POLY_LE 0x82F63B78
 
 /* Try to choose an implementation variant via Kconfig */
-#ifdef CONFIG_CRC32_SLICEBY8
+#ifdef CONFIG_CRC32_SLICEBY8	/* IAMROOT-12D: 라즈베리파이 2 */
 # define CRC_LE_BITS 64
 # define CRC_BE_BITS 64
 #endif

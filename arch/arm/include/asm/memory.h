@@ -31,6 +31,10 @@
 #define UL(x) _AC(x, UL)
 
 /* PAGE_OFFSET - the virtual address of the start of the kernel image */
+/* IAMROOT-12D (2016-05-26):
+ * --------------------------
+ * CONFIG_PAGE_OFFSET=0x80000000
+ */
 #define PAGE_OFFSET		UL(CONFIG_PAGE_OFFSET)
 
 #ifdef CONFIG_MMU
@@ -152,6 +156,10 @@
  * have CONFIG_ARM_PATCH_PHYS_VIRT. Assembly code must always use
  * PLAT_PHYS_OFFSET and not PHYS_OFFSET.
  */
+/* IAMROOT-12D (2016-05-26):
+ * --------------------------
+ * CONFIG_PHYS_OFFSET=0
+ */
 #define PLAT_PHYS_OFFSET	UL(CONFIG_PHYS_OFFSET)
 
 #ifndef __ASSEMBLY__
@@ -165,12 +173,24 @@
  * PFN 0 == physical address 0.
  */
 #if defined(__virt_to_phys)
+/* IAMROOT-12A:
+ * ------------
+ * 메모리 Case 1.
+ * ------------
+ * 별도 제작한 __virt_to_phys 매크로 사용 시
+ *
+ * 이 헤더 화일(asm/memory.h)에서 기본 제공하는 __virt_to_phys() 인라인함수를
+ * 사용하지 않을 때 __virt_to_phys 매크로를 정의하여 사용하는 경우에 아래 3줄의
+ * 설정을 사용한다. 
+ *
+ * 아직 ARM 기본 빌드에서는 별도로 정의하여 사용하는 시스템이 없음.
+ */
 #define PHYS_OFFSET	PLAT_PHYS_OFFSET
 #define PHYS_PFN_OFFSET	((unsigned long)(PHYS_OFFSET >> PAGE_SHIFT))
 
 #define virt_to_pfn(kaddr) (__pa(kaddr) >> PAGE_SHIFT)
 
-#elif defined(CONFIG_ARM_PATCH_PHYS_VIRT)
+#elif defined(CONFIG_ARM_PATCH_PHYS_VIRT)	/* IAMROOT-12D: NOT SET */
 
 /*
  * Constants used to force the right instruction encodings and shifts
@@ -247,21 +267,43 @@ static inline unsigned long __phys_to_virt(phys_addr_t x)
 	return t;
 }
 
-#else
+#else	/* IAMROOT-12D: 라즈베리파이2 사용 */
 
+/* IAMROOT-12D (2016-05-26):
+ * --------------------------
+ * PHYS_OFFSET = 0
+ */
 #define PHYS_OFFSET	PLAT_PHYS_OFFSET
+
+/* IAMROOT-12D (2016-05-26):
+ * --------------------------
+ * PHYS_PFN_OFFSET = 0
+ */
 #define PHYS_PFN_OFFSET	((unsigned long)(PHYS_OFFSET >> PAGE_SHIFT))
 
+/* IAMROOT-12D (2016-05-26):
+ * --------------------------
+ * reutrn x - 0x80000000 + 0
+ */
 static inline phys_addr_t __virt_to_phys(unsigned long x)
 {
 	return (phys_addr_t)x - PAGE_OFFSET + PHYS_OFFSET;
 }
 
+/* IAMROOT-12D (2016-05-26):
+ * --------------------------
+ * reutrn x - 0x0 + 0x80000000
+ */
 static inline unsigned long __phys_to_virt(phys_addr_t x)
 {
 	return x - PHYS_OFFSET + PAGE_OFFSET;
 }
 
+/* IAMROOT-12D (2016-05-26):
+ * --------------------------
+ * (kaddr - 0x80000000) >> 12  + 0
+ * 페이지 단위(4k)로 나눈 몫 
+ */
 #define virt_to_pfn(kaddr) \
 	((((unsigned long)(kaddr) - PAGE_OFFSET) >> PAGE_SHIFT) + \
 	 PHYS_PFN_OFFSET)
@@ -281,6 +323,10 @@ static inline phys_addr_t virt_to_phys(const volatile void *x)
 }
 
 #define phys_to_virt phys_to_virt
+/* IAMROOT-12D (2016-05-26):
+ * --------------------------
+ * 물리주소를 가상 주소로 변환 : 0x100 --> 0x80000100
+ */
 static inline void *phys_to_virt(phys_addr_t x)
 {
 	return (void *)__phys_to_virt(x);

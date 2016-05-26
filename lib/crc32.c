@@ -332,6 +332,10 @@ u32 __pure crc32_be(u32 crc, unsigned char const *p, size_t len)
 {
 	return crc32_be_generic(crc, p, len, NULL, CRCPOLY_BE);
 }
+/* IAMROOT-12D (2016-05-26):
+ * --------------------------
+ * 라즈베리파이2는 CRC_LE_BITS = 64
+ */
 #else
 u32 __pure crc32_be(u32 crc, unsigned char const *p, size_t len)
 {

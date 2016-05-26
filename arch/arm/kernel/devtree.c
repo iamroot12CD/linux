@@ -183,6 +183,11 @@ bool arch_match_cpu_phys_id(int cpu, u64 phys_id)
 
 static const void * __init arch_get_next_mach(const char *const **match)
 {
+	/* IAMROOT-12D (2016-05-26):
+	 * --------------------------
+	 * __arch_info_begin = section ".init.arch.info"
+	 * arch/arm/mach-bcm2709/bcm2709.c 참고
+	 */
 	static const struct machine_desc *mdesc = __arch_info_begin;
 	const struct machine_desc *m = mdesc;
 

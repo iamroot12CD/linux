@@ -20,7 +20,7 @@
 #ifndef __ASM_ARCH_MEMORY_H
 #define __ASM_ARCH_MEMORY_H
 
-#ifdef CONFIG_SPARSEMEM
+#ifdef CONFIG_SPARSEMEM	/* IAMROOT-12D: 라즈베리파이2는 NOT SET */
 
 /*
  * Sparsemem definitions for RealView PBX.

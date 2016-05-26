@@ -1287,6 +1287,24 @@ static const char * const bcm2709_compat[] = {
 	NULL
 };
 
+/* IAMROOT-12D (2016-05-26):
+ * --------------------------
+ * static const struct machine_desc __mach_desc_BCM_2709
+ * _used
+ *  __attribute__((__section__(".arch.info.init"))) = {
+ *		.nr     = MACH_TYPE_BCM_2709
+ *		.name   = "BCM_2709",
+ *		.smp		= smp_ops(bcm2709_smp_ops),
+ *		.map_io = bcm2709_map_io,
+ *		.init_irq = bcm2709_init_irq,
+ *		.init_time = bcm2709_timer_init,
+ *		.init_machine = bcm2709_init,
+ *		.init_early = bcm2709_init_early,
+ *		.reserve = board_reserve,
+ *		.restart	= bcm2709_restart,
+ *		.dt_compat = bcm2709_compat,
+ * };
+ */
 MACHINE_START(BCM2709, "BCM2709")
     /* Maintainer: Broadcom Europe Ltd. */
 #ifdef CONFIG_SMP
