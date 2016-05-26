@@ -623,6 +623,19 @@ void notrace cpu_init(void)
 	 */
 	set_my_cpu_offset(per_cpu_offset(cpu));
 
+	/* IAMROOT-12A:
+	 * ------------
+	 * 특정 CPU 아키텍처에서 필요한 코드를 실행한다.
+	 *	v7 아케텍처에서는 아무것도 하지 않고 그냥 return 한다.
+	 *
+	 * 라즈베리파이2:
+	 *	MULTI_CPU가 동작 중이어서 processor._proc_init()를 호출하는데 
+	 *	이 변수에는 cpu_v7_proc_init의 주소가 담김 (../mm/proc-v7.S)
+	 */
+	/* IAMROOT-12D (2016-05-26):
+	 * --------------------------
+	 * cpu_v7_proc_init 함수는 그냥 아무것도 하지 않고 리턴함
+	 */
 	cpu_proc_init();
 
 	/*
@@ -632,11 +645,20 @@ void notrace cpu_init(void)
 #ifdef CONFIG_THUMB2_KERNEL
 #define PLC	"r"
 #else
-#define PLC	"I"
+#define PLC	"I"		/* IAMROOT-12D : 라즈베리파2 */
 #endif
 
 	/*
 	 * setup stacks for re-entrant exception handlers
+	 */
+	/* IAMROOT-12D (2016-05-26):
+	 * --------------------------
+	 * 1. IRQ_MODE 스택설정
+	 *	인터럽트 disable + IRQ_MODE 진입후 sp를 statck.irq[0]주소로 설정
+	 * 2. ABT_MODE 스택설정
+	 *	인터럽트 disable + ABT_MODE 진입후 sp를 statck.abt[0]주소로 설정
+	 * 3. UND_MODE, FIQ_MODE 각각 sp 설정
+	 * 4. SVC_MODE로 복귀.
 	 */
 	__asm__ (
 	"msr	cpsr_c, %1\n\t"
@@ -816,19 +838,20 @@ static void __init setup_processor(void)
 	 */
 	cpu_name = list->cpu_name;
 	__cpu_architecture = __get_cpu_architecture();
-/* IAMROOT-12D (2016-05-21):
- * --------------------------
- * TODO : 아래 5가지 변수의 용도를 알아보자
- *  - proc  :	process 초기화 관련 함수 목록(arch/arm/mm/proc-macros.S 참고)
- *			v7_early_abort, v7_pabort, cpu_v7_proc_init, cpu_v7_proc_fin
- *			, cpu_v7_reset, cpu_v7_do_idle, cpu_v7_dcache_clean_area
- *			, cpu_v7_switch_mm, cpu_v7_set_pte_ext, cpu_v7_suspend_size등의 함수
- *  - tlb   :	tlb table flush 관련 함수 목록 arch/arm/mm/tlb-v7.S 참고
- *			v7wbi_flush_kern_tlb_range, v7wbi_tlb_flags_smp, v7wbi_tlb_flags_up
- *  - user  : 사용자 메모리 할당과 해제(?)
- *  - cache : cache 정책 함수들.
- *  - hwcap :
- */
+
+	/* IAMROOT-12D (2016-05-21):
+	 * --------------------------
+	 * TODO : 아래 5가지 변수의 용도를 알아보자
+	 *  - proc  :	process 초기화 관련 함수 목록(arch/arm/mm/proc-macros.S 참고)
+	 *			v7_early_abort, v7_pabort, cpu_v7_proc_init, cpu_v7_proc_fin
+	 *			, cpu_v7_reset, cpu_v7_do_idle, cpu_v7_dcache_clean_area
+	 *			, cpu_v7_switch_mm, cpu_v7_set_pte_ext, cpu_v7_suspend_size등의 함수
+	 *  - tlb   :	tlb table flush 관련 함수 목록 arch/arm/mm/tlb-v7.S 참고
+	 *			v7wbi_flush_kern_tlb_range, v7wbi_tlb_flags_smp, v7wbi_tlb_flags_up
+	 *  - user  : 사용자 메모리 할당과 해제(?)
+	 *  - cache : cache 정책 함수들.
+	 *  - hwcap :
+	 */
 #ifdef MULTI_CPU
 	/* IAMROOT-12D (2016-05-24):
 	 * --------------------------

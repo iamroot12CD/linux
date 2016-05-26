@@ -205,6 +205,10 @@ const struct machine_desc * __init setup_machine_fdt(unsigned int dt_phys)
 {
 	const struct machine_desc *mdesc, *mdesc_best = NULL;
 
+/* IAMROOT-12D (2016-05-26):
+ * --------------------------
+ * 라즈베리파이2에는 CONFIG_ARCH_MULTIPLATFORM 가 셋팅 되어 있지 않다.
+ */
 #ifdef CONFIG_ARCH_MULTIPLATFORM
 	DT_MACHINE_START(GENERIC_DT, "Generic DT based system")
 	MACHINE_END
