@@ -88,6 +88,7 @@ EXPORT_SYMBOL(__machine_arch_type);
 /* IAMROOT-12D (2016-05-25):
  * --------------------------
  * cacheid = CACHEID_VIPT_NONALIASING | CACHEID_VIPT_I_ALIASING  = 0x12
+ *
  * L1 i-cache의 타입은 CACHEID_VIPT_I_ALIASING
  * L1 cacahe의 타입은 d-cache + i-cache 플래그들의 특성을 담는다.
  * 	CACHEID_VIPT_NONALIASING(b1) | CACHEID_VIPT_I_ALIASING(b4)
@@ -126,9 +127,9 @@ EXPORT_SYMBOL(elf_hwcap2);
 /* IAMROOT-12D (2016-05-25):
  * --------------------------
  *  - proc  :	process 초기화 관련 함수 목록(arch/arm/mm/proc-macros.S 참고
- *			v7_early_abort, v7_pabort, cpu_v7_proc_init, cpu_v7_proc_fin
- *			, cpu_v7_reset, cpu_v7_do_idle, cpu_v7_dcache_clean_area
- *			, cpu_v7_switch_mm, cpu_v7_set_pte_ext, cpu_v7_suspend_size등의 함수
+ *	v7_early_abort, v7_pabort, cpu_v7_proc_init, cpu_v7_proc_fin
+ *	, cpu_v7_reset, cpu_v7_do_idle, cpu_v7_dcache_clean_area
+ *	, cpu_v7_switch_mm, cpu_v7_set_pte_ext, cpu_v7_suspend_size등의 함수
  * 
  */
 struct processor processor __read_mostly;
@@ -137,7 +138,7 @@ struct processor processor __read_mostly;
 /* IAMROOT-12D (2016-05-25):
  * --------------------------
  *  - tlb   :	tlb table flush 관련 함수 목록 arch/arm/mm/tlb-v7.S 참고
- *			v7wbi_flush_kern_tlb_range, v7wbi_tlb_flags_smp, v7wbi_tlb_flags_up
+ *	v7wbi_flush_kern_tlb_range, v7wbi_tlb_flags_smp, v7wbi_tlb_flags_up
  */
 struct cpu_tlb_fns cpu_tlb __read_mostly;
 #endif
@@ -315,11 +316,12 @@ static int __get_cpu_architecture(void)
 	     *	MRC p15, 0, r0, c0, c1, 4 --> 0x10101105
 	     */
 	    unsigned int mmfr0 = read_cpuid_ext(CPUID_EXT_MMFR0);
-		/* IAMROOT-12D (2016-05-24):
-		 * --------------------------
-		 * (mmfr0 & 0x0000000f) >= 0x00000003 : VMSA support 지원 여부 체크
-		 * (mmfr0 & 0x000000f0) >= 0x00000030 : Outermost shareability 지원범위
-		 */
+	    /* IAMROOT-12D (2016-05-24):
+	     * --------------------------
+	     * (mmfr0 & 0x0000000f) >= 0x00000003 : VMSA support 지원 여부 체크
+	     * (mmfr0 & 0x000000f0) >= 0x00000030 : Outermost shareability 지원범위
+	     *   Outermost (L2캐쉬 공유 여부)
+	     */
 	    if ((mmfr0 & 0x0000000f) >= 0x00000003 ||
 		    (mmfr0 & 0x000000f0) >= 0x00000030)
 		cpu_arch = CPU_ARCH_ARMv7;
@@ -342,6 +344,15 @@ int __pure cpu_architecture(void)
 	return __cpu_architecture;
 }
 
+/* IAMROOT-12D (2016-05-28):
+ * --------------------------
+ * 라즈베리 파이2는 true를 반환함.
+ */
+/* IAMROOT-12A:
+ * ------------
+ * aliasing이 필요한 경우는 캐시 단면의 사이즈가 
+ * 한 개의 페이지 사이즈(4K)를 초과하는 경우 aliasing이 필요
+ */
 static int cpu_has_aliasing_icache(unsigned int arch)
 {
 	int aliasing_icache;
@@ -399,6 +410,10 @@ static int cpu_has_aliasing_icache(unsigned int arch)
 	return aliasing_icache;
 }
 
+/* IAMROOT-12A:
+ * ------------
+ * 전역 변수 cacheid에 L1 cache 타입 설정
+ */
 static void __init cacheid_init(void)
 {
 	/* IAMROOT-12D (2016-05-25):
@@ -413,6 +428,13 @@ static void __init cacheid_init(void)
 		/* IAMROOT-12D (2016-05-25):
 		 * --------------------------
 		 * cachetype = 0x84448003
+		 * [31:29] Format :	Indicates the CTR format:
+		 *	0x4	ARMv7 format.
+		 *
+		 * [15:14] L1Ip : L1 instruction cache policy. Indicates the
+		 *		indexing and tagging policy for the L1
+		 *		instruction cache:
+		 *	0b10	Virtually Indexed Physically Tagged (VIPT).
 		 */
 		/* IAMROOT-12A:
 		 * ------------
@@ -552,6 +574,11 @@ static void __init cpuid_init_hwcaps(void)
 		elf_hwcap2 |= HWCAP2_CRC32;
 }
 
+/* IAMROOT-12D (2016-05-28):
+ * --------------------------
+ * 라즈베리파이2는 HWCAP_SWP 명령어를 제외한다.
+ *  (ldrex, strex 명령어-atomic 메모리 접근 ARM 명령어-가 있기때문에)
+ */
 static void __init elf_hwcap_fixup(void)
 {
 	unsigned id = read_cpuid_id();	/* IAMROOT-12D : 0x410FC075 */
@@ -559,6 +586,12 @@ static void __init elf_hwcap_fixup(void)
 	/*
 	 * HWCAP_TLS is available only on 1136 r1p0 and later,
 	 * see also kuser_get_tls_init.
+	 */
+	/* IAMROOT-12A:
+	 * ------------
+	 * CPU 아키텍처가 ARM1136 r1p0 이상에서는 TLS 기능이 있다.
+	 * 아래의 루틴같이 ARM1136 r1p0에서 MIDR.variant = 0인 경우 
+	 * TLS 기능이 없다고 판단하면 뒤 루틴을 생략하고 빠져나간다. 
 	 */
 	/* IAMROOT-12D (2016-05-25):
 	 * --------------------------
@@ -634,7 +667,8 @@ void notrace cpu_init(void)
 	 */
 	/* IAMROOT-12D (2016-05-26):
 	 * --------------------------
-	 * cpu_v7_proc_init 함수는 그냥 아무것도 하지 않고 리턴함
+	 * cpu_proc_init 함수는 cpu_v7_proc_init를 호출하며
+	 *  cpu_v7_proc_init 함수는 그냥 아무것도 하지 않고 리턴함
 	 */
 	cpu_proc_init();
 
@@ -654,9 +688,9 @@ void notrace cpu_init(void)
 	/* IAMROOT-12D (2016-05-26):
 	 * --------------------------
 	 * 1. IRQ_MODE 스택설정
-	 *	인터럽트 disable + IRQ_MODE 진입후 sp를 statck.irq[0]주소로 설정
+	 *    인터럽트 disable + IRQ_MODE 진입후 sp를 stack[0].irq[0]주소로 설정
 	 * 2. ABT_MODE 스택설정
-	 *	인터럽트 disable + ABT_MODE 진입후 sp를 statck.abt[0]주소로 설정
+	 *    인터럽트 disable + ABT_MODE 진입후 sp를 stack.abt[0]주소로 설정
 	 * 3. UND_MODE, FIQ_MODE 각각 sp 설정
 	 * 4. SVC_MODE로 복귀.
 	 */
@@ -843,11 +877,11 @@ static void __init setup_processor(void)
 	 * --------------------------
 	 * TODO : 아래 5가지 변수의 용도를 알아보자
 	 *  - proc  :	process 초기화 관련 함수 목록(arch/arm/mm/proc-macros.S 참고)
-	 *			v7_early_abort, v7_pabort, cpu_v7_proc_init, cpu_v7_proc_fin
-	 *			, cpu_v7_reset, cpu_v7_do_idle, cpu_v7_dcache_clean_area
-	 *			, cpu_v7_switch_mm, cpu_v7_set_pte_ext, cpu_v7_suspend_size등의 함수
+	 *	v7_early_abort, v7_pabort, cpu_v7_proc_init, cpu_v7_proc_fin
+	 *	, cpu_v7_reset, cpu_v7_do_idle, cpu_v7_dcache_clean_area
+	 *	, cpu_v7_switch_mm, cpu_v7_set_pte_ext, cpu_v7_suspend_size등의 함수
 	 *  - tlb   :	tlb table flush 관련 함수 목록 arch/arm/mm/tlb-v7.S 참고
-	 *			v7wbi_flush_kern_tlb_range, v7wbi_tlb_flags_smp, v7wbi_tlb_flags_up
+	 *	v7wbi_flush_kern_tlb_range, v7wbi_tlb_flags_smp, v7wbi_tlb_flags_up
 	 *  - user  : 사용자 메모리 할당과 해제(?)
 	 *  - cache : cache 정책 함수들.
 	 *  - hwcap :

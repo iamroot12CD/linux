@@ -1,7 +1,11 @@
 #ifndef __ASM_ARM_CACHETYPE_H
 #define __ASM_ARM_CACHETYPE_H
 
-/* IAMROOT-12D : Virtually Indexed Physically Tagged */
+/* IAMROOT-12D : Virtually Indexed Physically Tagged
+ * VIPT는 TLB, cache를 가상주소로 동시에 접근한다.(병렬접근) 
+ * aliasing은 하나의 physical address를 여러개의 가상주소로 사용 가능하게 하고
+ * non aliasing은 하나의 physical address를 하나의 가상주소로만 사용 가능하다.
+ */
 #define CACHEID_VIVT			(1 << 0)
 #define CACHEID_VIPT_NONALIASING	(1 << 1)
 #define CACHEID_VIPT_ALIASING		(1 << 2)

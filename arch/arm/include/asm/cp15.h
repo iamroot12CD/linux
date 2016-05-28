@@ -51,6 +51,11 @@
 
 extern unsigned long cr_alignment;	/* defined in entry-armv.S */
 
+/* IAMROOT-12D (2016-05-28):
+ * --------------------------
+ * System Control Register.
+ *  Provides the top level control of the system, including its memory system.
+ */
 static inline unsigned long get_cr(void)
 {
 	unsigned long val;

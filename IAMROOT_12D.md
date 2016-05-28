@@ -1,5 +1,18 @@
 # Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
 
+## 제 58주차 스터디
+
+#### 날짜: 2016-05-28
+#### 장소: 강남토즈타워점
+
+#### 참석자
+ - **임채훈 (im.fehead@gmail.com)**
+ - *김민호 (8891m@naver.com)*
+ - 안종찬 (ahnchan2@gmail.com)
+ - 김영준 (iam.yeongjunkim@gmail.com)
+ - 권세홍 (sehongkwon2.24@gmail.com)
+
+
 ## 제 57주차 스터디
 
 #### 날짜: 2016-05-21
