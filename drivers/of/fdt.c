@@ -452,10 +452,21 @@ EXPORT_SYMBOL_GPL(of_fdt_unflatten_tree);
 int __initdata dt_root_addr_cells;
 int __initdata dt_root_size_cells;
 
+/* IAMROOT-12D (2016-05-26):
+ * --------------------------
+ * Setup flat device-tree pointer
+ * fdt 주소로 설정 되어 있다.(가상주소 0x8xxxxxxx 대역)
+ */
 void *initial_boot_params;
 
 #ifdef CONFIG_OF_EARLY_FLATTREE
 
+/* IAMROOT-12D (2016-05-26):
+ * --------------------------
+ * fdt 테이블 데이버 crc32값
+ * CRC(Cyclic Redundancy Check)는 시리얼 전송에서 데이타의 신뢰성을 검증하기
+ *	위한 에러 검출 방법의 일종이다.
+ */
 static u32 of_fdt_crc32;
 
 /**
@@ -702,6 +713,11 @@ const char * __init of_flat_dt_get_machine_name(void)
  * Iterate through machine match tables to find the best match for the machine
  * compatible string in the FDT.
  */
+/* IAMROOT-12D (2016-05-26):
+ * --------------------------
+ * setup_machine_fdt에서 호출 됨
+ *  of_flat_dt_match_machine(mdesc_best=NULL, arch_get_next_mach);
+ */
 const void * __init of_flat_dt_match_machine(const void *default_match,
 		const void * (*get_next_compat)(const char * const**))
 {
@@ -711,6 +727,11 @@ const void * __init of_flat_dt_match_machine(const void *default_match,
 	unsigned long dt_root;
 	unsigned int best_score = ~1, score = 0;
 
+	/* IAMROOT-12D (2016-05-26):
+	 * --------------------------
+	 * 초기값 dt_root = 0
+	 * get_next_compat --> arch_get_next_mach
+	 */
 	dt_root = of_get_flat_dt_root();
 	while ((data = get_next_compat(&compat))) {
 		score = of_flat_dt_match(dt_root, compat);
@@ -1043,6 +1064,10 @@ int __init __weak early_init_dt_reserve_memory_arch(phys_addr_t base,
 }
 #endif
 
+/* IAMROOT-12D (2016-05-26):
+ * --------------------------
+ * 간단한 fdt헤더 검사와 crc32을 만든다.
+ */
 bool __init early_init_dt_verify(void *params)
 {
 	if (!params)
