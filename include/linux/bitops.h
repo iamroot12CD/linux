@@ -12,6 +12,7 @@
 #define BITS_PER_BYTE		8
 /* IAMROOT-12D (2016-03-19):
  * --------------------------
+ * 몇개의 long으로 nr(bit)로 커버 가능한가.
  *  BITS_TO_LONGS( 4)  = 1
  *  BITS_TO_LONGS(32)  = 1
  *  BITS_TO_LONGS(35)  = 2

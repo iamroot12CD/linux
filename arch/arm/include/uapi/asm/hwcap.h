@@ -19,7 +19,11 @@
 #define HWCAP_NEON	(1 << 12)
 #define HWCAP_VFPv3	(1 << 13)
 #define HWCAP_VFPv3D16	(1 << 14)	/* also set for VFPv4-D16 */
-#define HWCAP_TLS	(1 << 15)	/* IAMROOT-12D : TLS */
+/* IAMROOT-12D (2016-05-28):
+ * --------------------------
+ * Thread Local Storage : Thread별로 다른 값을 가질수 있는 전역 변수
+ */
+#define HWCAP_TLS	(1 << 15)
 #define HWCAP_VFPv4	(1 << 16)
 #define HWCAP_IDIVA	(1 << 17)	/* IAMROOT-12D : SDIV,UDIV 명령어지원 */
 #define HWCAP_IDIVT	(1 << 18)
