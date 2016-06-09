@@ -168,9 +168,9 @@ static inline unsigned int __attribute_const__ read_cpuid_ext(unsigned offset)
  * Main ID Register format
  *
  *  31         24 23     20 19          16 15          4 3       0
- *	+------------+---------+--------------+-------------+---------+
- *	|Implementer | Variant | Architecture | Part number | revison |
- *	+------------+---------+--------------+-------------+---------+
+ *  +------------+---------+--------------+-------------+---------+
+ *  |Implementer | Variant | Architecture | Part number | revison |
+ *  +------------+---------+--------------+-------------+---------+
  *
  * 라즈베리파이2 의 경우
  *  MRC p15, 0, r0, c0, c0, 0 ---> 0x410FC075

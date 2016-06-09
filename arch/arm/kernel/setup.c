@@ -126,9 +126,9 @@ EXPORT_SYMBOL(elf_hwcap2);
 /* IAMROOT-12D (2016-05-25):
  * --------------------------
  *  - proc  :	process 초기화 관련 함수 목록(arch/arm/mm/proc-macros.S 참고
- *			v7_early_abort, v7_pabort, cpu_v7_proc_init, cpu_v7_proc_fin
- *			, cpu_v7_reset, cpu_v7_do_idle, cpu_v7_dcache_clean_area
- *			, cpu_v7_switch_mm, cpu_v7_set_pte_ext, cpu_v7_suspend_size등의 함수
+ *	v7_early_abort, v7_pabort, cpu_v7_proc_init, cpu_v7_proc_fin
+ *	, cpu_v7_reset, cpu_v7_do_idle, cpu_v7_dcache_clean_area
+ *	, cpu_v7_switch_mm, cpu_v7_set_pte_ext, cpu_v7_suspend_size등의 함수
  * 
  */
 struct processor processor __read_mostly;
@@ -137,7 +137,7 @@ struct processor processor __read_mostly;
 /* IAMROOT-12D (2016-05-25):
  * --------------------------
  *  - tlb   :	tlb table flush 관련 함수 목록 arch/arm/mm/tlb-v7.S 참고
- *			v7wbi_flush_kern_tlb_range, v7wbi_tlb_flags_smp, v7wbi_tlb_flags_up
+ *	v7wbi_flush_kern_tlb_range, v7wbi_tlb_flags_smp, v7wbi_tlb_flags_up
  */
 struct cpu_tlb_fns cpu_tlb __read_mostly;
 #endif
@@ -192,8 +192,32 @@ char elf_platform[ELF_PLATFORM_SIZE];	/* IAMROOT-12D : "v7l" */
 EXPORT_SYMBOL(elf_platform);
 
 static const char *cpu_name;
+/* IAMROOT-12D (2016-06-09):
+ * --------------------------
+ * machine_name = "BCM_2709"
+ */
 static const char *machine_name;
 static char __initdata cmd_line[COMMAND_LINE_SIZE];
+/* IAMROOT-12D (2016-06-09):
+ * --------------------------
+ * arch/arm/mach-bcm2709/bcm2709.c
+ * 
+ * static const struct machine_desc __mach_desc_BCM_2709
+ * _used
+ *  __attribute__((__section__(".arch.info.init"))) = {
+ *		.nr     = MACH_TYPE_BCM_2709
+ *		.name   = "BCM_2709",
+ *		.smp		= smp_ops(bcm2709_smp_ops),
+ *		.map_io = bcm2709_map_io,
+ *		.init_irq = bcm2709_init_irq,
+ *		.init_time = bcm2709_timer_init,
+ *		.init_machine = bcm2709_init,
+ *		.init_early = bcm2709_init_early,
+ *		.reserve = board_reserve,
+ *		.restart	= bcm2709_restart,
+ *		.dt_compat = bcm2709_compat,
+ * };
+ */
 const struct machine_desc *machine_desc __initdata;
 
 static union { char c[4]; unsigned long l; } endian_test __initdata = { { 'l', '?', '?', 'b' } };
@@ -835,6 +859,7 @@ static void __init setup_processor(void)
 	/* IAMROOT-12D (2016-05-24):
 	 * --------------------------
 	 * 	cpu_name = "ARMv7 Processor";
+	 *	__cpu_architecture = CPU_ARCH_ARMv7
 	 */
 	cpu_name = list->cpu_name;
 	__cpu_architecture = __get_cpu_architecture();
@@ -842,15 +867,15 @@ static void __init setup_processor(void)
 	/* IAMROOT-12D (2016-05-21):
 	 * --------------------------
 	 * TODO : 아래 5가지 변수의 용도를 알아보자
-	 *  - proc  :	process 초기화 관련 함수 목록(arch/arm/mm/proc-macros.S 참고)
-	 *			v7_early_abort, v7_pabort, cpu_v7_proc_init, cpu_v7_proc_fin
-	 *			, cpu_v7_reset, cpu_v7_do_idle, cpu_v7_dcache_clean_area
-	 *			, cpu_v7_switch_mm, cpu_v7_set_pte_ext, cpu_v7_suspend_size등의 함수
-	 *  - tlb   :	tlb table flush 관련 함수 목록 arch/arm/mm/tlb-v7.S 참고
-	 *			v7wbi_flush_kern_tlb_range, v7wbi_tlb_flags_smp, v7wbi_tlb_flags_up
-	 *  - user  : 사용자 메모리 할당과 해제(?)
-	 *  - cache : cache 정책 함수들.
-	 *  - hwcap :
+	 * - proc: process 초기화 관련 함수 목록(arch/arm/mm/proc-macros.S 참고)
+	 *	v7_early_abort, v7_pabort, cpu_v7_proc_init, cpu_v7_proc_fin
+	 *	, cpu_v7_reset, cpu_v7_do_idle, cpu_v7_dcache_clean_area
+	 *	, cpu_v7_switch_mm, cpu_v7_set_pte_ext, cpu_v7_suspend_size등의 함수
+	 * - tlb: tlb table flush 관련 함수 목록 arch/arm/mm/tlb-v7.S 참고
+	 *     	v7wbi_flush_kern_tlb_range, v7wbi_tlb_flags_smp, v7wbi_tlb_flags_up
+	 * - user: 사용자 메모리 할당과 해제(?)
+	 * - cache: cache 정책 함수들.
+	 * - hwcap:
 	 */
 #ifdef MULTI_CPU
 	/* IAMROOT-12D (2016-05-24):
@@ -1188,13 +1213,31 @@ void __init setup_arch(char **cmdline_p)
 	const struct machine_desc *mdesc;
 
 	setup_processor();
+	/* IAMROOT-12A:
+	 * ------------
+	 * 처음에 DT_START_MACHINE에서 등록한 머신 디스크립터 테이블에서 이름으로 
+	 * 검색해보고 없으면 START_MACHINE에서 등록한 머신 디스크립터 테이블에서
+	 * 머신 번호로 검색한다.
+	 *
+	 * setup_machine_fdt()
+	 *   - dtb로부터  boot_cmd_line과 memblock에 메모리 노드의 reg 영역을 추가.
+	 */
 	mdesc = setup_machine_fdt(__atags_pointer);
 	if (!mdesc)
 		mdesc = setup_machine_tags(__atags_pointer, __machine_arch_type);
 	machine_desc = mdesc;
+
+	/* IAMROOT-12D (2016-06-09):
+	 * --------------------------
+	 * machine_name   = "BCM_2709"
+	 */
 	machine_name = mdesc->name;
 	dump_stack_set_arch_desc("%s", mdesc->name);
 
+	/* IAMROOT-12D (2016-06-09):
+	 * --------------------------
+	 * default : REBOOT_COLD = 0,
+	 */
 	if (mdesc->reboot_mode != REBOOT_HARD)
 		reboot_mode = mdesc->reboot_mode;
 
@@ -1207,6 +1250,19 @@ void __init setup_arch(char **cmdline_p)
 	strlcpy(cmd_line, boot_command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = cmd_line;
 
+	/* IAMROOT-12AB:
+	 * -------------
+	 * cmdline에서 입력된 모든 파라메터에 대응하는 early 함수를 찾아 호출한다.
+	 * 일반 파라메터 함수 등록 매크로: __setup()        -> __setup_param(,,0)
+	 * early 파라메터 함수 등록 매크로: __early_param() -> __setup_param(,,1)
+	 * earlycon 파라메터 함수 등록 매크로: EARLYCON_DECLARE() -> __early_param() -> ..
+	 *
+	 * rpi2:
+	 *	- setup_of_earlycon()
+	 *	- pl011_early_console_setup()
+	 *	- uart_setup_earlycon()
+	 *	- uart8250_setup_earlycon()
+	 */
 	parse_early_param();
 
 	early_paging_init(mdesc, lookup_processor_type(read_cpuid_id()));

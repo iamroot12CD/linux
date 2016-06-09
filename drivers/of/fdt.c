@@ -463,7 +463,7 @@ void *initial_boot_params;
 
 /* IAMROOT-12D (2016-05-26):
  * --------------------------
- * fdt 테이블 데이버 crc32값
+ * fdt 테이블 데이터 crc32값
  * CRC(Cyclic Redundancy Check)는 시리얼 전송에서 데이타의 신뢰성을 검증하기
  *	위한 에러 검출 방법의 일종이다.
  */
@@ -693,6 +693,13 @@ struct fdt_scan_status {
 	void *data;
 };
 
+/* IAMROOT-12D (2016-06-09):
+ * --------------------------
+ * arch/arm/boot/dts/bcm2709-rpi-2-b.dts 참고
+ * {	compatible = "brcm,bcm2709";
+ *	model = "Raspberry Pi 2 Model B";
+ * }
+ */
 const char * __init of_flat_dt_get_machine_name(void)
 {
 	const char *name;
@@ -758,6 +765,10 @@ const void * __init of_flat_dt_match_machine(const void *default_match,
 		return NULL;
 	}
 
+	/* IAMROOT-12D (2016-06-09):
+	 * --------------------------
+	 * Machine model: Raspberry Pi 2 Model B Rev 1.1
+	 */
 	pr_info("Machine model: %s\n", of_flat_dt_get_machine_name());
 
 	return best_data;

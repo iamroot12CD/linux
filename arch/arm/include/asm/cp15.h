@@ -51,6 +51,61 @@
 
 extern unsigned long cr_alignment;	/* defined in entry-armv.S */
 
+/* IAMROOT-12D (2016-06-09):
+ * --------------------------
+ * 라즈베리파이2 기본값 : 0x10c5387d
+ * 
+ * System control register (SCTLR)
+ *  The SCTLR is another of a number of registers that are accessed using CP15,
+ *  and controls standard memory, system facilities and provides status
+ *  information for functions implemented in the core.
+ *
+ *    30                20            10           0
+ *  1 0 9 8 7 6 5 4  2 1 0     4 3 2 1 0      3 2 1 0
+ * +-+-+-+-+-+-+-+--+-+-+-------+-+-+-+--------+-+-+-+
+ * | |T|A|T|N| |E|  |U|F|       |V|I|Z|        |C|A|M|
+ * | |E|F|R|M| |E|  | |I|       | | | |        | | | |
+ * +-+-+-+-+-+-+-+--+-+-+-------+-+-+-+--------+-+-+-+
+ *
+ * [30] TE – Thumb exception enable. This controls whether exceptions are taken
+ *	 in ARM or Thumb state.
+ * [29] AFE Access flag enable bit. This bit enables use of the AP[0] bit in the
+	translation table descriptors as the Access flag.
+ *  0 In the translation table descriptors, AP[0] is an access permissions bit.
+ *	The full range of access permissions is supported. No Access flag is
+ *	implemented. This is the reset value.
+ *  1 In the translation table descrip
+ *
+ * [28] TRE TEX remap enable bit. This bit enables remapping of the TEX[2:1]
+ *	bits for use as two translation table bits that can be managed by the
+ *	operating system. Enabling this remapping also changes the scheme used
+ *	to describe the memory region attributes in the VMSA:
+ *  0 TEX remap disabled. TEX[2:0] are used, with the C and B bits, to describe
+ *	the memory region attributes. This is the reset value.
+ *  1 TEX remap enabled. TEX[2:1] are reassigned for use as bits managed by the
+ *	operating system.  The TEX[0], C and B bits are used to describe the
+ *	memory region attributes, with the MMU remap registers.
+ *
+ *  [27] NMFI(NM) – Non-maskable FIQ (NMFI) support.
+ * 
+ *  [25] EE Exception Endianness bit. The value of this bit defines the value of
+ *	the CPSR.E bit on entry to an exception vector, including reset. This
+ *	value also indicates the endianness of the translation table data for
+ *	translation table
+ *   lookups:
+ *   0 Little endian.
+ *   1 Big endian.
+ *   The primary input CFGEND defines the reset value of the EE bit.
+ *
+ *  [22] U – Indicates use of the alignment model.
+ *  [21] FI – FIQ configuration enable.
+ *  - V – This bit selects the base address of the exception vector table.
+ *  - I – Instruction cache enable bit.
+ *  - Z – Branch prediction enable bit.
+ *  - C – Cache enable bit.
+ *  - A – Alignment check enable bit.
+ *  - M – Enable the MMU.
+ */
 static inline unsigned long get_cr(void)
 {
 	unsigned long val;
