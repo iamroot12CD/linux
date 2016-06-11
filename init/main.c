@@ -416,6 +416,10 @@ static noinline void __init_refok rest_init(void)
 }
 
 /* Check for early params. */
+/* IAMROOT-12D (2016-06-11):
+ * --------------------------
+ * do_early_param(param, val, "early options");
+ */
 static int __init do_early_param(char *param, char *val, const char *unused)
 {
 	const struct obs_kernel_param *p;
