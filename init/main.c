@@ -541,6 +541,12 @@ asmlinkage __visible void __init start_kernel(void)
  */
 	boot_cpu_init();
 	page_address_init();
+	/* IAMROOT-12D (2016-06-11):
+	 * --------------------------
+	 * Linux version 4.1.17-v7+ (dc4@dc4-XPS13-9333) (gcc version 4.8.3
+	 *	20140303 (prerelease) (crosstool-NG linaro-1.13.1+bzr2650 -
+	 *	Linaro GCC 2014.03) ) #838 SMP Tue Feb 9 13:15:09 GMT 2016
+	 */
 	pr_notice("%s", linux_banner);
 	setup_arch(&command_line);
 	mm_init_cpumask(&init_mm);
