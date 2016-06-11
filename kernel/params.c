@@ -93,6 +93,13 @@ static void param_check_unsafe(const struct kernel_param *kp)
 	}
 }
 
+/* IAMROOT-12D (2016-06-11):
+ * --------------------------
+ * 
+ * parse_one("early options", cmdline, NULL, 0, 0, 0, do_early_param);
+ * ret = parse_one(param, val, "early options", command_line, 0, 0, 0,
+ *		do_early_param)
+ */
 static int parse_one(char *param,
 		     char *val,
 		     const char *doing,
@@ -137,6 +144,14 @@ static int parse_one(char *param,
 
 /* You can use " around spaces, but can't escape ". */
 /* Hyphens and underscores equivalent in parameter names. */
+/* IAMROOT-12D (2016-06-11):
+ * --------------------------
+ * args 값이 "foo=bar,bar2 baz=fuz wiz" 라면
+ * 결과는
+ *	args = "baz=fuz wiz"
+ *	*param = "foo"
+ *	*val = "bar,bar2" 가 된다.
+ */
 static char *next_arg(char *args, char **param, char **val)
 {
 	unsigned int i, equals = 0;
@@ -187,6 +202,10 @@ static char *next_arg(char *args, char **param, char **val)
 	return skip_spaces(next);
 }
 
+/* IAMROOT-12D (2016-06-11):
+ * --------------------------
+ * parse_args("early options", cmdline, NULL, 0, 0, 0, do_early_param);
+ */
 /* Args looks like "foo=bar,bar2 baz=fuz wiz". */
 char *parse_args(const char *doing,
 		 char *args,
