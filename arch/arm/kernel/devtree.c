@@ -239,7 +239,7 @@ const struct machine_desc * __init setup_machine_fdt(unsigned int dt_phys)
 	mdesc_best = &__mach_desc_GENERIC_DT;
 #endif
 
-	/* IAMROOT-12D (2016-06-09):
+	/* IAMROOT-12D (2016-06-11):
 	 * --------------------------
 	 * 간단한 fdt헤더 검사와 crc32을 만든다.
 	 */
