@@ -293,6 +293,8 @@ static inline phys_addr_t __virt_to_phys(unsigned long x)
 /* IAMROOT-12D (2016-05-26):
  * --------------------------
  * reutrn x - 0x0 + 0x80000000
+ * ex) x = 0x100
+ *	0x100 - 0 + 0x80000000 = 0x80000100
  */
 static inline unsigned long __phys_to_virt(phys_addr_t x)
 {

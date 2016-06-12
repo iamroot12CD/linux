@@ -90,7 +90,7 @@ EXPORT_SYMBOL(__machine_arch_type);
  * cacheid = CACHEID_VIPT_NONALIASING | CACHEID_VIPT_I_ALIASING  = 0x12
  *
  * L1 i-cache의 타입은 CACHEID_VIPT_I_ALIASING
- * L1 cacahe의 타입은 d-cache + i-cache 플래그들의 특성을 담는다.
+ * cacheid에 d-cache + i-cache 플래그들의 특성을 담는다.
  * 	CACHEID_VIPT_NONALIASING(b1) | CACHEID_VIPT_I_ALIASING(b4)
  * 	cacheid = 0x12
  */
@@ -98,6 +98,11 @@ unsigned int cacheid __read_mostly;
 
 EXPORT_SYMBOL(cacheid);
 
+/* IAMROOT-12D (2016-06-11):
+ * --------------------------
+ * __atags_pointer 에는 atags 주소가 들어 가지만 dtb가 있을경우
+ * dtb 주소가 들어간다. 이값은 0x8000????로 시작된다.
+ */
 unsigned int __atags_pointer __initdata;
 
 unsigned int system_rev;
@@ -147,13 +152,18 @@ struct cpu_tlb_fns cpu_tlb __read_mostly;
  * --------------------------
  * clear page, or copy page(??)
  * 	struct cpu_user_fns	*user = v6_user_fns;
+ *
+ * struct cpu_user_fns v6_user_fns __initdata = {
+ * 	.cpu_clear_user_highpage = v6_clear_user_highpage_nonaliasing,
+ * 	.cpu_copy_user_highpage	= v6_copy_user_highpage_nonaliasing,
+};
  */
 struct cpu_user_fns cpu_user __read_mostly;
 #endif
 #ifdef MULTI_CACHE
 /* IAMROOT-12D (2016-05-25):
  * --------------------------
- * arch/arm/mm/cache-v7.s 참고
+ * arch/arm/mm/cache-v7.S 참고
  *   v7_flush_icache_all, v7_flush_kern_cache_all, v7_flush_kern_cache_louis,
  *   v7_flush_user_cache_all, v7_flush_user_cache_range, v7_coherent_kern_range,
  *   v7_coherent_user_range, v7_flush_kern_dcache_area, v7_dma_map_area,

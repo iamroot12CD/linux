@@ -33,6 +33,10 @@ struct machine_desc {
 
 	unsigned int		nr_irqs;	/* number of IRQs */
 
+	/* IAMROOT-12D (2016-06-11):
+	 * --------------------------
+	 * 라즈베리파이2 에는 CONFIG_ZONE_DMA 가 없음.
+	 */
 #ifdef CONFIG_ZONE_DMA
 	phys_addr_t		dma_zone_size;	/* size of DMA-able area */
 #endif
@@ -59,6 +63,10 @@ struct machine_desc {
 	void			(*init_time)(void);
 	void			(*init_machine)(void);
 	void			(*init_late)(void);
+	/* IAMROOT-12D (2016-06-11):
+	 * --------------------------
+	 * 라즈베리파이2 에는 CONFIG_MULTI_IRQ_HANDLER 가 없음.
+	 */
 #ifdef CONFIG_MULTI_IRQ_HANDLER
 	void			(*handle_irq)(struct pt_regs *);
 #endif

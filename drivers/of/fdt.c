@@ -617,6 +617,10 @@ void __init early_init_fdt_scan_reserved_mem(void)
  * used to extract the memory information at boot before we can
  * unflatten the tree
  */
+/* IAMROOT-12D (2016-06-11):
+ * --------------------------
+ * of_scan_flat_dt(early_init_dt_scan_chosen, boot_command_line);
+ */
 int __init of_scan_flat_dt(int (*it)(unsigned long node,
 				     const char *uname, int depth,
 				     void *data),

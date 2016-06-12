@@ -206,6 +206,24 @@ static const void * __init arch_get_next_mach(const char *const **match)
  * If a dtb was passed to the kernel in r2, then use it to choose the
  * correct machine_desc and to setup the system.
  */
+/* IAMROOT-12D (2016-05-26):
+ * --------------------------
+ * static const struct machine_desc __mach_desc_BCM_2709
+ * _used
+ *  __attribute__((__section__(".arch.info.init"))) = {
+ *		.nr     = MACH_TYPE_BCM_2709
+ *		.name   = "BCM_2709",
+ *		.smp		= smp_ops(bcm2709_smp_ops),
+ *		.map_io = bcm2709_map_io,
+ *		.init_irq = bcm2709_init_irq,
+ *		.init_time = bcm2709_timer_init,
+ *		.init_machine = bcm2709_init,
+ *		.init_early = bcm2709_init_early,
+ *		.reserve = board_reserve,
+ *		.restart	= bcm2709_restart,
+ *		.dt_compat = bcm2709_compat,
+ * };
+ */
 const struct machine_desc * __init setup_machine_fdt(unsigned int dt_phys)
 {
 	const struct machine_desc *mdesc, *mdesc_best = NULL;
@@ -255,6 +273,10 @@ const struct machine_desc * __init setup_machine_fdt(unsigned int dt_phys)
 		dump_machine_table(); /* does not return */
 	}
 
+	/* IAMROOT-12D (2016-06-11):
+	 * --------------------------
+	 * 라즈베리파이2는 dt_fixup 함수가 없음.
+	 */
 	/* We really don't want to do this, but sometimes firmware provides buggy data */
 	if (mdesc->dt_fixup)
 		mdesc->dt_fixup();
