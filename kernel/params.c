@@ -205,6 +205,16 @@ static char *next_arg(char *args, char **param, char **val)
 /* IAMROOT-12D (2016-06-11):
  * --------------------------
  * parse_args("early options", cmdline, NULL, 0, 0, 0, do_early_param);
+ *  cmdline = boot_command_line
+ *
+ * boot_command_line =
+ *  dma.dmachans=0x7f35 bcm2708_fb.fbwidth=656 bcm2708_fb.fbheight=416 bcm2709.
+ *  boardrev=0xa01041 bcm2709.serial=0xe467606e smsc95xx.macaddr=B8:27:EB:67:60:6E
+ *  bcm2708_fb.fbswap=1 bcm2709.uart_clock=3000000 bcm2709.disk_led_gpio=47
+ *  bcm2709.disk_led_active_low=0 sdhci-bcm2708.emmc_clock_freq=250000000
+ *  vc_mem.mem_base=0x3dc00000 vc_mem.mem_size=0x3f000000 dwc_otg.pm_enable=0
+ *  console=ttyAMA0,115200 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4
+ *  elevator=deadline fsck.repair=yes rootwait
  */
 /* Args looks like "foo=bar,bar2 baz=fuz wiz". */
 char *parse_args(const char *doing,

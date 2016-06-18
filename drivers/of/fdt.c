@@ -449,6 +449,18 @@ void of_fdt_unflatten_tree(unsigned long *blob,
 EXPORT_SYMBOL_GPL(of_fdt_unflatten_tree);
 
 /* Everything below here references initial_boot_params directly. */
+/* IAMROOT-12CD (2016-06-17):
+ * --------------------------
+ * dt_root_size_cells = \ { #address-cells }	= 1
+ * dt_root_addr_cells = \ { #size-cells }	= 1
+ *
+ * arch/arm/boot/dts/skeleton.dtsi
+ * / {
+ * 	#address-cells = <1>;
+ * 	#size-cells = <1>;
+ *	...
+ * };
+ */
 int __initdata dt_root_addr_cells;
 int __initdata dt_root_size_cells;
 
@@ -908,6 +920,17 @@ u64 __init dt_mem_next_cell(int s, const __be32 **cellp)
 /**
  * early_init_dt_scan_memory - Look for an parse memory nodes
  */
+/* IAMROOT-12CD (2016-06-17):
+ * --------------------------
+ * arch/arm/boot/dts/skeleton.dtsi
+ * / {
+ * 	#address-cells = <1>;
+ * 	#size-cells = <1>;
+ * 	chosen { };
+ * 	aliases { };
+ * 	memory { device_type = "memory"; reg = <0 0>; };
+ * };
+ */
 int __init early_init_dt_scan_memory(unsigned long node, const char *uname,
 				     int depth, void *data)
 {
@@ -980,6 +1003,11 @@ int __init early_init_dt_scan_chosen(unsigned long node, const char *uname,
 	 */
 	((char *)data)[0] = '\0';
 
+/* IAMROOT-12CD (2016-06-17):
+ * --------------------------
+ * 라즈베리파이2
+ *  CONFIG_CMDLINE="console=ttyAMA0,115200 kgdboc=ttyAMA0,115200 root=/dev/mmcblk0p2 rootfstype=ext4 rootwait"
+ */
 #ifdef CONFIG_CMDLINE
 	strlcpy(data, CONFIG_CMDLINE, COMMAND_LINE_SIZE);
 
