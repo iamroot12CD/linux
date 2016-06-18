@@ -202,6 +202,10 @@ static struct stack stacks[NR_CPUS];
 char elf_platform[ELF_PLATFORM_SIZE];	/* IAMROOT-12D : "v7l" */
 EXPORT_SYMBOL(elf_platform);
 
+/* IAMROOT-12CD (2016-06-18):
+ * --------------------------
+ * cpu_name = "ARMv7 Processor";
+ */
 static const char *cpu_name;
 /* IAMROOT-12D (2016-06-09):
  * --------------------------
