@@ -790,6 +790,15 @@ const void * __init of_flat_dt_match_machine(const void *default_match,
 	return best_data;
 }
 
+/* IAMROOT-12CD (2016-06-25):
+ * --------------------------
+ * 라즈베리파이는 CONFIG_BLK_DEV_INITRD 를 지원하며
+ * CONFIG_BLK_DEV_INITRD
+ *	Initial RAM filesystem and RAM disk (initramfs/initrd) support
+ *	initramfs, initrd(Initial RAM disk)를 지원
+ * initrd : 부팅하는 동안 임시적으로 루트 파일시스템으로 쓰이는 RAM disk.
+ * initramfs : initrd의 계승자(successor).
+ */
 #ifdef CONFIG_BLK_DEV_INITRD
 /**
  * early_init_dt_check_for_initrd - Decode initrd location from flat tree
@@ -803,6 +812,19 @@ static void __init early_init_dt_check_for_initrd(unsigned long node)
 
 	pr_debug("Looking for initrd properties... ");
 
+	/* IAMROOT-12CD (2016-06-25):
+	 * --------------------------
+	 * 라즈베리파이2는 해당사항 없음.
+	 * 
+	 * tegra114 soc의 경우..
+	 * chosen {
+	 *   / * SHIELD's bootloader's arguments need to be overridden * /
+	 *   bootargs = "console=ttyS0,115200n8 console=tty1 gpt fbcon=rotate:1";
+	 *   / * SHIELD's bootloader will place initrd at this address * /
+	 *   linux,initrd-start = <0x82000000>;
+	 *   linux,initrd-end = <0x82800000>;
+	 * };
+	 */
 	prop = of_get_flat_dt_prop(node, "linux,initrd-start", &len);
 	if (!prop)
 		return;
@@ -949,6 +971,17 @@ int __init early_init_dt_scan_memory(unsigned long node, const char *uname,
 	} else if (strcmp(type, "memory") != 0)
 		return 0;
 
+	/* IAMROOT-12CD (2016-06-25):
+	 * --------------------------
+	 * reg 는 아래의 "reg = <0 0>" 값으로 설정 된다.
+	 * / {
+	 * 	#address-cells = <1>;
+	 * 	#size-cells = <1>;
+	 * 	chosen { };
+	 * 	aliases { };
+	 * 	memory { device_type = "memory"; reg = <0 0>; };
+	 * };
+	 */
 	reg = of_get_flat_dt_prop(node, "linux,usable-memory", &l);
 	if (reg == NULL)
 		reg = of_get_flat_dt_prop(node, "reg", &l);
@@ -990,6 +1023,12 @@ int __init early_init_dt_scan_chosen(unsigned long node, const char *uname,
 
 	early_init_dt_check_for_initrd(node);
 
+	/* IAMROOT-12CD (2016-06-25):
+	 * --------------------------
+	 * bootargs 는 atags 에 있는 cmdline 값이다.
+	 * arch/arm/boot/compressed/atags_to_fdt.c 에서 atags에 있는 값을 fdt에
+	 * 복사 했다.
+	 */
 	/* Retrieve command line */
 	p = of_get_flat_dt_prop(node, "bootargs", &l);
 
@@ -1007,6 +1046,8 @@ int __init early_init_dt_scan_chosen(unsigned long node, const char *uname,
  * --------------------------
  * 라즈베리파이2
  *  CONFIG_CMDLINE="console=ttyAMA0,115200 kgdboc=ttyAMA0,115200 root=/dev/mmcblk0p2 rootfstype=ext4 rootwait"
+ *  CONFIG_CMDLINE_EXTEND is not set
+ *  CONFIG_CMDLINE_FORCE is not set
  */
 #ifdef CONFIG_CMDLINE
 	strlcpy(data, CONFIG_CMDLINE, COMMAND_LINE_SIZE);
@@ -1022,6 +1063,10 @@ int __init early_init_dt_scan_chosen(unsigned long node, const char *uname,
 #elif defined(CONFIG_CMDLINE_FORCE)
 		pr_warning("Ignoring bootargs property (using the default kernel command line)\n");
 #else
+		/* IAMROOT-12CD (2016-06-25):
+		 * --------------------------
+		 * 위의 CONFIG_CMDLINE 값을 무시하고 atags에 있는 정보가 복사됨
+		 */
 		/* Neither extend nor force - just override */
 		strlcpy(data, p, min((int)l, COMMAND_LINE_SIZE));
 #endif
@@ -1130,6 +1175,10 @@ bool __init early_init_dt_verify(void *params)
 
 void __init early_init_dt_scan_nodes(void)
 {
+	/* IAMROOT-12CD (2016-06-25):
+	 * --------------------------
+	 * atags에 있던 cmdline를 boot_command_line에 복사.
+	 */
 	/* Retrieve various information from the /chosen node */
 	of_scan_flat_dt(early_init_dt_scan_chosen, boot_command_line);
 

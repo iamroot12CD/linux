@@ -211,6 +211,13 @@ extern const void *__pv_table_begin, *__pv_table_end;
 	((((unsigned long)(kaddr) - PAGE_OFFSET) >> PAGE_SHIFT) + \
 	 PHYS_PFN_OFFSET)
 
+/* IAMROOT-12CD (2016-06-25):
+ * --------------------------
+ * __pv_stub((unsigned long) x, t, "sub", __PV_BITS_31_24);
+ * 1: sub	t, from, __PV_BITS_31_24
+ *  t = from - __PV_BITS_31_24
+ *  t = from - 0x81000000
+ */
 #define __pv_stub(from,to,instr,type)			\
 	__asm__("@ __pv_stub\n"				\
 	"1:	" instr "	%0, %1, %2\n"		\
@@ -263,6 +270,10 @@ static inline unsigned long __phys_to_virt(phys_addr_t x)
 	 * assembler expression receives 32 bit argument
 	 * in place where 'r' 32 bit operand is expected.
 	 */
+	/* IAMROOT-12CD (2016-06-25):
+	 * --------------------------
+	 *  t = from - __PV_BITS_31_24
+	 */
 	__pv_stub((unsigned long) x, t, "sub", __PV_BITS_31_24);
 	return t;
 }
@@ -292,7 +303,7 @@ static inline phys_addr_t __virt_to_phys(unsigned long x)
 
 /* IAMROOT-12D (2016-05-26):
  * --------------------------
- * reutrn x - 0x0 + 0x80000000
+ * return x - 0x0 + 0x80000000
  * ex) x = 0x100
  *	0x100 - 0 + 0x80000000 = 0x80000100
  */
