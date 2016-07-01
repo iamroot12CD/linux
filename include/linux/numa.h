@@ -5,7 +5,7 @@
 #ifdef CONFIG_NODES_SHIFT
 #define NODES_SHIFT     CONFIG_NODES_SHIFT
 #else
-#define NODES_SHIFT     0
+#define NODES_SHIFT     0	/* IAMROOT-12CD: 라즈베리파이2 */
 #endif
 
 #define MAX_NUMNODES    (1 << NODES_SHIFT)

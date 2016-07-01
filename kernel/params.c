@@ -95,10 +95,7 @@ static void param_check_unsafe(const struct kernel_param *kp)
 
 /* IAMROOT-12D (2016-06-11):
  * --------------------------
- * 
- * parse_one("early options", cmdline, NULL, 0, 0, 0, do_early_param);
- * ret = parse_one(param, val, "early options", command_line, 0, 0, 0,
- *		do_early_param)
+ * ret = parse_one(param, val, "early options", NULL, 0, 0, 0, do_early_param)
  */
 static int parse_one(char *param,
 		     char *val,
