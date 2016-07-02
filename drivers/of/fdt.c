@@ -676,6 +676,11 @@ int __init of_get_flat_dt_size(void)
  * This function can be used within scan_flattened_dt callback to get
  * access to properties
  */
+/* IAMROOT-12CD (2016-07-02):
+ * --------------------------
+ * const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+ *	node = root node 어디쯤 offset..
+ */
 const void *__init of_get_flat_dt_prop(unsigned long node, const char *name,
 				       int *size)
 {
@@ -931,10 +936,18 @@ int __init early_init_dt_scan_root(unsigned long node, const char *uname,
 	return 1;
 }
 
+/* IAMROOT-12CD (2016-07-02):
+ * --------------------------
+ * s = 1, cellp = "reg : <0 0>;" 시작지점"
+ */
 u64 __init dt_mem_next_cell(int s, const __be32 **cellp)
 {
 	const __be32 *p = *cellp;
 
+	/* IAMROOT-12CD (2016-07-02):
+	 * --------------------------
+	 * *cellp 는 "reg : <0 0>;" 값중 두번째 0을 가르키게 한다.
+	 */
 	*cellp = p + s;
 	return of_read_number(p, s);
 }
@@ -952,6 +965,8 @@ u64 __init dt_mem_next_cell(int s, const __be32 **cellp)
  * 	aliases { };
  * 	memory { device_type = "memory"; reg = <0 0>; };
  * };
+ *
+ * 결론 : 라즈베리파이2에서는 reg = <0 0> 이므로 아무것도 하지 않고 끝낸다.
  */
 int __init early_init_dt_scan_memory(unsigned long node, const char *uname,
 				     int depth, void *data)
@@ -988,6 +1003,11 @@ int __init early_init_dt_scan_memory(unsigned long node, const char *uname,
 	if (reg == NULL)
 		return 0;
 
+	/* IAMROOT-12CD (2016-07-02):
+	 * --------------------------
+	 * 라즈베리파이 2의 경우 reg = <0 0> 이기 때문에 (l / sizeof(__be32)) 값
+	 * 은 2이기 때문에 l = 8
+	 */
 	endp = reg + (l / sizeof(__be32));
 
 	pr_debug("memory scan node %s, reg size %d,\n", uname, l);
@@ -1089,6 +1109,10 @@ void __init __weak early_init_dt_add_memory_arch(u64 base, u64 size)
 {
 	const u64 phys_offset = __pa(PAGE_OFFSET);
 
+	/* IAMROOT-12CD (2016-07-02):
+	 * --------------------------
+	 * PAGE_SIZE 단위로 align을 맞쳐준다.
+	 */
 	if (!PAGE_ALIGNED(base)) {
 		if (size < PAGE_SIZE - (base & ~PAGE_MASK)) {
 			pr_warn("Ignoring memory block 0x%llx - 0x%llx\n",

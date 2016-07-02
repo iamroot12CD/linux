@@ -1284,6 +1284,8 @@ void __init setup_arch(char **cmdline_p)
 	/* IAMROOT-12D (2016-06-09):
 	 * --------------------------
 	 * default : REBOOT_COLD = 0,
+	 * reboot_mode 초기값은 REBOOT_HARD reboot.c 참고
+	 * reboot_mode = REBOOT_COLD;
 	 */
 	if (mdesc->reboot_mode != REBOOT_HARD)
 		reboot_mode = mdesc->reboot_mode;
