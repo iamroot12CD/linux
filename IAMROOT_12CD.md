@@ -1,5 +1,16 @@
 # Iamroot ARM Kernel 분석 12차 CD조 (http://www.iamroot.org)
 
+## 제 64주차 스터디
+
+#### 날짜: 2016-07-09
+#### 장소: 강남 토즈타워
+
+#### 참석자
+ - **임채훈 (im.fehead@gmail.com)**
+ - *김영준 (iam.yeongjunkim@gmail.com)*
+ - 김미르 (skykmr8405@naver.com)
+
+
 ## 제 63주차 스터디
 
 #### 날짜: 2016-07-02
@@ -7,10 +18,10 @@
 
 #### 참석자
  - **임채훈 (im.fehead@gmail.com)**
+ - *김미르 (skykmr8405@naver.com)*
  - 김영준 (iam.yeongjunkim@gmail.com)
  - 김민호 (8891m@naver.com)
  - 김동호 (dong3097@naver.com)
- - 김미르 (skykmr8405@naver.com)
  - 신은환 (comsky@msn.com)
 
 

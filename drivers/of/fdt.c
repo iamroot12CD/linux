@@ -856,6 +856,11 @@ static inline void early_init_dt_check_for_initrd(unsigned long node)
 #ifdef CONFIG_SERIAL_EARLYCON
 extern struct of_device_id __earlycon_of_table[];
 
+/* IAMROOT-12CD (2016-07-09):
+ * --------------------------
+ * 라즈베리 파이2에서는 /chosen/stdout-path, /chosen/linux,stdout-path 값이 없으
+ * 므로 아무것도 하지 않고 리턴(-ENOENT)한다.
+ */
 static int __init early_init_dt_scan_chosen_serial(void)
 {
 	int offset;
