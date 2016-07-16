@@ -16,6 +16,10 @@
  *  This allows for a much quicker boot time.
  */
 
+/* IAMROOT-12CD (2016-07-02):
+ * --------------------------
+ * __machine_arch_type = MACH_TYPE_BCM_2709
+ */
 unsigned int __machine_arch_type;
 
 #include <linux/compiler.h>	/* for inline */

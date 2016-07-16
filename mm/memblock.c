@@ -592,6 +592,10 @@ static int __init_memblock memblock_add_region(phys_addr_t base,
 		     (unsigned long long)base + size - 1,
 		     flags, (void *)_RET_IP_);
 
+	/* IAMROOT-12CD (2016-07-02):
+	 * --------------------------
+	 * memblock_add_range(_rgn, base, size, 1, 0);
+	 */
 	return memblock_add_range(_rgn, base, size, nid, flags);
 }
 

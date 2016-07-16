@@ -95,20 +95,19 @@ static void param_check_unsafe(const struct kernel_param *kp)
 
 /* IAMROOT-12D (2016-06-11):
  * --------------------------
- * 
- * parse_one("early options", cmdline, NULL, 0, 0, 0, do_early_param);
- * ret = parse_one(param, val, "early options", command_line, 0, 0, 0,
+ * ret = parse_one(param, val, "early options", NULL, 0, 0, 0,
  *		do_early_param)
  */
 static int parse_one(char *param,
 		     char *val,
-		     const char *doing,
-		     const struct kernel_param *params,
-		     unsigned num_params,
-		     s16 min_level,
-		     s16 max_level,
+		     const char *doing,	/* IAMROOT-12CD: "early options" */
+		     const struct kernel_param *params,	/* IAMROOT-12CD: NULL */
+		     unsigned num_params,		/* IAMROOT-12CD: 0 */
+		     s16 min_level,			/* IAMROOT-12CD: 0 */
+		     s16 max_level,			/* IAMROOT-12CD: 0 */
 		     int (*handle_unknown)(char *param, char *val,
 				     const char *doing))
+					/* IAMROOT-12CD: do_early_param */
 {
 	unsigned int i;
 	int err;
@@ -135,6 +134,11 @@ static int parse_one(char *param,
 
 	if (handle_unknown) {
 		pr_debug("doing %s: %s='%s'\n", doing, param, val);
+		/* IAMROOT-12CD (2016-07-09):
+		 * --------------------------
+		 * handle_unknown = do_early_param
+		 * doing = "early options"
+		 */
 		return handle_unknown(param, val, doing);
 	}
 
@@ -164,6 +168,13 @@ static char *next_arg(char *args, char **param, char **val)
 		quoted = 1;
 	}
 
+	/* IAMROOT-12CD (2016-07-09):
+	 * --------------------------
+	 * args = "dma.dmachans=0x7f35 bcm2708_fb.fbwidth=656"
+	 *         ^ <-- args
+	 *	    ^          ^ <-- equals
+	 *			      ^	<-- i
+	 */
 	for (i = 0; args[i]; i++) {
 		if (isspace(args[i]) && !in_quote)
 			break;
@@ -175,6 +186,22 @@ static char *next_arg(char *args, char **param, char **val)
 			in_quote = !in_quote;
 	}
 
+	/* IAMROOT-12CD (2016-07-09):
+	 * --------------------------
+	 * 아래 args에서 '_' 가 null이다고 가정
+	 * args = "dma.dmachans_0x7f35_bcm2708_fb.fbwidth=656"
+	 *         ^			<-- args = param
+	 *	    ^          ^		<-- equals
+	 *			      ^		<-- i
+	 *			^		<-- val
+	 *			      ^		<-- NULL
+	 *				^	<-- next
+	 *
+	 * args = "dma.dmachans_0x7f35_bcm2708_fb.fbwidth=656"
+	 * param= "dma.dmachans"
+	 * val	= "0x7f35"
+	 * next	= "bcm2708_fb.fbwidth=656"
+	 */
 	*param = args;
 	if (!equals)
 		*val = NULL;
@@ -205,15 +232,26 @@ static char *next_arg(char *args, char **param, char **val)
 /* IAMROOT-12D (2016-06-11):
  * --------------------------
  * parse_args("early options", cmdline, NULL, 0, 0, 0, do_early_param);
+ *  cmdline = boot_command_line
+ *
+ * boot_command_line =
+ *  dma.dmachans=0x7f35 bcm2708_fb.fbwidth=656 bcm2708_fb.fbheight=416 bcm2709.
+ *  boardrev=0xa01041 bcm2709.serial=0xe467606e smsc95xx.macaddr=B8:27:EB:67:60:6E
+ *  bcm2708_fb.fbswap=1 bcm2709.uart_clock=3000000 bcm2709.disk_led_gpio=47
+ *  bcm2709.disk_led_active_low=0 sdhci-bcm2708.emmc_clock_freq=250000000
+ *  vc_mem.mem_base=0x3dc00000 vc_mem.mem_size=0x3f000000 dwc_otg.pm_enable=0
+ *  console=ttyAMA0,115200 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4
+ *  elevator=deadline fsck.repair=yes rootwait
  */
 /* Args looks like "foo=bar,bar2 baz=fuz wiz". */
 char *parse_args(const char *doing,
-		 char *args,
-		 const struct kernel_param *params,
-		 unsigned num,
-		 s16 min_level,
-		 s16 max_level,
+		 char *args,			/* IAMROOT-12CD: cmdline */
+		 const struct kernel_param *params,	/* IAMROOT-12CD: NULL */
+		 unsigned num,				/* IAMROOT-12CD: 0 */
+		 s16 min_level,				/* IAMROOT-12CD: 0 */
+		 s16 max_level,				/* IAMROOT-12CD: 0 */
 		 int (*unknown)(char *param, char *val, const char *doing))
+					/* IAMROOT-12CD: do_early_param */
 {
 	char *param, *val;
 
@@ -227,6 +265,13 @@ char *parse_args(const char *doing,
 		int ret;
 		int irq_was_disabled;
 
+		/* IAMROOT-12CD (2016-07-09):
+		 * --------------------------
+		 * dma.dmachans=0x7f35 bcm2708_fb.fbwidth=656
+		 *  param = dma.dmachans
+		 *  val = 0x7f35
+		 *  return = "bcm2708_fb.fbwidth=656"
+		 */
 		args = next_arg(args, &param, &val);
 		/* Stop at -- */
 		if (!val && strcmp(param, "--") == 0)

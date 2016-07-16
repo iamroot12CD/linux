@@ -923,7 +923,7 @@ static inline int of_get_available_child_count(const struct device_node *np)
 	return num;
 }
 
-#ifdef CONFIG_OF
+#ifdef CONFIG_OF	/* IAMROOT-12CD: 라즈베리파이2 */
 #define _OF_DECLARE(table, name, compat, fn, fn_type)			\
 	static const struct of_device_id __of_table_##name		\
 		__used __section(__##table##_of_table)			\
