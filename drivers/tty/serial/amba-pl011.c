@@ -2171,6 +2171,10 @@ static int __init pl011_early_console_setup(struct earlycon_device *device,
  * 	     .setup = pl011_early_console_setup  }
  *
  */
+/* IAMROOT-12D (2016-07-16):
+ * --------------------------
+ * 어찌하면 console의 val값인 "ttyAMA"가 들어올수 있을까?
+ */
 EARLYCON_DECLARE(pl011, pl011_early_console_setup);
 /* IAMROOT-12CD (2016-07-09):
  * --------------------------

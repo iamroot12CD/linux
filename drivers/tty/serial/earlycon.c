@@ -145,6 +145,12 @@ static int __init register_earlycon(char *buf, const struct earlycon_id *match)
  *	Returns 0 if an attempt to register the earlycon was made,
  *	otherwise negative error code
  */
+/* IAMROOT-12D (2016-07-16):
+ * --------------------------
+ * buf = "ttyAMA0,115200"
+ * buf = "tty1"
+ * 설명 : 총 처리할 파라미터는 두개
+ */
 int __init setup_earlycon(char *buf)
 {
 	const struct earlycon_id *match;
@@ -175,6 +181,13 @@ int __init setup_earlycon(char *buf)
 }
 
 /* early_param wrapper for setup_earlycon() */
+/* IAMROOT-12D (2016-07-16):
+ * --------------------------
+ * console=ttyAMA0,115200 console=tty1
+ * <param>= <buf>	  <param>=<buf>
+ * buf = "ttyAMA0,115200"
+ * buf = "tty1"
+ */
 static int __init param_setup_earlycon(char *buf)
 {
 	int err;
