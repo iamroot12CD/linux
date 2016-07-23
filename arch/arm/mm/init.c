@@ -121,6 +121,10 @@ static void __init arm_adjust_dma_zone(unsigned long *size, unsigned long *hole,
 }
 #endif
 
+/* IAMROOT-12CD (2016-07-23):
+ * --------------------------
+ * pi2에서는 CONFIG_ZONE_DMA 가 없으므로 넘어감.
+ */
 void __init setup_dma_zone(const struct machine_desc *mdesc)
 {
 #ifdef CONFIG_ZONE_DMA

@@ -1049,6 +1049,12 @@ void __init debug_ll_io_init(void)
 }
 #endif
 
+/* IAMROOT-12CD (2016-07-23):
+ * --------------------------
+ * vmalloc_min = 0xEF800000
+ *  3.83G 정도 되고 이 영역은 커널 하이메모리 시작 주소 바로 아래 부분이다.
+ *	하이메모리 영역은 3.893G~4G영역이다. 그래서 하이메모리 바로 아래에 위치한다.
+ */
 static void * __initdata vmalloc_min =
 	(void *)(VMALLOC_END - (240 << 20) - VMALLOC_OFFSET);
 
@@ -1080,13 +1086,28 @@ early_param("vmalloc", early_vmalloc);
 
 phys_addr_t arm_lowmem_limit __initdata = 0;
 
+/* IAMROOT-12CD (2016-07-23):
+ * --------------------------
+ * meminfo 에 근본적인 문제가 있는지 체크.
+ */
 void __init sanity_check_meminfo(void)
 {
 	phys_addr_t memblock_limit = 0;
 	int highmem = 0;
+
+	/* IAMROOT-12CD (2016-07-23):
+	 * --------------------------
+	 * vmalloc_limit = 0x6F800000	3.835G
+	 */
 	phys_addr_t vmalloc_limit = __pa(vmalloc_min - 1) + 1;
 	struct memblock_region *reg;
 
+	/* IAMROOT-12CD (2016-07-23):
+	 * --------------------------
+	 * for (reg = memblock.memory.regions;
+	 *      reg < (memblock.memory.regions + memblock.memory.cnt);
+	 *      reg++)
+	 */
 	for_each_memblock(memory, reg) {
 		phys_addr_t block_start = reg->base;
 		phys_addr_t block_end = reg->base + reg->size;
@@ -1513,6 +1534,10 @@ void __init early_paging_init(const struct machine_desc *mdesc,
 
 #else
 
+/* IAMROOT-12CD (2016-07-23):
+ * --------------------------
+ * pi2에서는 mdesc->init_meminfo 값이 NULL 이다.
+ */
 void __init early_paging_init(const struct machine_desc *mdesc,
 			      struct proc_info_list *procinfo)
 {

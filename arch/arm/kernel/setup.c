@@ -1303,14 +1303,14 @@ void __init setup_arch(char **cmdline_p)
 	 * -------------
 	 * cmdline에서 입력된 모든 파라메터에 대응하는 early 함수를 찾아 호출한다.
 	 * 일반 파라메터 함수 등록 매크로: __setup()        -> __setup_param(,,0)
-	 * early 파라메터 함수 등록 매크로: __early_param() -> __setup_param(,,1)
+	 * early 파라메터 함수 등록 매크로: early_param() -> __setup_param(,,1)
 	 * earlycon 파라메터 함수 등록 매크로: EARLYCON_DECLARE() -> __early_param() -> ..
-	 *
+	 */
+	/* IAMROOT-12CD (2016-07-23):
+	 * --------------------------
 	 * rpi2:
-	 *	- setup_of_earlycon()
-	 *	- pl011_early_console_setup()
-	 *	- uart_setup_earlycon()
-	 *	- uart8250_setup_earlycon()
+	 *  - setup_of_earlycon() : 여기까지 호출되나 결국 아무것도 하지 않고
+	 *	넘어간다.
 	 */
 	parse_early_param();
 
