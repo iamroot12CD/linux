@@ -1,5 +1,14 @@
 # Iamroot ARM Kernel 분석 12차 CD조 (http://www.iamroot.org)
 
+## 제 67주차 스터디
+#### 날짜: 2016-07-30
+#### 장소: 강남 토즈타워
+#### 참석자
+ - **임채훈 (im.fehead@gmail.com)**
+ - *김민호 (8891m@naver.com)*
+ - 조훈근 (hoonycho12@gmail.com)
+
+
 ## 제 66주차 스터디
 
 #### 날짜: 2016-07-23
