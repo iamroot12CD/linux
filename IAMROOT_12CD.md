@@ -1,5 +1,15 @@
 # Iamroot ARM Kernel 분석 12차 CD조 (http://www.iamroot.org)
 
+## 제 68주차 스터디
+#### 날짜: 2016-08-06
+#### 장소: 강남 토즈타워
+#### 내용: setup_arch -> sanity_check_meminfo() 분석
+#### 참석자
+ - **조훈근 (hoonycho12@gmail.com)**
+ - *김영준 (iam.yeongjunkim@gmail.com)*
+ - 임채훈 (im.fehead@gmail.com)
+ - 김민호 (8891m@naver.com)
+
 ## 제 67주차 스터디
 #### 날짜: 2016-07-30
 #### 장소: 강남 토즈타워
