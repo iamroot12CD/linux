@@ -31,6 +31,10 @@ static struct memblock_region memblock_reserved_init_regions[INIT_MEMBLOCK_REGIO
 static struct memblock_region memblock_physmem_init_regions[INIT_PHYSMEM_REGIONS] __initdata_memblock;
 #endif
 
+/* IAMROOT-12CD (2016-07-23):
+ * --------------------------
+ * .momory.total_size = 0x3c00 0000 초기값. 약 960M
+ */
 struct memblock memblock __initdata_memblock = {
 	.memory.regions		= memblock_memory_init_regions,
 	.memory.cnt		= 1,	/* empty dummy entry */
