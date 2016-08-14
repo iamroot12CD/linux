@@ -1084,8 +1084,8 @@ static int __init early_vmalloc(char *arg)
 }
 early_param("vmalloc", early_vmalloc);
 
-/*
- * arm_lowmem_limit: 3c000000(960mb)
+/* IAMROOT-12CD (2016-08-06):
+ * arm_lowmem_limit: 0x3c000000(960mb)
  */
 phys_addr_t arm_lowmem_limit __initdata = 0;
 
@@ -1110,9 +1110,9 @@ void __init sanity_check_meminfo(void)
 	 * for (reg = memblock.memory.regions;
 	 *      reg < (memblock.memory.regions + memblock.memory.cnt);
 	 *      reg++)
-   * reg.base: 0x0
-   * reg.size: 0x3c000000 (960mb)
-   * reg.flags: 0
+	 * reg.base: 0x0
+	 * reg.size: 0x3c000000 (960mb)
+	 * reg.flags: 0
 	 */
 	for_each_memblock(memory, reg) {
 		phys_addr_t block_start = reg->base;
@@ -1122,14 +1122,11 @@ void __init sanity_check_meminfo(void)
 		if (reg->base >= vmalloc_limit)
 			highmem = 1;
 		else
+			/* IAMROOT-12CD (2016-08-06):
+			 * size_limit = 0x6F800000(3.835G) - 0;
+			 */
 			size_limit = vmalloc_limit - reg->base;
 
-/* ==========================================================================
- * 팀:             Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
- * 날짜:           06.08.2016
- *
- * size_limit = 0x6F800000(3.835G) - 0;
- * ==========================================================================*/
 
 		if (!IS_ENABLED(CONFIG_HIGHMEM) || cache_is_vipt_aliasing()) {
 
@@ -1140,9 +1137,9 @@ void __init sanity_check_meminfo(void)
 				continue;
 			}
 
-      /*
-       *reg->size: 960mb, size_limit: 3.835G
-       */
+			/* IAMROOT-12CD (2016-08-06):
+			 * reg->size: 960mb, size_limit: 3.835G
+			 */
 			if (reg->size > size_limit) {
 				phys_addr_t overlap_size = reg->size - size_limit;
 
@@ -1152,15 +1149,19 @@ void __init sanity_check_meminfo(void)
 				block_end = vmalloc_limit;
 			}
 		}
-    /*
-     * block_end: 960mb, arm_lowmem_limit: 0
-     */
+		/* IAMROOT-12CD (2016-08-06):
+		 * block_end: 960mb, arm_lowmem_limit: 0
+		 */
 
 		if (!highmem) {
 			if (block_end > arm_lowmem_limit) {
 				if (reg->size > size_limit)
 					arm_lowmem_limit = vmalloc_limit;
 				else
+					/* IAMROOT-12CD (2016-08-14):
+					 * --------------------------
+					 * arm_lowmem_limit: 0x3c000000(960mb)
+					 */
 					arm_lowmem_limit = block_end;
 			}
 
@@ -1187,10 +1188,10 @@ void __init sanity_check_meminfo(void)
 		}
 	}
 
-  /*
-   * high_memory = (0x3c000000 - 1) + 0x80000000 + 1
-   *             = 0xBC000000
-   */
+	/* IAMROOT-12CD (2016-08-06):
+	 * high_memory = (0x3c000000 - 1) + 0x80000000 + 1
+	 *             = 0xBC000000
+	 */
 	high_memory = __va(arm_lowmem_limit - 1) + 1;
 
 	/*
@@ -1198,9 +1199,9 @@ void __init sanity_check_meminfo(void)
 	 * helps to ensure that we will allocate memory from the
 	 * last full pmd, which should be mapped.
 	 */
-  /*
-   * memblock_limit = 960mb
-   */
+	/* IAMROOT-12CD (2016-08-06):
+	 * memblock_limit = 960mb
+	 */
 	if (memblock_limit)
 		memblock_limit = round_down(memblock_limit, PMD_SIZE);
 	if (!memblock_limit)

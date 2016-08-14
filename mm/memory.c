@@ -91,6 +91,10 @@ EXPORT_SYMBOL(mem_map);
  * highstart_pfn must be the same; there must be no gap between ZONE_NORMAL
  * and ZONE_HIGHMEM.
  */
+/* IAMROOT-12CD (2016-08-06):
+ * --------------------------
+ * high_memory = 0xBC000000 (0x3c000000 960mb의 virtual address)
+ */
 void * high_memory;
 
 EXPORT_SYMBOL(high_memory);

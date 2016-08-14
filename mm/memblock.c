@@ -51,9 +51,9 @@ struct memblock memblock __initdata_memblock = {
 #endif
 
 	.bottom_up		= false,
-  /*
-   * current_limit = 0x3c000000(960mb)
-   */
+	/* IAMROOT-12CD (2016-08-06):
+	 * current_limit = 0x3c000000(960mb)
+	 */
 	.current_limit		= MEMBLOCK_ALLOC_ANYWHERE,
 };
 
