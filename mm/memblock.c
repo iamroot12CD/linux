@@ -35,6 +35,14 @@ static struct memblock_region memblock_physmem_init_regions[INIT_PHYSMEM_REGIONS
  * --------------------------
  * .momory.total_size = 0x3c00 0000 초기값. 약 960M
  */
+/* IAMROOT-12CD (2016-08-16):
+ * --------------------------
+ * memblock.reserved {
+ *	cnt = 1, max = 128, total_size = 9737564,
+ *	regions[0] = {base = 0x8240(_stext), size = 9737564, flags = 0},
+ *	regions[1] = {base = 0, size = 0, flags = 0},
+ *	...
+ */
 struct memblock memblock __initdata_memblock = {
 	.memory.regions		= memblock_memory_init_regions,
 	.memory.cnt		= 1,	/* empty dummy entry */
@@ -719,6 +727,25 @@ int __init_memblock memblock_free(phys_addr_t base, phys_addr_t size)
 	return memblock_remove_range(&memblock.reserved, base, size);
 }
 
+/* IAMROOT-12CD (2016-08-16):
+ * --------------------------
+ * IN : base=0x8240(_stext), size=9737564(size), nid=1, flags=0
+ * OUT: memblock.reserved {
+ *	cnt = 1, max = 128, total_size = 9737564,
+ *	regions[0] = {base = 0x8240(_stext), size = 9737564, flags = 0},
+ *	regions[1] = {base = 0, size = 0, flags = 0},
+ *	...
+ * }
+ *
+ * IN : base=0x4000(page table), size=0x4000, nid=1, flags=0
+ * OUT: memblock.reserved {
+ *	cnt = 2, max = 128, total_size = 9753948,
+ *	regions[0] = {base = 0x4000(page table), size = 0x4000, flags = 0x0},
+ *	regions[1] = {base = 0x8240(_stext), size = 9737564, flags = 0},
+ *	regions[2] = {base = 0, size = 0, flags = 0},
+ *	...
+ * }
+ */
 static int __init_memblock memblock_reserve_region(phys_addr_t base,
 						   phys_addr_t size,
 						   int nid,

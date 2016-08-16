@@ -1261,6 +1261,10 @@ void __init arm_mm_memblock_reserve(void)
 	 * Reserve the page tables.  These are already in use,
 	 * and can only be in node 0.
 	 */
+	/* IAMROOT-12CD (2016-08-16):
+	 * --------------------------
+	 * swapper_pg_dir = 0x80004000 ,
+	 */
 	memblock_reserve(__pa(swapper_pg_dir), SWAPPER_PG_DIR_SIZE);
 
 #ifdef CONFIG_SA1111
