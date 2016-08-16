@@ -267,6 +267,34 @@ struct obs_kernel_param {
  * NOTE: fn is as per module_param, not __setup!
  * Emits warning if fn returns non-zero.
  */
+/* IAMROOT-12D (2016-07-16):
+ * --------------------------
+ *static int __init param_setup_earlycon(char *buf)
+ *{
+ *	int err;
+ *
+ *	if (!buf || !buf[0])
+ *		return 0;
+ *
+ *	err = setup_earlycon(buf);
+ *	if (err == -ENOENT || err == -EALREADY)
+ *		return 0;
+ *	return err;
+ *}
+ *
+ * 변환 형태 :
+ * early_param("earlycon", param_setup_earlycon);
+ * -> __setup_param(str, fn, fn, 1)
+ * -> __setup_param(str, unique_id, fn, early)
+ *	static const char __setup_str_param_setup_earlycon[] __init const
+ *		__aligned(1) = "earlycon";
+ *	static struct obs_kernel_param __setup_param_setup_earlycon
+ *		__used __section(.init.setup)
+ *		__attribute__((aligned((sizeof(long)))))
+ *		= { __setup_str_param_setup_earlycon, param_setup_earlycon, 1 }
+ *
+ * 설명 : 컴파일 타임에 .init.setup section에 차곡차곡 obs_kernel_param 형태로 쌓는다.
+ */
 #define early_param(str, fn)						\
 	__setup_param(str, fn, fn, 1)
 

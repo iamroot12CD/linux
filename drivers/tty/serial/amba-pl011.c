@@ -2152,7 +2152,38 @@ static int __init pl011_early_console_setup(struct earlycon_device *device,
 	device->con->write = pl011_early_write;
 	return 0;
 }
+/*
+#define EARLYCON_DECLARE(_name, func)					\
+	static const struct earlycon_id __earlycon_##_name		\
+		__used __section(__earlycon_table)			\
+		 = { .name  = __stringify(_name),			\
+		     .setup = func  }
+
+#define OF_EARLYCON_DECLARE(name, compat, fn)				\
+	_OF_DECLARE(earlycon, name, compat, fn, void *)
+*/
+/* IAMROOT-12CD (2016-07-09):
+ * --------------------------
+ * EARLYCON_DECLARE(pl011, pl011_early_console_setup);
+ *  static const struct earlycon_id __earlycon_pl011
+ * 	__used __section(__earlycon_table)
+ * 	 = { .name  = "pl011",
+ * 	     .setup = pl011_early_console_setup  }
+ *
+ */
+/* IAMROOT-12D (2016-07-16):
+ * --------------------------
+ * 어찌하면 console의 val값인 "ttyAMA"가 들어올수 있을까?
+ */
 EARLYCON_DECLARE(pl011, pl011_early_console_setup);
+/* IAMROOT-12CD (2016-07-09):
+ * --------------------------
+ * OF_EARLYCON_DECLARE(pl011, "arm,pl011", pl011_early_console_setup);
+ * 	static const struct of_device_id __of_table_pl011
+ * 		__used __section(__earlycon_of_table)
+ * 		 = { .compatible = "arm,pl011",
+ * 		     .data = pl011_early_console_setup  };
+ */
 OF_EARLYCON_DECLARE(pl011, "arm,pl011", pl011_early_console_setup);
 
 #else

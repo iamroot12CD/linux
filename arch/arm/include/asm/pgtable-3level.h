@@ -47,6 +47,9 @@
  */
 #define PMD_SHIFT		21
 
+/*
+ * PMD_SIZE: 2MB
+ */
 #define PMD_SIZE		(1UL << PMD_SHIFT)
 #define PMD_MASK		(~((1 << PMD_SHIFT) - 1))
 #define PGDIR_SIZE		(1UL << PGDIR_SHIFT)

@@ -370,6 +370,13 @@ int atags_to_fdt(void *atag_list, void *fdt, int total_space)
 	  i.e. reg = <0x0 0x8000000 0x8000000 0x1000000>;
 	*/
 	if (memcount) {
+		/* IAMROOT-12CD (2016-07-23):
+		 * --------------------------
+		 * ATAGS [ATAG_MEM] size: 8000000, start: 0
+		 *  memory {
+		 *    	reg = <0x0 0x80000000>;
+		 *  };
+		 */
 		setprop(fdt, "/memory", "reg", mem_reg_property,
 			4 * memcount * memsize);
 	}

@@ -40,6 +40,14 @@
 #include "mm.h"
 
 
+/* IAMROOT-12CD (2016-07-09):
+ * --------------------------
+ * struct list_head static_vmlist = LIST_HEAD_INIT(static_vmlist);
+ *  struct static_vm {
+ *  	struct vm_struct vm;
+ *  	struct list_head list;
+ *  };
+ */
 LIST_HEAD(static_vmlist);
 
 static struct static_vm *find_static_vm_paddr(phys_addr_t paddr,
@@ -283,6 +291,10 @@ void __iomem * __arm_ioremap_pfn_caller(unsigned long pfn,
 
 	/*
 	 * Try to reuse one of the static mapping whenever possible.
+	 */
+	/* IAMROOT-12CD (2016-07-09):
+	 * --------------------------
+	 * size 는 0이상, 그리고 32bit이면서 32bit이하 주소영역일때
 	 */
 	if (size && !(sizeof(phys_addr_t) == 4 && pfn >= 0x100000)) {
 		struct static_vm *svm;

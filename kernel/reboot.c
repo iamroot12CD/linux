@@ -30,6 +30,10 @@ EXPORT_SYMBOL(cad_pid);
 #else
 #define DEFAULT_REBOOT_MODE
 #endif
+/* IAMROOT-12CD (2016-07-02):
+ * --------------------------
+ * 라즈베리파이2에서는 rebootmode 에 REBOOT_COLD 값이들어간다.
+ */
 enum reboot_mode reboot_mode DEFAULT_REBOOT_MODE;
 
 /*

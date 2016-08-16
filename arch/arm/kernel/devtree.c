@@ -239,17 +239,16 @@ const struct machine_desc * __init setup_machine_fdt(unsigned int dt_phys)
 	mdesc_best = &__mach_desc_GENERIC_DT;
 #endif
 
-	/* IAMROOT-12D (2016-06-09):
+	/* IAMROOT-12D (2016-06-11):
 	 * --------------------------
 	 * 간단한 fdt헤더 검사와 crc32을 만든다.
 	 */
 	if (!dt_phys || !early_init_dt_verify(phys_to_virt(dt_phys)))
 		return NULL;
 
-	/* IAMROOT-12A:
+	/* IAMROOT-12CD:
 	 * ------------
 	 * 현재 시스템에 맞는 머신 디스크립터를 찾아온다.
-	 * (잘 찾아올거라 예상하고 분석하지 않음)
 	 */
 	mdesc = of_flat_dt_match_machine(mdesc_best, arch_get_next_mach);
 

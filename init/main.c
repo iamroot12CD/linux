@@ -435,6 +435,29 @@ static noinline void __init_refok rest_init(void)
 	cpu_startup_entry(CPUHP_ONLINE);
 }
 
+/* IAMROOT-12CD (2016-07-16):
+ * --------------------------
+ * 로그 출력 :
+ *  Kernel command line: dma.dmachans=0x7f35 bcm2708_fb.fbwidth=656
+ *  bcm2708_fb.fbheight=416 bcm2709.boardrev=0xa01041 bcm2709.serial=
+ *  0xe467606e smsc95xx.macaddr=B8:27:EB:67:60:6E bcm2708_fb.fbswap=1
+ *  bcm2709.uart_clock=3000000 bcm2709.disk_led_gpio=47 bcm2709.
+ *  disk_led_active_low=0 sdhci-bcm2708.emmc_clock_freq=250000000
+ *  vc_mem.mem_base=0x3dc00000 vc_mem.mem_size=0x3f000000 dwc_otg.
+ *  pm_enable=0 console=ttyAMA0,115200 console=tty1 root=/dev/mmcblk0p2
+ *  rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait
+ *
+ *  struct obs_kernel_param {
+ * 	const char *str;
+ * 	int (*setup_func)(char *);
+ * 	int early;
+ *  };
+ *
+ * 예제 :
+ *	str = "earlycon"
+ *	setup_func = param_setup_earlycon
+ *	early = 1
+ */
 /* Check for early params. */
 /* IAMROOT-12D (2016-06-11):
  * --------------------------

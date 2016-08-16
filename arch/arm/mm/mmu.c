@@ -1049,6 +1049,12 @@ void __init debug_ll_io_init(void)
 }
 #endif
 
+/* IAMROOT-12CD (2016-07-23):
+ * --------------------------
+ * vmalloc_min = 0xEF800000
+ *  3.83G 정도 되고 이 영역은 커널 하이메모리 시작 주소 바로 아래 부분이다.
+ *	하이메모리 영역은 3.893G~4G영역이다. 그래서 하이메모리 바로 아래에 위치한다.
+ */
 static void * __initdata vmalloc_min =
 	(void *)(VMALLOC_END - (240 << 20) - VMALLOC_OFFSET);
 
@@ -1078,15 +1084,36 @@ static int __init early_vmalloc(char *arg)
 }
 early_param("vmalloc", early_vmalloc);
 
+/* IAMROOT-12CD (2016-08-06):
+ * arm_lowmem_limit: 0x3c000000(960mb)
+ */
 phys_addr_t arm_lowmem_limit __initdata = 0;
 
+/* IAMROOT-12CD (2016-07-23):
+ * --------------------------
+ * meminfo 에 근본적인 문제가 있는지 체크.
+ */
 void __init sanity_check_meminfo(void)
 {
 	phys_addr_t memblock_limit = 0;
 	int highmem = 0;
+
+	/* IAMROOT-12CD (2016-07-23):
+	 * --------------------------
+	 * vmalloc_limit = 0x6F800000	3.835G
+	 */
 	phys_addr_t vmalloc_limit = __pa(vmalloc_min - 1) + 1;
 	struct memblock_region *reg;
 
+	/* IAMROOT-12CD (2016-07-23):
+	 * --------------------------
+	 * for (reg = memblock.memory.regions;
+	 *      reg < (memblock.memory.regions + memblock.memory.cnt);
+	 *      reg++)
+	 * reg.base: 0x0
+	 * reg.size: 0x3c000000 (960mb)
+	 * reg.flags: 0
+	 */
 	for_each_memblock(memory, reg) {
 		phys_addr_t block_start = reg->base;
 		phys_addr_t block_end = reg->base + reg->size;
@@ -1095,6 +1122,9 @@ void __init sanity_check_meminfo(void)
 		if (reg->base >= vmalloc_limit)
 			highmem = 1;
 		else
+			/* IAMROOT-12CD (2016-08-06):
+			 * size_limit = 0x6F800000(3.835G) - 0;
+			 */
 			size_limit = vmalloc_limit - reg->base;
 
 
@@ -1107,6 +1137,9 @@ void __init sanity_check_meminfo(void)
 				continue;
 			}
 
+			/* IAMROOT-12CD (2016-08-06):
+			 * reg->size: 960mb, size_limit: 3.835G
+			 */
 			if (reg->size > size_limit) {
 				phys_addr_t overlap_size = reg->size - size_limit;
 
@@ -1116,12 +1149,19 @@ void __init sanity_check_meminfo(void)
 				block_end = vmalloc_limit;
 			}
 		}
+		/* IAMROOT-12CD (2016-08-06):
+		 * block_end: 960mb, arm_lowmem_limit: 0
+		 */
 
 		if (!highmem) {
 			if (block_end > arm_lowmem_limit) {
 				if (reg->size > size_limit)
 					arm_lowmem_limit = vmalloc_limit;
 				else
+					/* IAMROOT-12CD (2016-08-14):
+					 * --------------------------
+					 * arm_lowmem_limit: 0x3c000000(960mb)
+					 */
 					arm_lowmem_limit = block_end;
 			}
 
@@ -1148,12 +1188,19 @@ void __init sanity_check_meminfo(void)
 		}
 	}
 
+	/* IAMROOT-12CD (2016-08-06):
+	 * high_memory = (0x3c000000 - 1) + 0x80000000 + 1
+	 *             = 0xBC000000
+	 */
 	high_memory = __va(arm_lowmem_limit - 1) + 1;
 
 	/*
 	 * Round the memblock limit down to a pmd size.  This
 	 * helps to ensure that we will allocate memory from the
 	 * last full pmd, which should be mapped.
+	 */
+	/* IAMROOT-12CD (2016-08-06):
+	 * memblock_limit = 960mb
 	 */
 	if (memblock_limit)
 		memblock_limit = round_down(memblock_limit, PMD_SIZE);
@@ -1513,6 +1560,10 @@ void __init early_paging_init(const struct machine_desc *mdesc,
 
 #else
 
+/* IAMROOT-12CD (2016-07-23):
+ * --------------------------
+ * pi2에서는 mdesc->init_meminfo 값이 NULL 이다.
+ */
 void __init early_paging_init(const struct machine_desc *mdesc,
 			      struct proc_info_list *procinfo)
 {

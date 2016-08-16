@@ -31,6 +31,10 @@ static struct memblock_region memblock_reserved_init_regions[INIT_MEMBLOCK_REGIO
 static struct memblock_region memblock_physmem_init_regions[INIT_PHYSMEM_REGIONS] __initdata_memblock;
 #endif
 
+/* IAMROOT-12CD (2016-07-23):
+ * --------------------------
+ * .momory.total_size = 0x3c00 0000 초기값. 약 960M
+ */
 struct memblock memblock __initdata_memblock = {
 	.memory.regions		= memblock_memory_init_regions,
 	.memory.cnt		= 1,	/* empty dummy entry */
@@ -47,6 +51,9 @@ struct memblock memblock __initdata_memblock = {
 #endif
 
 	.bottom_up		= false,
+	/* IAMROOT-12CD (2016-08-06):
+	 * current_limit = 0x3c000000(960mb)
+	 */
 	.current_limit		= MEMBLOCK_ALLOC_ANYWHERE,
 };
 
@@ -592,6 +599,10 @@ static int __init_memblock memblock_add_region(phys_addr_t base,
 		     (unsigned long long)base + size - 1,
 		     flags, (void *)_RET_IP_);
 
+	/* IAMROOT-12CD (2016-07-02):
+	 * --------------------------
+	 * memblock_add_range(_rgn, base, size, 1, 0);
+	 */
 	return memblock_add_range(_rgn, base, size, nid, flags);
 }
 

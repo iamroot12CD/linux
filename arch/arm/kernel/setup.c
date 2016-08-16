@@ -202,6 +202,10 @@ static struct stack stacks[NR_CPUS];
 char elf_platform[ELF_PLATFORM_SIZE];	/* IAMROOT-12D : "v7l" */
 EXPORT_SYMBOL(elf_platform);
 
+/* IAMROOT-12CD (2016-06-18):
+ * --------------------------
+ * cpu_name = "ARMv7 Processor";
+ */
 static const char *cpu_name;
 /* IAMROOT-12D (2016-06-09):
  * --------------------------
@@ -1280,6 +1284,8 @@ void __init setup_arch(char **cmdline_p)
 	/* IAMROOT-12D (2016-06-09):
 	 * --------------------------
 	 * default : REBOOT_COLD = 0,
+	 * reboot_mode 초기값은 REBOOT_HARD reboot.c 참고
+	 * reboot_mode = REBOOT_COLD;
 	 */
 	if (mdesc->reboot_mode != REBOOT_HARD)
 		reboot_mode = mdesc->reboot_mode;
@@ -1297,14 +1303,14 @@ void __init setup_arch(char **cmdline_p)
 	 * -------------
 	 * cmdline에서 입력된 모든 파라메터에 대응하는 early 함수를 찾아 호출한다.
 	 * 일반 파라메터 함수 등록 매크로: __setup()        -> __setup_param(,,0)
-	 * early 파라메터 함수 등록 매크로: __early_param() -> __setup_param(,,1)
+	 * early 파라메터 함수 등록 매크로: early_param() -> __setup_param(,,1)
 	 * earlycon 파라메터 함수 등록 매크로: EARLYCON_DECLARE() -> __early_param() -> ..
-	 *
+	 */
+	/* IAMROOT-12CD (2016-07-23):
+	 * --------------------------
 	 * rpi2:
-	 *	- setup_of_earlycon()
-	 *	- pl011_early_console_setup()
-	 *	- uart_setup_earlycon()
-	 *	- uart8250_setup_earlycon()
+	 *  - setup_of_earlycon() : 여기까지 호출되나 결국 아무것도 하지 않고
+	 *	넘어간다.
 	 */
 	parse_early_param();
 
