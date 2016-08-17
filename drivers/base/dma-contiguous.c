@@ -28,6 +28,10 @@
 #include <linux/dma-contiguous.h>
 #include <linux/cma.h>
 
+/* IAMROOT-12CD (2016-08-17):
+ * --------------------------
+ * CONFIG_CMA_SIZE_MBYTES=5
+ */
 #ifdef CONFIG_CMA_SIZE_MBYTES
 #define CMA_SIZE_MBYTES CONFIG_CMA_SIZE_MBYTES
 #else
@@ -45,6 +49,10 @@ struct cma *dma_contiguous_default_area;
  *
  * Users, who want to set the size of global CMA area for their system
  * should use cma= kernel parameter.
+ */
+/* IAMROOT-12CD (2016-08-17):
+ * --------------------------
+ * size_bytes = 5M (0x500000)
  */
 static const phys_addr_t size_bytes = CMA_SIZE_MBYTES * SZ_1M;
 static phys_addr_t size_cmdline = -1;
@@ -121,6 +129,10 @@ void __init dma_contiguous_reserve(phys_addr_t limit)
 			fixed = true;
 	} else {
 #ifdef CONFIG_CMA_SIZE_SEL_MBYTES
+		/* IAMROOT-12CD (2016-08-17):
+		 * --------------------------
+		 * selected_size = 5M(0x500000)
+		 */
 		selected_size = size_bytes;
 #elif defined(CONFIG_CMA_SIZE_SEL_PERCENTAGE)
 		selected_size = cma_early_percent_memory();
@@ -131,6 +143,11 @@ void __init dma_contiguous_reserve(phys_addr_t limit)
 #endif
 	}
 
+	/* IAMROOT-12CD (2016-08-17):
+	 * --------------------------
+	 * selected_size = 5M(0x500000)
+	 * dma_contiguous_default_area = 0
+	 */
 	if (selected_size && !dma_contiguous_default_area) {
 		pr_debug("%s: reserving %ld MiB for global area\n", __func__,
 			 (unsigned long)selected_size / SZ_1M);
@@ -158,6 +175,10 @@ void __init dma_contiguous_reserve(phys_addr_t limit)
  *
  * If @fixed is true, reserve contiguous area at exactly @base.  If false,
  * reserve in range from @base to @limit.
+ */
+/* IAMROOT-12CD (2016-08-17):
+ * --------------------------
+ * size: 5M(0x500000), base: 0, limit: 0xffffffff, fixed: false
  */
 int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
 				       phys_addr_t limit, struct cma **res_cma,

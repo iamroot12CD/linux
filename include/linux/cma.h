@@ -5,7 +5,15 @@
  * There is always at least global CMA area and a few optional
  * areas configured in kernel .config.
  */
+/* IAMROOT-12CD (2016-08-17):
+ * --------------------------
+ * CONFIG_CMA_AREAS=7
+ */
 #ifdef CONFIG_CMA_AREAS
+/* IAMROOT-12CD (2016-08-17):
+ * --------------------------
+ * MAX_CMA_AREAS=8
+ */
 #define MAX_CMA_AREAS	(1 + CONFIG_CMA_AREAS)
 
 #else

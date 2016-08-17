@@ -38,9 +38,11 @@ static struct memblock_region memblock_physmem_init_regions[INIT_PHYSMEM_REGIONS
 /* IAMROOT-12CD (2016-08-16):
  * --------------------------
  * memblock.reserved {
- *	cnt = 1, max = 128, total_size = 9737564,
- *	regions[0] = {base = 0x8240(_stext), size = 9737564, flags = 0},
- *	regions[1] = {base = 0, size = 0, flags = 0},
+ *	cnt = 3, max = 128, total_size = 9795242,
+ *	regions[0] = {base = 0x4000(page table), size = 0x4000, flags = 0x0},
+ *	regions[1] = {base = 0x8240(_stext), size = 9737564, flags = 0},
+ *	regions[2] = {base = 0x8000000(fdt), size = 41294, flags = 0},
+ *	regions[3] = {base = 0, size = 0, flags = 0},
  *	...
  */
 struct memblock memblock __initdata_memblock = {
@@ -745,6 +747,16 @@ int __init_memblock memblock_free(phys_addr_t base, phys_addr_t size)
  *	regions[2] = {base = 0, size = 0, flags = 0},
  *	...
  * }
+ *
+ * IN : base=0x8000000(fdt), size=0xa14e(41294), nid=1, flags=0
+ * OUT: memblock.reserved {
+ *	cnt = 2, max = 128, total_size = 9795242,
+ *	regions[0] = {base = 0x4000(page table), size = 0x4000, flags = 0x0},
+ *	regions[1] = {base = 0x8240(_stext), size = 9737564, flags = 0},
+ *	regions[2] = {base = 0x8000000, size = 41294, flags = 0},
+ *	regions[3] = {base = 0, size = 0, flags = 0},
+ *	...
+ * }
  */
 static int __init_memblock memblock_reserve_region(phys_addr_t base,
 						   phys_addr_t size,
@@ -1086,6 +1098,10 @@ int __init_memblock memblock_set_node(phys_addr_t base, phys_addr_t size,
 }
 #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
 
+/* IAMROOT-12CD (2016-08-17):
+ * --------------------------
+ * IN :	size: 0x800000, align: 0x400000, start: 0, end: 0x3c000000(960M),nid: -1
+ */
 static phys_addr_t __init memblock_alloc_range_nid(phys_addr_t size,
 					phys_addr_t align, phys_addr_t start,
 					phys_addr_t end, int nid)

@@ -39,6 +39,10 @@
 
 #include "cma.h"
 
+/* IAMROOT-12CD (2016-08-17):
+ * --------------------------
+ * MAX_CMA_AREAS=8
+ */
 struct cma cma_areas[MAX_CMA_AREAS];
 unsigned cma_area_count;
 static DEFINE_MUTEX(cma_mutex);
@@ -225,11 +229,20 @@ int __init cma_init_reserved_mem(phys_addr_t base, phys_addr_t size,
  * If @fixed is true, reserve contiguous area at exactly @base.  If false,
  * reserve in range from @base to @limit.
  */
+/* IAMROOT-12CD (2016-08-17):
+ * --------------------------
+ * base: 0, size: 5M(0x500000) limit: 0xffffffff, alignment: 0, order_per_bit=0,
+ * fixed=false
+ */
 int __init cma_declare_contiguous(phys_addr_t base,
 			phys_addr_t size, phys_addr_t limit,
 			phys_addr_t alignment, unsigned int order_per_bit,
 			bool fixed, struct cma **res_cma)
 {
+	/* IAMROOT-12CD (2016-08-17):
+	 * --------------------------
+	 * memblock_end = 960M(0x3c000000)
+	 */
 	phys_addr_t memblock_end = memblock_end_of_DRAM();
 	phys_addr_t highmem_start;
 	int ret = 0;
@@ -244,6 +257,10 @@ int __init cma_declare_contiguous(phys_addr_t base,
 	 */
 	highmem_start = __pa_nodebug(high_memory);
 #else
+	/* IAMROOT-12CD (2016-08-17):
+	 * --------------------------
+	 * highmem_start = __pa(0xbc000000) = 960M(0x3c000000)
+	 */
 	highmem_start = __pa(high_memory);
 #endif
 	pr_debug("%s(size %pa, base %pa, limit %pa alignment %pa)\n",
@@ -266,8 +283,22 @@ int __init cma_declare_contiguous(phys_addr_t base,
 	 * migratetype page by page allocator's buddy algorithm. In the case,
 	 * you couldn't get a contiguous memory, which is not what we want.
 	 */
+	/* IAMROOT-12CD (2016-08-17):
+	 * --------------------------
+	 * alignment = 0x400000(4M)
+	 */
 	alignment = max(alignment,
 		(phys_addr_t)PAGE_SIZE << max(MAX_ORDER - 1, pageblock_order));
+	/* IAMROOT-12CD (2016-08-17):
+	 * --------------------------
+	 * ALIGN(x, a) (x+a-1)&~(a-1)
+	 * ALIGN(0, 4M) = (0+4M-1) & ~(4M-1) = 0x3fffff & 0xffc00000 = 0
+	 * ALIGN(5M, 4M) = (5M+4M-1) & ~(4M-1) = 0x8fffff & 0xffc00000 = 8M
+	 *
+	 * base = 0
+	 * size = 0x800000(8M)
+	 * limit = 0xffc00000
+	 */
 	base = ALIGN(base, alignment);
 	size = ALIGN(size, alignment);
 	limit &= ~(alignment - 1);
@@ -295,6 +326,10 @@ int __init cma_declare_contiguous(phys_addr_t base,
 	 * value will be the memblock end. Set it explicitly to simplify further
 	 * checks.
 	 */
+	/* IAMROOT-12CD (2016-08-17):
+	 * --------------------------
+	 * limit = 0x3c000000(960M)
+	 */
 	if (limit == 0 || limit > memblock_end)
 		limit = memblock_end;
 
@@ -321,6 +356,11 @@ int __init cma_declare_contiguous(phys_addr_t base,
 		}
 
 		if (!addr) {
+			/* IAMROOT-12CD (2016-08-17):
+			 * --------------------------
+			 * size: 0x800000, alignment: 0x400000, base: 0,
+			 * limit: 0x3c000000(960M)
+			 */
 			addr = memblock_alloc_range(size, alignment, base,
 						    limit);
 			if (!addr) {
