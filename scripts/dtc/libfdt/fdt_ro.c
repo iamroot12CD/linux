@@ -102,6 +102,10 @@ static int _fdt_string_eq(const void *fdt, int stroffset,
 	return (strlen(p) == len) && (memcmp(p, s, len) == 0);
 }
 
+/* IAMROOT-12CD (2016-08-20):
+ * --------------------------
+ * 라즈베리파이2에서는 _fdt_mem_rsv 영역에 아무런 값이 없다.
+ */
 int fdt_get_mem_rsv(const void *fdt, int n, uint64_t *address, uint64_t *size)
 {
 	FDT_CHECK_HEADER(fdt);

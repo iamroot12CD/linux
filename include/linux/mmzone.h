@@ -23,6 +23,10 @@
 #ifndef CONFIG_FORCE_MAX_ZONEORDER
 #define MAX_ORDER 11
 #else
+/* IAMROOT-12CD (2016-08-20):
+ * --------------------------
+ * CONFIG_FORCE_MAX_ZONEORDER= 11
+ */
 #define MAX_ORDER CONFIG_FORCE_MAX_ZONEORDER
 #endif
 #define MAX_ORDER_NR_PAGES (1 << (MAX_ORDER - 1))

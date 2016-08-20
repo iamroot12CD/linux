@@ -1,5 +1,18 @@
 # Iamroot ARM Kernel 분석 12차 CD조 (http://www.iamroot.org)
 
+## 제 70주차 스터디
+#### 날짜: 2016-08-20
+#### 장소: 강남 윙스터디 2호점
+#### 내용: setup_arch() -> arm_memblock_init() 분석중
+#### 참석자
+ - **임채훈 (im.fehead@gmail.com)**
+ - 조훈근 (hoonycho12@gmail.com)
+ - 김미르 (skykmr8405@naver.com)
+
+## 제 69주차 스터디
+#### 날짜: 2016-08-13
+#### 내용: 하계휴가
+
 ## 제 68주차 스터디
 #### 날짜: 2016-08-06
 #### 장소: 강남 토즈타워

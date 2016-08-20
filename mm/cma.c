@@ -225,6 +225,11 @@ int __init cma_init_reserved_mem(phys_addr_t base, phys_addr_t size,
  * If @fixed is true, reserve contiguous area at exactly @base.  If false,
  * reserve in range from @base to @limit.
  */
+/* IAMROOT-12CD (2016-08-20):
+ * --------------------------
+ * base= 0, size= 5M(0x500000), limit= 0xffffffff, alignment= 0, order_per_bit=0
+ * fixed= false, res_cms= &dma_contiguous_default_area
+ */
 int __init cma_declare_contiguous(phys_addr_t base,
 			phys_addr_t size, phys_addr_t limit,
 			phys_addr_t alignment, unsigned int order_per_bit,
@@ -266,9 +271,18 @@ int __init cma_declare_contiguous(phys_addr_t base,
 	 * migratetype page by page allocator's buddy algorithm. In the case,
 	 * you couldn't get a contiguous memory, which is not what we want.
 	 */
+	/* IAMROOT-12CD (2016-08-20):
+	 * --------------------------
+	 * alignment = 4M(0x400000)
+	 * base = 0, size=5M
+	 */
 	alignment = max(alignment,
 		(phys_addr_t)PAGE_SIZE << max(MAX_ORDER - 1, pageblock_order));
 	base = ALIGN(base, alignment);
+	/* IAMROOT-12CD (2016-08-20):
+	 * --------------------------
+	 * size = 8M
+	 */
 	size = ALIGN(size, alignment);
 	limit &= ~(alignment - 1);
 
@@ -283,6 +297,10 @@ int __init cma_declare_contiguous(phys_addr_t base,
 	 * If allocating at a fixed base the request region must not cross the
 	 * low/high memory boundary.
 	 */
+	/* IAMROOT-12CD (2016-08-20):
+	 * --------------------------
+	 * fixed 이면서 highmem에 걸쳐 있으면 안된다.
+	 */
 	if (fixed && base < highmem_start && base + size > highmem_start) {
 		ret = -EINVAL;
 		pr_err("Region at %pa defined on low/high memory boundary (%pa)\n",
@@ -296,6 +314,10 @@ int __init cma_declare_contiguous(phys_addr_t base,
 	 * checks.
 	 */
 	if (limit == 0 || limit > memblock_end)
+		/* IAMROOT-12CD (2016-08-20):
+		 * --------------------------
+		 * limit = 0x3c000000(960M)
+		 */
 		limit = memblock_end;
 
 	/* Reserve memory */

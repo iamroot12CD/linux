@@ -36,10 +36,30 @@ static struct memblock_region memblock_physmem_init_regions[INIT_PHYSMEM_REGIONS
  * .momory.total_size = 0x3c00 0000 초기값. 약 960M
  */
 struct memblock memblock __initdata_memblock = {
+/* IAMROOT-12CD (2016-08-20):
+ * --------------------------
+ * .memory
+ * {cnt = 0x1, max = 0x80, total_size = 0x3c000000, regions = {
+ *   [0] = {base = 0x0, size = 0x3c000000, flags = 0x0}, 0 ~ 960M 영역.
+ *   [1] = {base = 0x0, size = 0x0, flags = 0x0},
+ *   ...
+ * }}
+ */
 	.memory.regions		= memblock_memory_init_regions,
 	.memory.cnt		= 1,	/* empty dummy entry */
 	.memory.max		= INIT_MEMBLOCK_REGIONS,
 
+/* IAMROOT-12CD (2016-08-20):
+ * --------------------------
+ * .reserved
+ * {cnt = 0x3, max = 0x80, total_size = 9795242, regions = {
+ *  [0] = {base = 0x4000, size = 0x4000, flags = 0x0},	page table
+ *  [1] = {base = 0x8240, size = 9737564, flags = 0x0},	커널 영역
+ *  [2] = {base = 0x8000000, size = 41294, flags = 0x0},	fdt 영역
+ *  [3] = {base = 0x0, size = 0x0, flags = 0x0},
+ *  ...
+ * } }
+ */
 	.reserved.regions	= memblock_reserved_init_regions,
 	.reserved.cnt		= 1,	/* empty dummy entry */
 	.reserved.max		= INIT_MEMBLOCK_REGIONS,
@@ -432,6 +452,19 @@ static int __init_memblock memblock_double_array(struct memblock_type *type,
  *
  * Scan @type and merge neighboring compatible regions.
  */
+/* IAMROOT-12CD (2016-08-20):
+ * --------------------------
+ * (gdb) p/x memblock.reserved
+ *  = {cnt = 0x2, max = 0x80, total_size = 9753948, regions = {
+ * 	 [0] = {base = 0x4000, size = 0x4000, flags = 0x0},	page table
+ * 	 [1] = {base = 0x8240, size = 9737564, flags = 0x0},	커널 영역.
+ * 	 [2] = {base = 0x0, size = 0x0, flags = 0x0},
+ * 	 ...
+ *	}
+ *
+ * 인접한 메모리(this->base + this->size == next->base)영역의 flags값이 동일하면
+ * 병합(merge) 한다.
+ */
 static void __init_memblock memblock_merge_regions(struct memblock_type *type)
 {
 	int i = 0;
@@ -469,6 +502,11 @@ static void __init_memblock memblock_merge_regions(struct memblock_type *type)
  * Insert new memblock region [@base,@base+@size) into @type at @idx.
  * @type must already have extra room to accomodate the new region.
  */
+/* IAMROOT-12CD (2016-08-20):
+ * --------------------------
+ * type: &memblock.reserved, idx:0, base=0x4000, size=0x4000, nid:1, flags:0
+ *	page table 영역.
+ */
 static void __init_memblock memblock_insert_region(struct memblock_type *type,
 						   int idx, phys_addr_t base,
 						   phys_addr_t size,
@@ -502,6 +540,25 @@ static void __init_memblock memblock_insert_region(struct memblock_type *type,
  * RETURNS:
  * 0 on success, -errno on failure.
  */
+/* IAMROOT-12CD (2016-08-20):
+ * --------------------------
+ * type: &memblock.reserved, base=0x8240, size=9737564, nid:1, flags:0
+ *	_stext ~ _end 커널영역.
+ * type: &memblock.reserved, base=0x4000, size=0x4000, nid:1, flags:0
+ *	page table 영역.
+ * type: &memblock.reserved, base=0x8000000, size=41294, nid:1, flags:0
+ *	fdt 영역.
+ *
+ * (gdb) p/x memblock.reserved
+ *  = {cnt = 0x3, max = 0x80, total_size = 9795242, regions = {
+ * 	 [0] = {base = 0x4000, size = 0x4000, flags = 0x0},	page table
+ * 	 [1] = {base = 0x8240, size = 9737564, flags = 0x0},	커널 영역
+ * 	 [2] = {base = 0x8000000, size = 41294, flags = 0x0},	fdt 영역
+ * 	 [3] = {base = 0x0, size = 0x0, flags = 0x0},
+ * 	 ...
+ *	}
+ * }
+ */
 int __init_memblock memblock_add_range(struct memblock_type *type,
 				phys_addr_t base, phys_addr_t size,
 				int nid, unsigned long flags)
@@ -534,6 +591,14 @@ repeat:
 	nr_new = 0;
 
 	for (i = 0; i < type->cnt; i++) {
+		/* IAMROOT-12CD (2016-08-20):
+		 * --------------------------
+		 * [0] = {base = 0x8240, size = 9737564, flags = 0x0},커널 영역
+		 * rbase = 0x8240
+		 * rend = 9770908
+		 * end = 0x8000
+		 * base = 0x4000
+		 */
 		struct memblock_region *rgn = &type->regions[i];
 		phys_addr_t rbase = rgn->base;
 		phys_addr_t rend = rbase + rgn->size;
@@ -557,6 +622,11 @@ repeat:
 		base = min(rend, end);
 	}
 
+	/* IAMROOT-12CD (2016-08-20):
+	 * --------------------------
+	 * end = 0x8000
+	 * base = 0x4000
+	 */
 	/* insert the remaining portion */
 	if (base < end) {
 		nr_new++;
@@ -719,6 +789,12 @@ int __init_memblock memblock_free(phys_addr_t base, phys_addr_t size)
 	return memblock_remove_range(&memblock.reserved, base, size);
 }
 
+/* IAMROOT-12CD (2016-08-20):
+ * --------------------------
+ * base=0x8240, size=9737564, nid:1, flags:0 커널 _stext ~ _end영역..
+ * base=0x4000, size=0x4000, nid:1, flags:0  page table 영역.
+ * base=0x8000000, size=41294, nid:1, flags:0 fdt 영역.
+ */
 static int __init_memblock memblock_reserve_region(phys_addr_t base,
 						   phys_addr_t size,
 						   int nid,
@@ -734,6 +810,12 @@ static int __init_memblock memblock_reserve_region(phys_addr_t base,
 	return memblock_add_range(type, base, size, nid, flags);
 }
 
+/* IAMROOT-12CD (2016-08-20):
+ * --------------------------
+ * base=0x8240, size=9737564  커널 _stext ~ _end영역..
+ * base=0x4000, size=0x4000   page table 영역.
+ * base=0x8000000, size=41294 fdt 영역.
+ */
 int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
 {
 	return memblock_reserve_region(base, size, MAX_NUMNODES, 0);
@@ -1359,11 +1441,19 @@ phys_addr_t __init memblock_mem_size(unsigned long limit_pfn)
 }
 
 /* lowest address */
+/* IAMROOT-12CD (2016-08-20):
+ * --------------------------
+ * 라즈베리파이2의 경우 0 반환
+ */
 phys_addr_t __init_memblock memblock_start_of_DRAM(void)
 {
 	return memblock.memory.regions[0].base;
 }
 
+/* IAMROOT-12CD (2016-08-20):
+ * --------------------------
+ * 라즈베리파이2의 경우 0x3c000000(960M) 반환
+ */
 phys_addr_t __init_memblock memblock_end_of_DRAM(void)
 {
 	int idx = memblock.memory.cnt - 1;

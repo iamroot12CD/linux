@@ -16,6 +16,10 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
+/* IAMROOT-12CD (2016-08-20):
+ * --------------------------
+ * 라즈베리파이2는 아마도.. 2단계 pagetable을 쓸것이다.
+ */
 #ifndef _ASM_PGTABLE_2LEVEL_TYPES_H
 #define _ASM_PGTABLE_2LEVEL_TYPES_H
 

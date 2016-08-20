@@ -230,6 +230,10 @@ static inline int memblock_get_region_node(const struct memblock_region *r)
 	return r->nid;
 }
 #else
+/* IAMROOT-12CD (2016-08-20):
+ * --------------------------
+ * 라즈베리파이2
+ */
 static inline void memblock_set_region_node(struct memblock_region *r, int nid)
 {
 }

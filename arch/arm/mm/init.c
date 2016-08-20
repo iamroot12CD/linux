@@ -240,6 +240,10 @@ void __init arm_memblock_init(const struct machine_desc *mdesc)
 #endif
 #ifdef CONFIG_BLK_DEV_INITRD
 	/* FDT scan will populate initrd_start */
+	/* IAMROOT-12CD (2016-08-20):
+	 * --------------------------
+	 * initrd_start: 0, phys_initrd_size:0
+	 */
 	if (initrd_start && !phys_initrd_size) {
 		phys_initrd_start = __virt_to_phys(initrd_start);
 		phys_initrd_size = initrd_end - initrd_start;
@@ -270,6 +274,11 @@ void __init arm_memblock_init(const struct machine_desc *mdesc)
 
 	/* reserve any platform specific memblock areas */
 	if (mdesc->reserve)
+		/* IAMROOT-12CD (2016-08-20):
+		 * --------------------------
+		 * arch/arm/mach-bcm2709/bcm2709.c
+		 *  board_reserve() 호출
+		 */
 		mdesc->reserve();
 
 	early_init_fdt_scan_reserved_mem();

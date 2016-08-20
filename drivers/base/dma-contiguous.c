@@ -46,6 +46,10 @@ struct cma *dma_contiguous_default_area;
  * Users, who want to set the size of global CMA area for their system
  * should use cma= kernel parameter.
  */
+/* IAMROOT-12CD (2016-08-20):
+ * --------------------------
+ * size_byptes = 5M(0x500000)
+ */
 static const phys_addr_t size_bytes = CMA_SIZE_MBYTES * SZ_1M;
 static phys_addr_t size_cmdline = -1;
 static phys_addr_t base_cmdline;
@@ -113,6 +117,10 @@ void __init dma_contiguous_reserve(phys_addr_t limit)
 
 	pr_debug("%s(limit %08lx)\n", __func__, (unsigned long)limit);
 
+	/* IAMROOT-12CD (2016-08-20):
+	 * --------------------------
+	 * size_cmdline 초기값은 -1
+	 */
 	if (size_cmdline != -1) {
 		selected_size = size_cmdline;
 		selected_base = base_cmdline;
@@ -135,6 +143,11 @@ void __init dma_contiguous_reserve(phys_addr_t limit)
 		pr_debug("%s: reserving %ld MiB for global area\n", __func__,
 			 (unsigned long)selected_size / SZ_1M);
 
+		/* IAMROOT-12CD (2016-08-20):
+		 * --------------------------
+		 * selected_size= 5M(0x500000), selected_base= 0,
+		 * selected_limit= 0xffffffff, fixed= false
+		 */
 		dma_contiguous_reserve_area(selected_size, selected_base,
 					    selected_limit,
 					    &dma_contiguous_default_area,
@@ -165,6 +178,11 @@ int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
 {
 	int ret;
 
+	/* IAMROOT-12CD (2016-08-20):
+	 * --------------------------
+	 * base= 0, size= 5M(0x500000), limit= 0xffffffff, fixed= false,
+	 * res_cms= &dma_contiguous_default_area
+	 */
 	ret = cma_declare_contiguous(base, size, limit, 0, 0, fixed, res_cma);
 	if (ret)
 		return ret;
