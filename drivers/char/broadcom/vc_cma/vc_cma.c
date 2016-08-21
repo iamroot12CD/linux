@@ -115,14 +115,14 @@ static struct proc_dir_entry *vc_cma_proc_entry;
 
 phys_addr_t vc_cma_base;
 struct page *vc_cma_base_page;
-/* IAMROOT-12CD (2016-08-16):
+/* IAMROOT-12CD (2016-08-20):
  * --------------------------
  * vc_cma_size = 0
  */
 unsigned int vc_cma_size;
 EXPORT_SYMBOL(vc_cma_size);
 unsigned int vc_cma_initial;
-/* IAMROOT-12CD (2016-08-16):
+/* IAMROOT-12CD (2016-08-20):
  * --------------------------
  * vc_cma_chunks = 0
  */
@@ -211,7 +211,7 @@ void vc_cma_reserve(void)
 	/* if vc_cma_size is set, then declare vc CMA area of the same
 	 * size from the end of memory
 	 */
-	/* IAMROOT-12CD (2016-08-16):
+	/* IAMROOT-12CD (2016-08-20):
 	 * --------------------------
 	 * vc_cma_size = 0
 	 */

@@ -604,6 +604,10 @@ void __init early_init_fdt_scan_reserved_mem(void)
 		return;
 
 	/* Reserve the dtb region */
+	/* IAMROOT-12CD (2016-08-20):
+	 * --------------------------
+	 * dtb 영역을 예약영역(memblock.reserved)에 설정한다.(추가한다)
+	 */
 	early_init_dt_reserve_memory_arch(__pa(initial_boot_params),
 					  fdt_totalsize(initial_boot_params),
 					  0);
@@ -616,7 +620,16 @@ void __init early_init_fdt_scan_reserved_mem(void)
 		early_init_dt_reserve_memory_arch(base, size, 0);
 	}
 
+	/* IAMROOT-12CD (2016-08-20):
+	 * --------------------------
+	 * __fdt_scan_reserved_mem에서 아무것도 하지 않는다.
+	 */
 	of_scan_flat_dt(__fdt_scan_reserved_mem, NULL);
+
+	/* IAMROOT-12CD (2016-08-20):
+	 * --------------------------
+	 * 아무것도 하지않음.
+	 */
 	fdt_init_reserved_mem();
 }
 

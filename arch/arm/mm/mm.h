@@ -86,6 +86,10 @@ extern __init void add_static_vm_early(struct static_vm *svm);
 extern phys_addr_t arm_dma_limit;
 extern unsigned long arm_dma_pfn_limit;
 #else
+/* IAMROOT-12CD (2016-08-20):
+ * --------------------------
+ * 라즈베리파이2는 DMA zone이 없으므로 아래가 맞다.
+ */
 #define arm_dma_limit ((phys_addr_t)~0)
 #define arm_dma_pfn_limit (~0ul >> PAGE_SHIFT)
 #endif

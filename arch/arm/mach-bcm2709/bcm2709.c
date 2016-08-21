@@ -1170,6 +1170,10 @@ void __init bcm2709_init_early(void)
 
 static void __init board_reserve(void)
 {
+/* IAMROOT-12CD (2016-08-20):
+ * --------------------------
+ * CMA: Contiguous Memory Allocation 연속 메모리 할당
+ */
 #if defined(CONFIG_BCM_VC_CMA)
 	vc_cma_reserve();
 #endif

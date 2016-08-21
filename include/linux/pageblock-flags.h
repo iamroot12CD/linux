@@ -56,9 +56,9 @@ extern int pageblock_order;
 #else /* CONFIG_HUGETLB_PAGE */
 
 /* If huge pages are not used, group by MAX_ORDER_NR_PAGES */
-/* IAMROOT-12CD (2016-08-17):
+/* IAMROOT-12CD (2016-08-20):
  * --------------------------
- * pageblock_order	(11-1)
+ * pageblock_order = 10
  */
 #define pageblock_order		(MAX_ORDER-1)
 
