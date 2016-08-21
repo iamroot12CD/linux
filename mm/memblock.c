@@ -162,6 +162,10 @@ __memblock_find_range_bottom_up(phys_addr_t start, phys_addr_t end,
  * RETURNS:
  * Found address on success, 0 on failure.
  */
+/* IAMROOT-12CD (2016-08-18):
+ * --------------------------
+ * start: 4096, end: 0x3c000000, size: 0x800000, align: 0x400000, nid:-1
+ */
 static phys_addr_t __init_memblock
 __memblock_find_range_top_down(phys_addr_t start, phys_addr_t end,
 			       phys_addr_t size, phys_addr_t align, int nid)
@@ -169,6 +173,20 @@ __memblock_find_range_top_down(phys_addr_t start, phys_addr_t end,
 	phys_addr_t this_start, this_end, cand;
 	u64 i;
 
+/* IAMROOT-12CD (2016-08-18):
+ * --------------------------
+ * for (i = (u64)ULLONG_MAX,
+ * 	     __next_mem_range_rev(&i, nid, &memblock.memory, &memblock.reserved,
+ * 				 &this_start, &this_end, p_nid);
+ *      i != (u64)ULLONG_MAX;
+ *      __next_mem_range_rev(&i, nid, &memblock.memory, &memblock.reserved,
+ * 			  &this_start, &this_end, p_nid))
+ * 
+ * index:0
+ *  *this_start = 0x800a14e
+ *  *this_end = 0x3c000000
+ *  i = 0x20000 0000(idx_b:2, idx_a:0)
+ */
 	for_each_free_mem_range_reverse(i, nid, &this_start, &this_end, NULL) {
 		this_start = clamp(this_start, start, end);
 		this_end = clamp(this_end, start, end);
@@ -213,7 +231,7 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t size,
 
 	/* pump up @end */
 	if (end == MEMBLOCK_ALLOC_ACCESSIBLE)
-		end = memblock.current_limit;
+//		end = memblock.current_limit;
 
 	/* avoid allocating the first page */
 	start = max_t(phys_addr_t, start, PAGE_SIZE);
@@ -250,6 +268,10 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t size,
 			     "memory hotunplug may be affected\n");
 	}
 
+	/* IAMROOT-12CD (2016-08-18):
+	 * --------------------------
+	 * start: 4096, end: 0x3c000000, size: 0x800000, align: 0x400000, nid:-1
+	 */
 	return __memblock_find_range_top_down(start, end, size, align, nid);
 }
 
@@ -953,6 +975,27 @@ void __init_memblock __next_mem_range(u64 *idx, int nid,
  *
  * Reverse of __next_mem_range().
  */
+/* IAMROOT-12CD (2016-08-18):
+ * --------------------------
+ * idx: ULLONG_MAX, nid: 0, type_a: &memblock.memory, type_b: &memblock.reserved
+ * out_start: OUT, out_end: OUT, out_nid: OUT
+ *
+ * (gdb) p/x memblock.reserved
+ *  = {cnt = 0x3, max = 0x80, total_size = 0x9576aa, regions = {
+ *	[0] = {base = 0x4000, size = 0x4000, flags = 0x0},
+ *	[1] = {base = 0x8240, size = 0x94955c, flags = 0x0},
+ * 	[2] = {base = 0x8000000, size = 0xa14e, flags = 0x0},
+ *  }
+ * (gdb) p/x memblock.memory
+ *  = {cnt = 0x1, max = 0x80, total_size = 0x3c000000, regions = {
+ *	[0] = {base = 0x0, size = 0x3c000000, flags = 0x0}
+ *  }
+ * 
+ * OUT: 
+ *  (gdb) p/x *out_start = 0x800a14e
+ *  (gdb) p/x *out_end = 0x3c000000
+ *  (gdb) p/x *idx = 0x20000 0000(idx_b:2, idx_a:0)
+ */
 void __init_memblock __next_mem_range_rev(u64 *idx, int nid,
 					  struct memblock_type *type_a,
 					  struct memblock_type *type_b,
@@ -965,12 +1008,25 @@ void __init_memblock __next_mem_range_rev(u64 *idx, int nid,
 	if (WARN_ONCE(nid == MAX_NUMNODES, "Usage of MAX_NUMNODES is deprecated. Use NUMA_NO_NODE instead\n"))
 		nid = NUMA_NO_NODE;
 
+	/* IAMROOT-12CD (2016-08-18):
+	 * --------------------------
+	 * *idx: ULLONG_MAX
+	 */
 	if (*idx == (u64)ULLONG_MAX) {
+		/* IAMROOT-12CD (2016-08-18):
+		 * --------------------------
+		 * idx_a: 0, idx_b: 3
+		 */
 		idx_a = type_a->cnt - 1;
 		idx_b = type_b->cnt;
 	}
 
 	for (; idx_a >= 0; idx_a--) {
+		/* IAMROOT-12CD (2016-08-18):
+		 * --------------------------
+		 * (gdb) p/x memblock.memory->regions[0]
+		 * $29 = {base = 0x0, size = 0x3c000000, flags = 0x0}
+		 */
 		struct memblock_region *m = &type_a->regions[idx_a];
 
 		phys_addr_t m_start = m->base;
@@ -978,6 +1034,10 @@ void __init_memblock __next_mem_range_rev(u64 *idx, int nid,
 		int m_nid = memblock_get_region_node(m);
 
 		/* only memory regions are associated with nodes, check it */
+		/* IAMROOT-12CD (2016-08-18):
+		 * --------------------------
+		 * nid == 0, m_nid = 0
+		 */
 		if (nid != NUMA_NO_NODE && nid != m_nid)
 			continue;
 
@@ -998,12 +1058,36 @@ void __init_memblock __next_mem_range_rev(u64 *idx, int nid,
 		}
 
 		/* scan areas before each reservation */
+		/* IAMROOT-12CD (2016-08-18):
+		 * --------------------------
+		 * idx_b: 3
+		 */
 		for (; idx_b >= 0; idx_b--) {
 			struct memblock_region *r;
 			phys_addr_t r_start;
 			phys_addr_t r_end;
 
+			/* IAMROOT-12CD (2016-08-18):
+			 * --------------------------
+			 * (gdb) p/x memblock.reserved
+			 *  = {cnt = 0x3, max = 0x80, total_size = 0x9576aa,
+			 *	regions = 0x8091968c}
+			 * (gdb) p/x memblock.reserved.regions[3]
+			 *  = {base = 0x0, size = 0x0, flags = 0x0}
+			 * (gdb) p/x memblock.reserved.regions[1]
+			 *   = {base = 0x8240, size = 0x94955c, flags = 0x0}
+			 * (gdb) p/x 0x8240 + 0x94955c = 0x95179c
+			 */
 			r = &type_b->regions[idx_b];
+			/* IAMROOT-12CD (2016-08-18):
+			 * --------------------------
+			 * ibx_b = 3
+			 *   (gdb) p/x memblock.reserved.regions[2]
+			 *    = {base = 0x8000000, size = 0xa14e, flags = 0x0}
+			 *   (gdb) p/x 0x8000000 + 0xa14e = 0x800a14e
+			 *   r_start = 0x800a14e
+			 *   r_end = ULLONG_MAX
+			 */
 			r_start = idx_b ? r[-1].base + r[-1].size : 0;
 			r_end = idx_b < type_b->cnt ?
 				r->base : ULLONG_MAX;
@@ -1015,6 +1099,11 @@ void __init_memblock __next_mem_range_rev(u64 *idx, int nid,
 			if (r_end <= m_start)
 				break;
 			/* if the two regions intersect, we're done */
+			/* IAMROOT-12CD (2016-08-18):
+			 * --------------------------
+			 * m_end: 0x3c000000, r_start: 0x800a14e
+			 * m_start: 0x0, r_end = ULLONG_MAX
+			 */
 			if (m_end > r_start) {
 				if (out_start)
 					*out_start = max(m_start, r_start);
@@ -1026,7 +1115,13 @@ void __init_memblock __next_mem_range_rev(u64 *idx, int nid,
 					idx_a--;
 				else
 					idx_b--;
-				*idx = (u32)idx_a | (u64)idx_b << 32;
+				/* IAMROOT-12CD (2016-08-18):
+				 * --------------------------
+				 * OUT:
+				 *  (gdb) p/x *out_start = 0x800a14e
+				 *  (gdb) p/x *out_end = 0x3c000000
+				 *  (gdb) p/x *idx = 0x200000000
+				 */
 				return;
 			}
 		}
@@ -1113,6 +1208,11 @@ static phys_addr_t __init memblock_alloc_range_nid(phys_addr_t size,
 
 	found = memblock_find_in_range_node(size, align, start, end, nid);
 	if (found && !memblock_reserve(found, size)) {
+		/* IAMROOT-12CD (2016-08-18):
+		 * --------------------------
+		 * found: 0x3b800000, size: 0x800000
+		 * __va(0x3b00000) -> 0xbb800000
+		 */
 		/*
 		 * The min_count is set to 0 so that memblock allocations are
 		 * never reported as leaks.
