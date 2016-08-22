@@ -42,16 +42,31 @@
 /* IAMROOT-12CD (2016-08-17):
  * --------------------------
  * MAX_CMA_AREAS=8
+ * [0] = {base_pfn = 0x3b800, count = 0x800, order_per_bit = 0x0, ...},
+ *		cma 영역 0~8M(원래 할당은 5M지만 4M alignment 되어서 8M가 됨)
+ *
  */
 struct cma cma_areas[MAX_CMA_AREAS];
+/* IAMROOT-12CD (2016-08-22):
+ * --------------------------
+ * cma_area_count = 1  : 0 번째는 cma 영역 (0~8M)
+ */
 unsigned cma_area_count;
 static DEFINE_MUTEX(cma_mutex);
 
+/* IAMROOT-12CD (2016-08-22):
+ * --------------------------
+ * 페이지 단위로 된 cma base 주소를 메모리 주소로 변환
+ */
 phys_addr_t cma_get_base(const struct cma *cma)
 {
 	return PFN_PHYS(cma->base_pfn);
 }
 
+/* IAMROOT-12CD (2016-08-22):
+ * --------------------------
+ * 페이지 단위로 된 cma size를 메모리 사이즈로 변환
+ */
 unsigned long cma_get_size(const struct cma *cma)
 {
 	return cma->count << PAGE_SHIFT;
@@ -169,6 +184,12 @@ core_initcall(cma_init_reserved_areas);
  * @res_cma: Pointer to store the created cma region.
  *
  * This function creates custom contiguous area from already reserved memory.
+ */
+/* IAMROOT-12CD (2016-08-22):
+ * --------------------------
+ * cma_declare_contiguous()에서 호출
+ *  base= 0x3b800000, size= 0x800000, order_per_bit=0,
+ *  res_cms= &dma_contiguous_default_area
  */
 int __init cma_init_reserved_mem(phys_addr_t base, phys_addr_t size,
 				 unsigned int order_per_bit,
@@ -334,10 +355,6 @@ int __init cma_declare_contiguous(phys_addr_t base,
 	 * If the limit is unspecified or above the memblock end, its effective
 	 * value will be the memblock end. Set it explicitly to simplify further
 	 * checks.
-	 */
-	/* IAMROOT-12CD (2016-08-17):
-	 * --------------------------
-	 * limit = 0x3c000000(960M)
 	 */
 	if (limit == 0 || limit > memblock_end)
 		/* IAMROOT-12CD (2016-08-20):

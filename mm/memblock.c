@@ -197,10 +197,10 @@ __memblock_find_range_top_down(phys_addr_t start, phys_addr_t end,
  * --------------------------
  * for (i = (u64)ULLONG_MAX,
  * 	     __next_mem_range_rev(&i, nid, &memblock.memory, &memblock.reserved,
- * 				 &this_start, &this_end, p_nid);
+ * 				 &this_start, &this_end, NULL);
  *      i != (u64)ULLONG_MAX;
  *      __next_mem_range_rev(&i, nid, &memblock.memory, &memblock.reserved,
- * 			  &this_start, &this_end, p_nid))
+ * 			  &this_start, &this_end, NULL))
  * 
  * index:0
  *  *this_start = 0x800a14e
@@ -251,7 +251,7 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t size,
 
 	/* pump up @end */
 	if (end == MEMBLOCK_ALLOC_ACCESSIBLE)
-//		end = memblock.current_limit;
+		end = memblock.current_limit;
 
 	/* avoid allocating the first page */
 	start = max_t(phys_addr_t, start, PAGE_SIZE);
@@ -1191,6 +1191,7 @@ void __init_memblock __next_mem_range_rev(u64 *idx, int nid,
 					idx_a--;
 				else
 					idx_b--;
+				*idx = (u32)idx_a | (u64)idx_b << 32;
 				/* IAMROOT-12CD (2016-08-18):
 				 * --------------------------
 				 * OUT:

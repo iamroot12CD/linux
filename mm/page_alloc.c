@@ -112,6 +112,10 @@ static DEFINE_SPINLOCK(managed_page_count_lock);
 
 unsigned long totalram_pages __read_mostly;
 unsigned long totalreserve_pages __read_mostly;
+/* IAMROOT-12CD (2016-08-22):
+ * --------------------------
+ * totalcma_pages 0 -> 0x800(page단위 8M)로 변경.
+ */
 unsigned long totalcma_pages __read_mostly;
 /*
  * When calculating the number of globally allowed dirty pages, there

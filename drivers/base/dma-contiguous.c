@@ -204,6 +204,12 @@ int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
 	if (ret)
 		return ret;
 
+	/* IAMROOT-12CD (2016-08-22):
+	 * --------------------------
+	 * *res_cms = &cma_areas[0]
+	 * cma_get_base(&cma_areas[0]) = 0x3b8000000 (960M - 8M)
+	 * cma_get_size(&cma_areas[0]) = 0x8000000 (8M)
+	 */
 	/* Architecture specific contiguous memory fixup. */
 	dma_contiguous_early_fixup(cma_get_base(*res_cma),
 				cma_get_size(*res_cma));

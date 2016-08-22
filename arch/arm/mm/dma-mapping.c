@@ -396,10 +396,25 @@ struct dma_contig_early_reserve {
 	unsigned long size;
 };
 
+/* IAMROOT-12CD (2016-08-22):
+ * --------------------------
+ * [0] = {base = 0x3b800000, size = 0x800000}
+ *	cma 영역 0~8M(원래 5M지만 4M alignment 처리하여 8M가 됨)
+ */
 static struct dma_contig_early_reserve dma_mmu_remap[MAX_CMA_AREAS] __initdata;
 
+/* IAMROOT-12CD (2016-08-22):
+ * --------------------------
+ * dma_mmu_remap_num = 0 -> 1
+ */
 static int dma_mmu_remap_num __initdata;
 
+/* IAMROOT-12CD (2016-08-22):
+ * --------------------------
+ * dma_contiguous_reserve_area() 가 호출
+ *  base= 0x3b8000000 (960M - 8M)
+ *  size= 0x8000000 (8M)
+ */
 void __init dma_contiguous_early_fixup(phys_addr_t base, unsigned long size)
 {
 	dma_mmu_remap[dma_mmu_remap_num].base = base;
