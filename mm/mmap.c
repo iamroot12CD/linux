@@ -76,6 +76,11 @@ static void unmap_region(struct mm_struct *mm,
  *		x: (no) no	x: (no) yes	x: (no) yes	x: (yes) yes
  *
  */
+/* IAMROOT-12CD (2016-08-23):
+ * --------------------------
+ * {	0xa83, 0x383, 0x383, 0x383, 0x183, 0x183, 0x183, 0x183,
+ *	0xa83, 0x383, 0x303, 0x303, 0x183, 0x183, 0x103, 0x103}
+ */
 pgprot_t protection_map[16] = {
 	__P000, __P001, __P010, __P011, __P100, __P101, __P110, __P111,
 	__S000, __S001, __S010, __S011, __S100, __S101, __S110, __S111

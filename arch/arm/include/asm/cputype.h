@@ -113,6 +113,11 @@ extern unsigned int processor_id;
  * any is_smp() tests, which can cause undefined instruction aborts on
  * ARM1136 r0 due to the missing extended CP15 registers.
  */
+/* IAMROOT-12CD (2016-08-23):
+ * --------------------------
+ * CPUID_EXT_MMFR0 "c1, 4"  ->  0x10201105
+ *	mrc        p15, 0, %0, c0, c1, 4
+ */
 #define read_cpuid_ext(ext_reg)						\
 	({								\
 		unsigned int __val;					\

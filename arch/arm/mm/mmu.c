@@ -53,6 +53,11 @@ EXPORT_SYMBOL(empty_zero_page);
  */
 pmd_t *top_pmd;
 
+/* IAMROOT-12CD (2016-08-23):
+ * --------------------------
+ * _PAGE_USER_TABLE	(PMD_TYPE_TABLE | PMD_BIT4 | PMD_DOMAIN(DOMAIN_USER))
+ * _PAGE_USER_TABLE = 0x1 | 0x10 | 0x20 = 0x31
+ */
 pmdval_t user_pmd_table = _PAGE_USER_TABLE;
 
 #define CPOLICY_UNCACHED	0
@@ -260,13 +265,17 @@ static struct mem_type mem_types[] = {
 	[MT_DEVICE] = {		  /* Strongly ordered / ARMv6 shared device */
 		.prot_pte	= PROT_PTE_DEVICE | L_PTE_MT_DEV_SHARED |
 				  L_PTE_SHARED,
+		/* IAMROOT-12CD (2016-08-23):
+		 * --------------------------
+		 * .prot_pte_s2 = L_PTE_SHARED = 0x400
+		 */
 		.prot_pte_s2	= s2_policy(PROT_PTE_S2_DEVICE) |
 				  s2_policy(L_PTE_S2_MT_DEV_SHARED) |
 				  L_PTE_SHARED,
 		.prot_l1	= PMD_TYPE_TABLE,
 		/* IAMROOT-12CD (2016-08-23):
 		 * --------------------------
-		 * .prot_sect |= (PMD_SECT_XN | PMD_SECT_TEX(1))
+		 * .prot_sect |= (PMD_SECT_XN | PMD_SECT_TEX(1) = 0x11412
 		 */
 		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_S,
 		.domain		= DOMAIN_IO,
@@ -282,21 +291,33 @@ static struct mem_type mem_types[] = {
 		.domain		= DOMAIN_IO,
 	},
 	[MT_DEVICE_CACHED] = {	  /* ioremap_cached */
+		/* IAMROOT-12CD (2016-08-23):
+		 * --------------------------
+		 * .prot_pte	= PROT_PTE_DEVICE | L_PTE_MT_DEV_CACHED |
+		 *		L_PTE_SHARED(0x400) = 0x66f
+		 */
 		.prot_pte	= PROT_PTE_DEVICE | L_PTE_MT_DEV_CACHED,
 		.prot_l1	= PMD_TYPE_TABLE,
 		/* IAMROOT-12CD (2016-08-23):
 		 * --------------------------
-		 * .prot_sect |= PMD_SECT_XN
+		 * .prot_sect |= (PMD_SECT_XN | PMD_SECT_S(0x10000)) = 0x1041e
 		 */
 		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_WB,
 		.domain		= DOMAIN_IO,
 	},
 	[MT_DEVICE_WC] = {	/* ioremap_wc */
+		/* IAMROOT-12CD (2016-08-23):
+		 * --------------------------
+		 * .prot_pte	= PROT_PTE_DEVICE | L_PTE_MT_DEV_WC |
+		 *		L_PTE_SHARED(0x400) = 0x667
+		 * 
+		 */
 		.prot_pte	= PROT_PTE_DEVICE | L_PTE_MT_DEV_WC,
 		.prot_l1	= PMD_TYPE_TABLE,
 		/* IAMROOT-12CD (2016-08-23):
 		 * --------------------------
-		 * .prot_sect |= (PMD_SECT_XN | PMD_SECT_BUFFERABLE)
+		 * .prot_sect = PROT_SECT_DEVICE | PMD_SECT_XN |
+		 *	PMD_SECT_BUFFERABLE | PMD_SECT_S = 0x10416
 		 */
 		.prot_sect	= PROT_SECT_DEVICE,
 		.domain		= DOMAIN_IO,
@@ -308,11 +329,22 @@ static struct mem_type mem_types[] = {
 		.domain		= DOMAIN_IO,
 	},
 	[MT_CACHECLEAN] = {
+		/* IAMROOT-12CD (2016-08-23):
+		 * --------------------------
+		 * .prot_sect = PMD_TYPE_SECT | PMD_SECT_XN | PMD_SECT_APX|
+		 *	PMD_SECT_AP_WRITE = 0x2 | 0x10 | 0x8000 | 0x400 = 0x8412
+		 */
 		.prot_sect = PMD_TYPE_SECT | PMD_SECT_XN,
 		.domain    = DOMAIN_KERNEL,
 	},
 #ifndef CONFIG_ARM_LPAE
 	[MT_MINICLEAN] = {
+		/* IAMROOT-12CD (2016-08-23):
+		 * --------------------------
+		 * .prot_sect = PMD_TYPE_SECT | PMD_TYPE_SECT | PMD_SECT_XN |
+		 *	PMD_SECT_MINICACHE | PMD_SECT_APX|PMD_SECT_AP_WRITE
+		 *	= 0x02 | 0x10 | 0x1008 | 0x8000 | 0x400 = 0x941a
+		 */
 		.prot_sect = PMD_TYPE_SECT | PMD_SECT_XN | PMD_SECT_MINICACHE,
 		.domain    = DOMAIN_KERNEL,
 	},
@@ -330,30 +362,57 @@ static struct mem_type mem_types[] = {
 		.domain    = DOMAIN_USER,
 	},
 	[MT_MEMORY_RWX] = {
+		/* IAMROOT-12CD (2016-08-23):
+		 * --------------------------
+		 * .prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY |
+		 *		L_PTE_SHARED
+		 */
 		.prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY,
 		.prot_l1   = PMD_TYPE_TABLE,
+		/* IAMROOT-12CD (2016-08-23):
+		 * --------------------------
+		 * .prot_sect = PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_SECT_S
+		 */
 		.prot_sect = PMD_TYPE_SECT | PMD_SECT_AP_WRITE,
 		.domain    = DOMAIN_KERNEL,
 	},
 	[MT_MEMORY_RW] = {
+		/* IAMROOT-12CD (2016-08-23):
+		 * --------------------------
+		 * .prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY |
+		 *		L_PTE_XN | L_PTE_SHARED
+		 */
 		.prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY |
 			     L_PTE_XN,
 		.prot_l1   = PMD_TYPE_TABLE,
 		/* IAMROOT-12CD (2016-08-23):
 		 * --------------------------
-		 * .prot_sect |= PMD_SECT_XN
+		 * .prot_sect |= (PMD_SECT_XN | PMD_SECT_S)
 		 */
 		.prot_sect = PMD_TYPE_SECT | PMD_SECT_AP_WRITE,
 		.domain    = DOMAIN_KERNEL,
 	},
 	[MT_ROM] = {
+		/* IAMROOT-12CD (2016-08-23):
+		 * --------------------------
+		 * .prot_sect = PMD_TYPE_SECT | PMD_SECT_APX|PMD_SECT_AP_WRITE
+		 *	= 0x02 | 0x8000 | 0x400 = 0x8402
+		 */
 		.prot_sect = PMD_TYPE_SECT,
 		.domain    = DOMAIN_KERNEL,
 	},
 	[MT_MEMORY_RWX_NONCACHED] = {
+		/* IAMROOT-12CD (2016-08-23):
+		 * --------------------------
+		 * .prot_pte |= L_PTE_SHARED
+		 */
 		.prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY |
 				L_PTE_MT_BUFFERABLE,
 		.prot_l1   = PMD_TYPE_TABLE,
+		/* IAMROOT-12CD (2016-08-23):
+		 * --------------------------
+		 * .prot_sect |= (PMD_SECT_S | PMD_SECT_BUFFERED)
+		 */
 		.prot_sect = PMD_TYPE_SECT | PMD_SECT_AP_WRITE,
 		.domain    = DOMAIN_KERNEL,
 	},
@@ -378,6 +437,10 @@ static struct mem_type mem_types[] = {
 		.domain    = DOMAIN_KERNEL,
 	},
 	[MT_MEMORY_DMA_READY] = {
+		/* IAMROOT-12CD (2016-08-23):
+		 * --------------------------
+		 * .prot_pte |= L_PTE_SHARED
+		 */
 		.prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY |
 				L_PTE_XN,
 		.prot_l1   = PMD_TYPE_TABLE,
@@ -560,6 +623,12 @@ static void __init build_mem_type_table(void)
 	 * s2_pgprot = cp->pte_s2 = 0
 	 */
 	s2_pgprot = cp->pte_s2;
+	/* IAMROOT-12CD (2016-08-23):
+	 * --------------------------
+	 * hyp_device_pgprot = PROT_PTE_DEVICE | L_PTE_MT_DEV_SHARED |
+	 *	L_PTE_SHARED = 0x653
+	 * s2_device_pgprot = L_PTE_SHARED = 0x400
+	 */
 	hyp_device_pgprot = mem_types[MT_DEVICE].prot_pte;
 	s2_device_pgprot = mem_types[MT_DEVICE].prot_pte_s2;
 
@@ -576,6 +645,13 @@ static void __init build_mem_type_table(void)
 	 * Check is it with support for the PXN bit
 	 * in the Short-descriptor translation table format descriptors.
 	 */
+	/* IAMROOT-12CD (2016-08-23):
+	 * --------------------------
+	 * read_cpuid_ext(CPUID_EXT_MMFR0)  ->  0x10201105
+	 *	mrc        p15, 0, %0, c0, c1, 4
+	 *	[3:0] VMSA support
+	 * 	Indicates support for a Virtual Memory System Architecture(VMSA)
+	 */
 	if (cpu_arch == CPU_ARCH_ARMv7 &&
 		(read_cpuid_ext(CPUID_EXT_MMFR0) & 0xF) == 4) {
 		user_pmd_table |= PMD_PXNTABLE;
@@ -584,6 +660,11 @@ static void __init build_mem_type_table(void)
 
 	/*
 	 * ARMv6 and above have extended page tables.
+	 */
+	/* IAMROOT-12CD (2016-08-23):
+	 * --------------------------
+	 * cr = 0x10c5387d, CR_XP = 0x800000
+	 * cr & CR_XP = 0x800000
 	 */
 	if (cpu_arch >= CPU_ARCH_ARMv6 && (cr & CR_XP)) {
 #ifndef CONFIG_ARM_LPAE
@@ -602,6 +683,13 @@ static void __init build_mem_type_table(void)
 		 * reasons given in early_cachepolicy().
 		 */
 		if (initial_pmd_value & PMD_SECT_S) {
+			/* IAMROOT-12CD (2016-08-23):
+			 * --------------------------
+			 * vecs_pgprot = kern_pgprot = user_pgprot =
+			 *	0x1c(L_PTE_MT_WRITEALLOC) | 0x400(L_PTE_SHARED)
+			 *	= 0x41c
+			 * s2_pgprot = 0 | L_PTE_SHARED = 0x400(L_PTE_SHARED)
+			 */
 			user_pgprot |= L_PTE_SHARED;
 			kern_pgprot |= L_PTE_SHARED;
 			vecs_pgprot |= L_PTE_SHARED;
