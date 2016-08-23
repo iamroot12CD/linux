@@ -264,24 +264,40 @@ static struct mem_type mem_types[] = {
 				  s2_policy(L_PTE_S2_MT_DEV_SHARED) |
 				  L_PTE_SHARED,
 		.prot_l1	= PMD_TYPE_TABLE,
+		/* IAMROOT-12CD (2016-08-23):
+		 * --------------------------
+		 * .prot_sect |= (PMD_SECT_XN | PMD_SECT_TEX(1))
+		 */
 		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_S,
 		.domain		= DOMAIN_IO,
 	},
 	[MT_DEVICE_NONSHARED] = { /* ARMv6 non-shared device */
 		.prot_pte	= PROT_PTE_DEVICE | L_PTE_MT_DEV_NONSHARED,
 		.prot_l1	= PMD_TYPE_TABLE,
+		/* IAMROOT-12CD (2016-08-23):
+		 * --------------------------
+		 * .prot_sect |= (PMD_SECT_XN | PMD_SECT_TEX(1))
+		 */
 		.prot_sect	= PROT_SECT_DEVICE,
 		.domain		= DOMAIN_IO,
 	},
 	[MT_DEVICE_CACHED] = {	  /* ioremap_cached */
 		.prot_pte	= PROT_PTE_DEVICE | L_PTE_MT_DEV_CACHED,
 		.prot_l1	= PMD_TYPE_TABLE,
+		/* IAMROOT-12CD (2016-08-23):
+		 * --------------------------
+		 * .prot_sect |= PMD_SECT_XN
+		 */
 		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_WB,
 		.domain		= DOMAIN_IO,
 	},
 	[MT_DEVICE_WC] = {	/* ioremap_wc */
 		.prot_pte	= PROT_PTE_DEVICE | L_PTE_MT_DEV_WC,
 		.prot_l1	= PMD_TYPE_TABLE,
+		/* IAMROOT-12CD (2016-08-23):
+		 * --------------------------
+		 * .prot_sect |= (PMD_SECT_XN | PMD_SECT_BUFFERABLE)
+		 */
 		.prot_sect	= PROT_SECT_DEVICE,
 		.domain		= DOMAIN_IO,
 	},
@@ -323,6 +339,10 @@ static struct mem_type mem_types[] = {
 		.prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY |
 			     L_PTE_XN,
 		.prot_l1   = PMD_TYPE_TABLE,
+		/* IAMROOT-12CD (2016-08-23):
+		 * --------------------------
+		 * .prot_sect |= PMD_SECT_XN
+		 */
 		.prot_sect = PMD_TYPE_SECT | PMD_SECT_AP_WRITE,
 		.domain    = DOMAIN_KERNEL,
 	},
@@ -524,8 +544,21 @@ static void __init build_mem_type_table(void)
 	/*
 	 * Now deal with the memory-type mappings
 	 */
+	/* IAMROOT-12CD (2016-08-23):
+	 * --------------------------
+	 * cachepolicy = CPOLICY_WRITEALLOC = 4
+	 */
 	cp = &cache_policies[cachepolicy];
+	/* IAMROOT-12CD (2016-08-23):
+	 * --------------------------
+	 * cp->pte = L_PTE_MT_WRITEALLOC = 0x1c
+	 * vecs_pgprot = kern_pgprot = user_pgprot = 0x1c(L_PTE_MT_WRITEALLOC)
+	 */
 	vecs_pgprot = kern_pgprot = user_pgprot = cp->pte;
+	/* IAMROOT-12CD (2016-08-23):
+	 * --------------------------
+	 * s2_pgprot = cp->pte_s2 = 0
+	 */
 	s2_pgprot = cp->pte_s2;
 	hyp_device_pgprot = mem_types[MT_DEVICE].prot_pte;
 	s2_device_pgprot = mem_types[MT_DEVICE].prot_pte_s2;
