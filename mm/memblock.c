@@ -52,11 +52,12 @@ struct memblock memblock __initdata_memblock = {
 /* IAMROOT-12CD (2016-08-20):
  * --------------------------
  * .reserved
- * {cnt = 0x3, max = 0x80, total_size = 9795242, regions = {
+ * {cnt = 0x4, max = 0x80, total_size = 18183850, regions = {
  *  [0] = {base = 0x4000, size = 0x4000, flags = 0x0},	page table
  *  [1] = {base = 0x8240, size = 9737564, flags = 0x0},	커널 영역
  *  [2] = {base = 0x8000000, size = 41294, flags = 0x0},	fdt 영역
- *  [3] = {base = 0x0, size = 0x0, flags = 0x0},
+ *  [3] = {base = 0x3b800000, size = 0x800000, flags = 0x0}, cma(dma)
+ *  [4] = {base = 0x0, size = 0x0, flags = 0x0},
  *  ...
  * } }
  */
@@ -172,6 +173,14 @@ __memblock_find_range_bottom_up(phys_addr_t start, phys_addr_t end,
  * RETURNS:
  * Found address on success, 0 on failure.
  */
+/* IAMROOT-12CD (2016-08-27):
+ * --------------------------
+ * start= 4096, end= 960M, size= 8M, align= 4M, nid= -1
+ * 예약된 메모리 영역을 제외한 메모리 공간에서 위에서 부터(top_down) 필요한 메
+ * 모리 사이즈(size)에 해당 되는 영역의 시작 번지를 가져온다.
+ *
+ * 여기서는 8M 사이즈를 원하므로 960M 영역에서 8M사이즈를 뺀 952M를 반한한다.
+ */
 static phys_addr_t __init_memblock
 __memblock_find_range_top_down(phys_addr_t start, phys_addr_t end,
 			       phys_addr_t size, phys_addr_t align, int nid)
@@ -179,13 +188,44 @@ __memblock_find_range_top_down(phys_addr_t start, phys_addr_t end,
 	phys_addr_t this_start, this_end, cand;
 	u64 i;
 
+	/* IAMROOT-12CD (2016-08-27):
+	 * --------------------------
+	 * for (i = (u64)ULLONG_MAX,
+	 *     __next_mem_range_rev(&i, -1, &memblock.memory, &memblock.reserved
+	 * 				 &this_start, &this_end, NULL);
+	 *      i != (u64)ULLONG_MAX;
+	 *     __next_mem_range_rev(&i, -1, &memblock.memory, &memblock.reserved
+	 * 				 &this_start, &this_end, NULL))
+	 */
 	for_each_free_mem_range_reverse(i, nid, &this_start, &this_end, NULL) {
+		/* IAMROOT-12CD (2016-08-27):
+		 * --------------------------
+		 * this_start = 0x800a14e
+		 * this_end = 960M(0x3c000000)
+		 * idx = 0x0 | (0x2 << 32) (idx_a = 0, idx_b = 2)
+		 * start= 4096, end= 960M, size= 8M, align= 4M, nid= -1
+		 *
+		 * clamp(val, lo, hi) --> min(max(val, lo), hi)
+		 * clamp(0x800a14e, 4096, 960M)->min(max(0x800a14e, 4096), 960M)
+		 *  min(0x800a14e, 960M) -> 0x800a14e
+		 * this_start= 0x800a14e
+		 * this_end = 960M
+		 */
 		this_start = clamp(this_start, start, end);
 		this_end = clamp(this_end, start, end);
 
 		if (this_end < size)
 			continue;
 
+		/* IAMROOT-12CD (2016-08-27):
+		 * --------------------------
+		 * this_end = 960M, size = 8M, align = 4M
+		 * round_down(952M, 4M)
+		 * cand = round_down(x, y) = x & ~(y-1)
+		 * cand = 952M & ~(4M -1 ) = 952M
+		 * cand = 952M
+		 * this_start= 0x800a14e
+		 */
 		cand = round_down(this_end - size, align);
 		if (cand >= this_start)
 			return cand;
@@ -215,6 +255,11 @@ __memblock_find_range_top_down(phys_addr_t start, phys_addr_t end,
  * RETURNS:
  * Found address on success, 0 on failure.
  */
+/* IAMROOT-12CD (2016-08-27):
+ * --------------------------
+ * size= 8M, align= 4M, start=0, end= 960M, nid= -1
+ * return 952M
+ */
 phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t size,
 					phys_addr_t align, phys_addr_t start,
 					phys_addr_t end, int nid)
@@ -225,7 +270,16 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t size,
 	if (end == MEMBLOCK_ALLOC_ACCESSIBLE)
 		end = memblock.current_limit;
 
+	/* IAMROOT-12CD (2016-08-27):
+	 * --------------------------
+	 * 첫번째 페이지 할당을 피한다.
+	 */
 	/* avoid allocating the first page */
+	/* IAMROOT-12CD (2016-08-27):
+	 * --------------------------
+	 * start = 4096
+	 * end = 960M
+	 */
 	start = max_t(phys_addr_t, start, PAGE_SIZE);
 	end = max(start, end);
 	kernel_end = __pa_symbol(_end);
@@ -549,12 +603,16 @@ static void __init_memblock memblock_insert_region(struct memblock_type *type,
  * type: &memblock.reserved, base=0x8000000, size=41294, nid:1, flags:0
  *	fdt 영역.
  *
+ * type: &memblock.reserved, base=0x3b800000(952M), size=8M nid:1, flags:0
+ *	dma(cma) 영역.
+ *
  * (gdb) p/x memblock.reserved
- *  = {cnt = 0x3, max = 0x80, total_size = 9795242, regions = {
+ *  = {cnt = 0x4, max = 0x80, total_size = 18183850, regions = {
  * 	 [0] = {base = 0x4000, size = 0x4000, flags = 0x0},	page table
  * 	 [1] = {base = 0x8240, size = 9737564, flags = 0x0},	커널 영역
  * 	 [2] = {base = 0x8000000, size = 41294, flags = 0x0},	fdt 영역
- * 	 [3] = {base = 0x0, size = 0x0, flags = 0x0},
+ * 	 [3] = {base = 0x3b800000, size = 0x800000, flags = 0x0}, cma(dma)
+ * 	 [4] = {base = 0x0, size = 0x0, flags = 0x0},
  * 	 ...
  *	}
  * }
@@ -794,6 +852,7 @@ int __init_memblock memblock_free(phys_addr_t base, phys_addr_t size)
  * base=0x8240, size=9737564, nid:1, flags:0 커널 _stext ~ _end영역..
  * base=0x4000, size=0x4000, nid:1, flags:0  page table 영역.
  * base=0x8000000, size=41294, nid:1, flags:0 fdt 영역.
+ * base=0x3b800000(952M), size=8M nid:1, flags:0 dma(cma) 영역.
  */
 static int __init_memblock memblock_reserve_region(phys_addr_t base,
 						   phys_addr_t size,
@@ -815,6 +874,7 @@ static int __init_memblock memblock_reserve_region(phys_addr_t base,
  * base=0x8240, size=9737564  커널 _stext ~ _end영역..
  * base=0x4000, size=0x4000   page table 영역.
  * base=0x8000000, size=41294 fdt 영역.
+ * base=0x3b800000(952M), size=8M dma(cma) 영역.
  */
 int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
 {
@@ -996,12 +1056,23 @@ void __init_memblock __next_mem_range(u64 *idx, int nid,
  *
  * Reverse of __next_mem_range().
  */
+/* IAMROOT-12CD (2016-08-27):
+ * --------------------------
+ * type_b에서 부적합으로 표시되지않은 범위를  type_a에서 찾습니다.
+ * *idx = ULLONG_MAX
+ *  __next_mem_range_rev(&i, -1, &memblock.memory, &memblock.reserved
+ * 				 &this_start, &this_end, NULL);
+ */
 void __init_memblock __next_mem_range_rev(u64 *idx, int nid,
 					  struct memblock_type *type_a,
 					  struct memblock_type *type_b,
 					  phys_addr_t *out_start,
 					  phys_addr_t *out_end, int *out_nid)
 {
+	/* IAMROOT-12CD (2016-08-27):
+	 * --------------------------
+	 * idx_a = idx_b = 0xffffffff
+	 */
 	int idx_a = *idx & 0xffffffff;
 	int idx_b = *idx >> 32;
 
@@ -1009,13 +1080,32 @@ void __init_memblock __next_mem_range_rev(u64 *idx, int nid,
 		nid = NUMA_NO_NODE;
 
 	if (*idx == (u64)ULLONG_MAX) {
+		/* IAMROOT-12CD (2016-08-27):
+		 * --------------------------
+		 * idx_a = 0
+		 * idx_b = 3
+		 */
 		idx_a = type_a->cnt - 1;
 		idx_b = type_b->cnt;
 	}
 
 	for (; idx_a >= 0; idx_a--) {
+		/* IAMROOT-12CD (2016-08-27):
+		 * --------------------------
+		 * idx_a = 0
+		 * m = memblock.memory.regions[0]
+		 * {cnt = 0x1, max = 0x80, total_size = 0x3c000000, regions = {
+		 *   [0] = {base = 0x0, size = 0x3c000000, flags = 0x0}, 0 ~ 960M 영역.
+		 *   [1] = {base = 0x0, size = 0x0, flags = 0x0},
+		 *   ...
+		 * }}
+		 */
 		struct memblock_region *m = &type_a->regions[idx_a];
 
+		/* IAMROOT-12CD (2016-08-27):
+		 * --------------------------
+		 * m_start = 0, m_end = 960M, m_nid = 0
+		 */
 		phys_addr_t m_start = m->base;
 		phys_addr_t m_end = m->base + m->size;
 		int m_nid = memblock_get_region_node(m);
@@ -1040,12 +1130,30 @@ void __init_memblock __next_mem_range_rev(u64 *idx, int nid,
 			return;
 		}
 
+		/* IAMROOT-12CD (2016-08-27):
+		 * --------------------------
+		 * idx_b = 3
+		 */
 		/* scan areas before each reservation */
 		for (; idx_b >= 0; idx_b--) {
 			struct memblock_region *r;
 			phys_addr_t r_start;
 			phys_addr_t r_end;
 
+			/* IAMROOT-12CD (2016-08-27):
+			 * --------------------------
+			 * type_b = memblock.reserved =
+			 * {cnt = 0x3, max = 0x80, total_size = 9795242, regions = {
+			 *  [0] = {base = 0x4000, size = 0x4000, flags = 0x0},	page table
+			 *  [1] = {base = 0x8240, size = 9737564, flags = 0x0},	커널 영역
+			 *  [2] = {base = 0x8000000, size = 41294, flags = 0x0},	fdt 영역
+			 *  [3] = {base = 0x0, size = 0x0, flags = 0x0},
+			 *  ...
+			 * } }
+			 * 
+			 * idx_b = 3
+			 * r_start = 0x800a14e, r_end = ULLONG_MAX
+			 */
 			r = &type_b->regions[idx_b];
 			r_start = idx_b ? r[-1].base + r[-1].size : 0;
 			r_end = idx_b < type_b->cnt ?
@@ -1055,6 +1163,11 @@ void __init_memblock __next_mem_range_rev(u64 *idx, int nid,
 			 * break out to advance idx_a
 			 */
 
+			/* IAMROOT-12CD (2016-08-27):
+			 * --------------------------
+			 * m_start = 0, m_end = 960M(0x3c000000), m_nid = 0
+			 * r_start = 0x800a14e, r_end = ULLONG_MAX
+			 */
 			if (r_end <= m_start)
 				break;
 			/* if the two regions intersect, we're done */
@@ -1070,6 +1183,14 @@ void __init_memblock __next_mem_range_rev(u64 *idx, int nid,
 				else
 					idx_b--;
 				*idx = (u32)idx_a | (u64)idx_b << 32;
+				/* IAMROOT-12CD (2016-08-27):
+				 * --------------------------
+				 * *out_start = r_start = 0x800a14e
+				 * *out_end = m_end = 960M(0x3c000000)
+				 * out_nid = NULL
+				 * idx_a = 0, idx_b = 2
+				 * *idx = 0x0 | (0x2 << 32)
+				 */
 				return;
 			}
 		}
@@ -1141,6 +1262,10 @@ int __init_memblock memblock_set_node(phys_addr_t base, phys_addr_t size,
 }
 #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
 
+/* IAMROOT-12CD (2016-08-27):
+ * --------------------------
+ * size= 8M, align= 4M, start=0, end= 960M, nid= -1
+ */
 static phys_addr_t __init memblock_alloc_range_nid(phys_addr_t size,
 					phys_addr_t align, phys_addr_t start,
 					phys_addr_t end, int nid)
@@ -1165,6 +1290,10 @@ static phys_addr_t __init memblock_alloc_range_nid(phys_addr_t size,
 phys_addr_t __init memblock_alloc_range(phys_addr_t size, phys_addr_t align,
 					phys_addr_t start, phys_addr_t end)
 {
+	/* IAMROOT-12CD (2016-08-27):
+	 * --------------------------
+	 * size= 8M, align= 4M, start=0, end= 960M, NUM_NO_NODE= -1
+	 */
 	return memblock_alloc_range_nid(size, align, start, end, NUMA_NO_NODE);
 }
 

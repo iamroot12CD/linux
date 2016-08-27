@@ -123,6 +123,10 @@ void __next_mem_range_rev(u64 *idx, int nid, struct memblock_type *type_a,
  * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
  * @p_nid: ptr to int for nid of the range, can be %NULL
  */
+/* IAMROOT-12CD (2016-08-27):
+ * --------------------------
+ * type_a에서 type_b영역을 제외한 memblock 영역을 뒤에서 부터 하나씩 가져온다.
+ */
 #define for_each_mem_range_rev(i, type_a, type_b, nid,			\
 			       p_start, p_end, p_nid)			\
 	for (i = (u64)ULLONG_MAX,					\
@@ -143,6 +147,10 @@ static inline bool movable_node_is_enabled(void)
 	return movable_node_enabled;
 }
 #else
+/* IAMROOT-12CD (2016-08-27):
+ * --------------------------
+ * 라즈베리파이2는 아래것이 맞다.
+ */
 static inline bool memblock_is_hotpluggable(struct memblock_region *m)
 {
 	return false;
@@ -268,6 +276,10 @@ static inline bool memblock_bottom_up(void)
 	return memblock.bottom_up;
 }
 #else
+/* IAMROOT-12CD (2016-08-27):
+ * --------------------------
+ * 라즈베리 파이2는 아래것이 맞다.
+ */
 static inline void __init memblock_set_bottom_up(bool enable) {}
 static inline bool memblock_bottom_up(void) { return false; }
 #endif

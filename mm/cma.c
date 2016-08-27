@@ -40,6 +40,10 @@
 #include "cma.h"
 
 struct cma cma_areas[MAX_CMA_AREAS];
+/* IAMROOT-12CD (2016-08-27):
+ * --------------------------
+ * cma_area_count = 1
+ */
 unsigned cma_area_count;
 static DEFINE_MUTEX(cma_mutex);
 
@@ -166,6 +170,10 @@ core_initcall(cma_init_reserved_areas);
  *
  * This function creates custom contiguous area from already reserved memory.
  */
+/* IAMROOT-12CD (2016-08-27):
+ * --------------------------
+ * base= 952M, size=8M, order_per_bit= 0, res_cma= &dma_contiguous_default_area
+ */
 int __init cma_init_reserved_mem(phys_addr_t base, phys_addr_t size,
 				 unsigned int order_per_bit,
 				 struct cma **res_cma)
@@ -182,6 +190,10 @@ int __init cma_init_reserved_mem(phys_addr_t base, phys_addr_t size,
 	if (!size || !memblock_is_region_reserved(base, size))
 		return -EINVAL;
 
+	/* IAMROOT-12CD (2016-08-27):
+	 * --------------------------
+	 * alignment = PAGE_SIZE << 10 = 4M
+	 */
 	/* ensure minimal alignment requied by mm core */
 	alignment = PAGE_SIZE << max(MAX_ORDER - 1, pageblock_order);
 
@@ -197,9 +209,23 @@ int __init cma_init_reserved_mem(phys_addr_t base, phys_addr_t size,
 	 * subsystems (like slab allocator) are available.
 	 */
 	cma = &cma_areas[cma_area_count];
+	/* IAMROOT-12CD (2016-08-27):
+	 * --------------------------
+	 * base = 952M
+	 * cma->base_pfn = 952M >> 12 = 0x3b800
+	 * cma->size = 8M >> 12 = 2k(0x800)
+	 * cma->order_per_bit = 0
+	 * totalcma_pages = 2k(0x800)
+	 */
 	cma->base_pfn = PFN_DOWN(base);
 	cma->count = size >> PAGE_SHIFT;
 	cma->order_per_bit = order_per_bit;
+	/* IAMROOT-12CD (2016-08-27):
+	 * --------------------------
+	 * res_cma= &dma_contiguous_default_area
+	 * *res_cma = &cma_areas[0];
+	 * dma_contiguous_default_area = &cma_areas[0]
+	 */
 	*res_cma = cma;
 	cma_area_count++;
 	totalcma_pages += (size / PAGE_SIZE);
@@ -227,6 +253,7 @@ int __init cma_init_reserved_mem(phys_addr_t base, phys_addr_t size,
  */
 /* IAMROOT-12CD (2016-08-20):
  * --------------------------
+ * CMA (Contiguous Memory Allocation)
  * base= 0, size= 5M(0x500000), limit= 0xffffffff, alignment= 0, order_per_bit=0
  * fixed= false, res_cms= &dma_contiguous_default_area
  */
@@ -336,6 +363,10 @@ int __init cma_declare_contiguous(phys_addr_t base,
 		 * try allocating from high memory first and fall back to low
 		 * memory in case of failure.
 		 */
+		/* IAMROOT-12CD (2016-08-27):
+		 * --------------------------
+		 * base = 0, highmem_start = 960M, limit = 960M
+		 */
 		if (base < highmem_start && limit > highmem_start) {
 			addr = memblock_alloc_range(size, alignment,
 						    highmem_start, limit);
@@ -343,6 +374,10 @@ int __init cma_declare_contiguous(phys_addr_t base,
 		}
 
 		if (!addr) {
+			/* IAMROOT-12CD (2016-08-27):
+			 * --------------------------
+			 * size= 8M, alignment= 4M, base= 0, limit= 960M
+			 */
 			addr = memblock_alloc_range(size, alignment, base,
 						    limit);
 			if (!addr) {
@@ -356,9 +391,18 @@ int __init cma_declare_contiguous(phys_addr_t base,
 		 * objects but this address isn't mapped and accessible
 		 */
 		kmemleak_ignore(phys_to_virt(addr));
+		/* IAMROOT-12CD (2016-08-27):
+		 * --------------------------
+		 * base = 952M(cma, dma 시작주소)
+		 */
 		base = addr;
 	}
 
+	/* IAMROOT-12CD (2016-08-27):
+	 * --------------------------
+	 * base= 952M, size=8M, order_per_bit= 0,
+	 *	res_cma= &dma_contiguous_default_area
+	 */
 	ret = cma_init_reserved_mem(base, size, order_per_bit, res_cma);
 	if (ret)
 		goto err;

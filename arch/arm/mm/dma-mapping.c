@@ -396,10 +396,26 @@ struct dma_contig_early_reserve {
 	unsigned long size;
 };
 
+/* IAMROOT-12CD (2016-08-27):
+ * --------------------------
+ * dma_mmu_remap = {
+ *  [0] = {base = 0x3b800000(952M), size = 0x800000(8M)},	cma 영역.
+ *  [1] = {base = 0, size = 0},
+ *  ...
+ * }
+ */
 static struct dma_contig_early_reserve dma_mmu_remap[MAX_CMA_AREAS] __initdata;
 
+/* IAMROOT-12CD (2016-08-27):
+ * --------------------------
+ * dma_mmu_remap_num = 1
+ */
 static int dma_mmu_remap_num __initdata;
 
+/* IAMROOT-12CD (2016-08-27):
+ * --------------------------
+ * base = 952M, size = 8M
+ */
 void __init dma_contiguous_early_fixup(phys_addr_t base, unsigned long size)
 {
 	dma_mmu_remap[dma_mmu_remap_num].base = base;

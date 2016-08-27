@@ -60,6 +60,10 @@ static inline void kmemleak_erase(void **ptr)
 
 #else
 
+/* IAMROOT-12CD (2016-08-27):
+ * --------------------------
+ * 라즈베리파이2는 아래의 함수를 사용함.
+ */
 static inline void kmemleak_init(void)
 {
 }

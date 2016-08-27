@@ -215,6 +215,10 @@ static void __init arm_memory_present(void)
 }
 #endif
 
+/* IAMROOT-12CD (2016-08-27):
+ * --------------------------
+ * arm_memblock_steal_permitted = false;
+ */
 static bool arm_memblock_steal_permitted = true;
 
 phys_addr_t __init arm_memblock_steal(phys_addr_t size, phys_addr_t align)
