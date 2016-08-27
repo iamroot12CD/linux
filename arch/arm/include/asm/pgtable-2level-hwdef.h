@@ -30,6 +30,11 @@
 #define PMD_SECT_PXN    (_AT(pmdval_t, 1) << 0)     /* v7 */
 #define PMD_SECT_BUFFERABLE	(_AT(pmdval_t, 1) << 2)
 #define PMD_SECT_CACHEABLE	(_AT(pmdval_t, 1) << 3)
+/* IAMROOT-12CD (2016-08-27):
+ * --------------------------
+ * Execute never bits int the TLB entry : 1로 설정하면 실행을 못한다.
+ * http://forum.falinux.com/zbxe/?mid=lecture_tip&page=9&document_srl=555371
+ */
 #define PMD_SECT_XN		(_AT(pmdval_t, 1) << 4)		/* v6 */
 #define PMD_SECT_AP_WRITE	(_AT(pmdval_t, 1) << 10)
 #define PMD_SECT_AP_READ	(_AT(pmdval_t, 1) << 11)
