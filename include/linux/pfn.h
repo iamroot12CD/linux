@@ -5,6 +5,10 @@
 #include <linux/types.h>
 #endif
 
+/* IAMROOT-12CD (2016-08-27):
+ * --------------------------
+ * Page Frame Number (PFN)
+ */
 #define PFN_ALIGN(x)	(((unsigned long)(x) + (PAGE_SIZE - 1)) & PAGE_MASK)
 #define PFN_UP(x)	(((x) + PAGE_SIZE-1) >> PAGE_SHIFT)
 /* IAMROOT-12CD (2016-08-22):

@@ -215,7 +215,7 @@ static void __init arm_memory_present(void)
 }
 #endif
 
-/* IAMROOT-12CD (2016-08-22):
+/* IAMROOT-12CD (2016-08-27):
  * --------------------------
  * arm_memblock_steal_permitted = false (arm_memblock_init() 함수에서 설정)
  */

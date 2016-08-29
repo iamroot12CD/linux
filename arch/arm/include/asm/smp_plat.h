@@ -14,6 +14,10 @@
 /*
  * Return true if we are running on a SMP platform
  */
+/* IAMROOT-12CD (2016-08-27):
+ * --------------------------
+ * Symmetric Multiprocessing (대칭형 멀티 프로세싱 : SMP)
+ */
 static inline bool is_smp(void)
 {
 #ifndef CONFIG_SMP

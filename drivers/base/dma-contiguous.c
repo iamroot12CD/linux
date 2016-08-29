@@ -38,6 +38,10 @@
 #define CMA_SIZE_MBYTES 0
 #endif
 
+/* IAMROOT-12CD (2016-08-27):
+ * --------------------------
+ * dma_contiguous_default_area = &cma_areas[0]
+ */
 struct cma *dma_contiguous_default_area;
 
 /*
@@ -211,6 +215,10 @@ int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
 	 * cma_get_size(&cma_areas[0]) = 0x8000000 (8M)
 	 */
 	/* Architecture specific contiguous memory fixup. */
+	/* IAMROOT-12CD (2016-08-27):
+	 * --------------------------
+	 * dma_contiguous_early_fixup(952M, 8M)
+	 */
 	dma_contiguous_early_fixup(cma_get_base(*res_cma),
 				cma_get_size(*res_cma));
 

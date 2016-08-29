@@ -261,6 +261,14 @@ __setup("noalign", noalign_setup);
 #define PROT_PTE_S2_DEVICE	PROT_PTE_DEVICE
 #define PROT_SECT_DEVICE	PMD_TYPE_SECT|PMD_SECT_AP_WRITE
 
+/* IAMROOT-12CD (2016-08-27):
+ * --------------------------
+ * mem_types[MT_DEVICE].prot_sect |= PMD_SECT_XN;
+ * mem_types[MT_DEVICE_NONSHARED].prot_sect |= PMD_SECT_XN;
+ * mem_types[MT_DEVICE_CACHED].prot_sect |= PMD_SECT_XN;
+ * mem_types[MT_DEVICE_WC].prot_sect |= PMD_SECT_XN;
+ * mem_types[MT_MEMORY_RW].prot_sect |= PMD_SECT_XN;
+ */
 static struct mem_type mem_types[] = {
 	[MT_DEVICE] = {		  /* Strongly ordered / ARMv6 shared device */
 		.prot_pte	= PROT_PTE_DEVICE | L_PTE_MT_DEV_SHARED |
@@ -273,9 +281,9 @@ static struct mem_type mem_types[] = {
 				  s2_policy(L_PTE_S2_MT_DEV_SHARED) |
 				  L_PTE_SHARED,
 		.prot_l1	= PMD_TYPE_TABLE,
-		/* IAMROOT-12CD (2016-08-23):
+		/* IAMROOT-12CD (2016-08-27):
 		 * --------------------------
-		 * .prot_sect |= (PMD_SECT_XN | PMD_SECT_TEX(1) = 0x11412
+		 * .prot_sect |= PMD_SECT_XN;
 		 */
 		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_S,
 		.domain		= DOMAIN_IO,
@@ -483,9 +491,17 @@ void __set_fixmap(enum fixed_addresses idx, phys_addr_t phys, pgprot_t prot)
 static void __init build_mem_type_table(void)
 {
 	struct cachepolicy *cp;
+	/* IAMROOT-12CD (2016-08-27):
+	 * --------------------------
+	 * 라즈베리파이2 기본값 : 0x10c5387d
+	 */
 	unsigned int cr = get_cr();
 	pteval_t user_pgprot, kern_pgprot, vecs_pgprot;
 	pteval_t hyp_device_pgprot, s2_pgprot, s2_device_pgprot;
+	/* IAMROOT-12CD (2016-08-27):
+	 * --------------------------
+	 * cpu_arch = CPU_ARCH_ARMv7; // 9
+	 */
 	int cpu_arch = cpu_architecture();
 	int i;
 
@@ -555,6 +571,11 @@ static void __init build_mem_type_table(void)
 			 * Mark device regions on ARMv6+ as execute-never
 			 * to prevent speculative instruction fetches.
 			 */
+			/* IAMROOT-12CD (2016-08-27):
+			 * --------------------------
+			 * 위험한 명령어 fetches를 방지하기 위해 실행 방지로
+			 * ARMv6+에 표시 디바이스 영역 표시한다.
+			 */
 			mem_types[MT_DEVICE].prot_sect |= PMD_SECT_XN;
 			mem_types[MT_DEVICE_NONSHARED].prot_sect |= PMD_SECT_XN;
 			mem_types[MT_DEVICE_CACHED].prot_sect |= PMD_SECT_XN;
@@ -570,6 +591,10 @@ static void __init build_mem_type_table(void)
 			 * - nonshared device is SXCB=0100
 			 * - write combine device mem is SXCB=0001
 			 * (Uncached Normal memory)
+			 */
+			/* IAMROOT-12CD (2016-08-27):
+			 * --------------------------
+			 * http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0211k/Babifihd.html
 			 */
 			mem_types[MT_DEVICE].prot_sect |= PMD_SECT_TEX(1);
 			mem_types[MT_DEVICE_NONSHARED].prot_sect |= PMD_SECT_TEX(1);

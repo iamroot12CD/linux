@@ -61,6 +61,10 @@
  */
 #define __round_mask(x, y) ((__typeof__(x))((y)-1))
 #define round_up(x, y) ((((x)-1) | __round_mask(x, y))+1)
+/* IAMROOT-12CD (2016-08-27):
+ * --------------------------
+ * round_down(x, y) = x & ~(y-1)
+ */
 #define round_down(x, y) ((x) & ~__round_mask(x, y))
 
 #define FIELD_SIZEOF(t, f) (sizeof(((t*)0)->f))
@@ -750,6 +754,10 @@ static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
  *
  * This macro does strict typechecking of lo/hi to make sure they are of the
  * same type as val.  See the unnecessary pointer comparisons.
+ */
+/* IAMROOT-12CD (2016-08-27):
+ * --------------------------
+ * 엄격한 유형 검사와 함께 주어진 범위에 고정 값을 반환
  */
 #define clamp(val, lo, hi) min((typeof(val))max(val, lo), hi)
 
