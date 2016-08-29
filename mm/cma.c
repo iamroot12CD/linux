@@ -39,19 +39,34 @@
 
 #include "cma.h"
 
+/* IAMROOT-12CD (2016-08-17):
+ * --------------------------
+ * MAX_CMA_AREAS=8
+ * [0] = {base_pfn = 0x3b800, count = 0x800, order_per_bit = 0x0, ...},
+ *		cma 영역 0~8M(원래 할당은 5M지만 4M alignment 되어서 8M가 됨)
+ *
+ */
 struct cma cma_areas[MAX_CMA_AREAS];
 /* IAMROOT-12CD (2016-08-27):
  * --------------------------
- * cma_area_count = 1
+ * cma_area_count = 1  : 0 번째는 cma 영역 (0~8M)
  */
 unsigned cma_area_count;
 static DEFINE_MUTEX(cma_mutex);
 
+/* IAMROOT-12CD (2016-08-22):
+ * --------------------------
+ * 페이지 단위로 된 cma base 주소를 메모리 주소로 변환
+ */
 phys_addr_t cma_get_base(const struct cma *cma)
 {
 	return PFN_PHYS(cma->base_pfn);
 }
 
+/* IAMROOT-12CD (2016-08-22):
+ * --------------------------
+ * 페이지 단위로 된 cma size를 메모리 사이즈로 변환
+ */
 unsigned long cma_get_size(const struct cma *cma)
 {
 	return cma->count << PAGE_SHIFT;
@@ -262,6 +277,10 @@ int __init cma_declare_contiguous(phys_addr_t base,
 			phys_addr_t alignment, unsigned int order_per_bit,
 			bool fixed, struct cma **res_cma)
 {
+	/* IAMROOT-12CD (2016-08-17):
+	 * --------------------------
+	 * memblock_end = 960M(0x3c000000)
+	 */
 	phys_addr_t memblock_end = memblock_end_of_DRAM();
 	phys_addr_t highmem_start;
 	int ret = 0;
@@ -276,6 +295,10 @@ int __init cma_declare_contiguous(phys_addr_t base,
 	 */
 	highmem_start = __pa_nodebug(high_memory);
 #else
+	/* IAMROOT-12CD (2016-08-17):
+	 * --------------------------
+	 * highmem_start = __pa(0xbc000000) = 960M(0x3c000000)
+	 */
 	highmem_start = __pa(high_memory);
 #endif
 	pr_debug("%s(size %pa, base %pa, limit %pa alignment %pa)\n",
@@ -305,6 +328,16 @@ int __init cma_declare_contiguous(phys_addr_t base,
 	 */
 	alignment = max(alignment,
 		(phys_addr_t)PAGE_SIZE << max(MAX_ORDER - 1, pageblock_order));
+	/* IAMROOT-12CD (2016-08-17):
+	 * --------------------------
+	 * ALIGN(x, a) (x+a-1)&~(a-1)
+	 * ALIGN(0, 4M) = (0+4M-1) & ~(4M-1) = 0x3fffff & 0xffc00000 = 0
+	 * ALIGN(5M, 4M) = (5M+4M-1) & ~(4M-1) = 0x8fffff & 0xffc00000 = 8M
+	 *
+	 * base = 0
+	 * size = 0x800000(8M)
+	 * limit = 0xffc00000
+	 */
 	base = ALIGN(base, alignment);
 	/* IAMROOT-12CD (2016-08-20):
 	 * --------------------------
@@ -376,7 +409,8 @@ int __init cma_declare_contiguous(phys_addr_t base,
 		if (!addr) {
 			/* IAMROOT-12CD (2016-08-27):
 			 * --------------------------
-			 * size= 8M, alignment= 4M, base= 0, limit= 960M
+			 * size= 8M, alignment= 4M, base= 0,
+			 * limit: 0x3c000000(960M)
 			 */
 			addr = memblock_alloc_range(size, alignment, base,
 						    limit);

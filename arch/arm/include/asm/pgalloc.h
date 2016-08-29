@@ -22,7 +22,15 @@
 
 #ifdef CONFIG_MMU
 
+/* IAMROOT-12CD (2016-08-23):
+ * --------------------------
+ * _PAGE_USER_TABLE = 0x1 | 0x10 | 0x20 = 0x31
+ */
 #define _PAGE_USER_TABLE	(PMD_TYPE_TABLE | PMD_BIT4 | PMD_DOMAIN(DOMAIN_USER))
+/* IAMROOT-12CD (2016-08-23):
+ * --------------------------
+ * _PAGE_KERNEL_TABLE = 0x01 | 0x10 | 0x0 = 0x11
+ */
 #define _PAGE_KERNEL_TABLE	(PMD_TYPE_TABLE | PMD_BIT4 | PMD_DOMAIN(DOMAIN_KERNEL))
 
 #ifdef CONFIG_ARM_LPAE

@@ -467,6 +467,25 @@ static int __init do_early_param(char *param, char *val, const char *unused)
 {
 	const struct obs_kernel_param *p;
 
+	/* IAMROOT-12CD (2016-07-01):
+	 * --------------------------
+	 * include/linux/init.h
+	 * 
+	 * #define __setup_param(str, unique_id, fn, early)		\
+	 *	static const char __setup_str_##unique_id[] __initconst	\
+	 *		__aligned(1) = str; 				\
+	 *	static struct obs_kernel_param __setup_##unique_id	\
+	 *		__used __section(.init.setup)			\
+	 *		__attribute__((aligned((sizeof(long)))))	\
+	 *		= { __setup_str_##unique_id, fn, early }
+	 * 
+	 * #define __setup(str, fn)					\
+	 * 	__setup_param(str, fn, fn, 0)
+	 * 
+	 * #define early_param(str, fn)					\
+	 * 	__setup_param(str, fn, fn, 1)
+
+	 */
 	for (p = __setup_start; p < __setup_end; p++) {
 		if ((p->early && parameq(param, p->str)) ||
 		    (strcmp(param, "console") == 0 &&

@@ -217,7 +217,7 @@ static void __init arm_memory_present(void)
 
 /* IAMROOT-12CD (2016-08-27):
  * --------------------------
- * arm_memblock_steal_permitted = false;
+ * arm_memblock_steal_permitted = false (arm_memblock_init() 함수에서 설정)
  */
 static bool arm_memblock_steal_permitted = true;
 
@@ -240,9 +240,18 @@ void __init arm_memblock_init(const struct machine_desc *mdesc)
 #ifdef CONFIG_XIP_KERNEL
 	memblock_reserve(__pa(_sdata), _end - _sdata);
 #else
+	/* IAMROOT-12CD (2016-08-16):
+	 * --------------------------
+	 * memblock_reserve(0x8240, 9737564)
+	 */
 	memblock_reserve(__pa(_stext), _end - _stext);
 #endif
 #ifdef CONFIG_BLK_DEV_INITRD
+	/* IAMROOT-12CD (2016-08-16):
+	 * --------------------------
+	 * initrd_start = 0
+	 * phys_initrd_size = 0
+	 */
 	/* FDT scan will populate initrd_start */
 	/* IAMROOT-12CD (2016-08-20):
 	 * --------------------------
