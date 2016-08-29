@@ -53,11 +53,6 @@ EXPORT_SYMBOL(empty_zero_page);
  */
 pmd_t *top_pmd;
 
-/* IAMROOT-12CD (2016-08-23):
- * --------------------------
- * _PAGE_USER_TABLE	(PMD_TYPE_TABLE | PMD_BIT4 | PMD_DOMAIN(DOMAIN_USER))
- * _PAGE_USER_TABLE = 0x1 | 0x10 | 0x20 = 0x31
- */
 pmdval_t user_pmd_table = _PAGE_USER_TABLE;
 
 #define CPOLICY_UNCACHED	0
@@ -632,28 +627,9 @@ static void __init build_mem_type_table(void)
 	/*
 	 * Now deal with the memory-type mappings
 	 */
-	/* IAMROOT-12CD (2016-08-23):
-	 * --------------------------
-	 * cachepolicy = CPOLICY_WRITEALLOC = 4
-	 */
 	cp = &cache_policies[cachepolicy];
-	/* IAMROOT-12CD (2016-08-23):
-	 * --------------------------
-	 * cp->pte = L_PTE_MT_WRITEALLOC = 0x1c
-	 * vecs_pgprot = kern_pgprot = user_pgprot = 0x1c(L_PTE_MT_WRITEALLOC)
-	 */
 	vecs_pgprot = kern_pgprot = user_pgprot = cp->pte;
-	/* IAMROOT-12CD (2016-08-23):
-	 * --------------------------
-	 * s2_pgprot = cp->pte_s2 = 0
-	 */
 	s2_pgprot = cp->pte_s2;
-	/* IAMROOT-12CD (2016-08-23):
-	 * --------------------------
-	 * hyp_device_pgprot = PROT_PTE_DEVICE | L_PTE_MT_DEV_SHARED |
-	 *	L_PTE_SHARED = 0x653
-	 * s2_device_pgprot = L_PTE_SHARED = 0x400
-	 */
 	hyp_device_pgprot = mem_types[MT_DEVICE].prot_pte;
 	s2_device_pgprot = mem_types[MT_DEVICE].prot_pte_s2;
 
@@ -670,13 +646,6 @@ static void __init build_mem_type_table(void)
 	 * Check is it with support for the PXN bit
 	 * in the Short-descriptor translation table format descriptors.
 	 */
-	/* IAMROOT-12CD (2016-08-23):
-	 * --------------------------
-	 * read_cpuid_ext(CPUID_EXT_MMFR0)  ->  0x10201105
-	 *	mrc        p15, 0, %0, c0, c1, 4
-	 *	[3:0] VMSA support
-	 * 	Indicates support for a Virtual Memory System Architecture(VMSA)
-	 */
 	if (cpu_arch == CPU_ARCH_ARMv7 &&
 		(read_cpuid_ext(CPUID_EXT_MMFR0) & 0xF) == 4) {
 		user_pmd_table |= PMD_PXNTABLE;
@@ -685,11 +654,6 @@ static void __init build_mem_type_table(void)
 
 	/*
 	 * ARMv6 and above have extended page tables.
-	 */
-	/* IAMROOT-12CD (2016-08-23):
-	 * --------------------------
-	 * cr = 0x10c5387d, CR_XP = 0x800000
-	 * cr & CR_XP = 0x800000
 	 */
 	if (cpu_arch >= CPU_ARCH_ARMv6 && (cr & CR_XP)) {
 #ifndef CONFIG_ARM_LPAE
@@ -708,13 +672,6 @@ static void __init build_mem_type_table(void)
 		 * reasons given in early_cachepolicy().
 		 */
 		if (initial_pmd_value & PMD_SECT_S) {
-			/* IAMROOT-12CD (2016-08-23):
-			 * --------------------------
-			 * vecs_pgprot = kern_pgprot = user_pgprot =
-			 *	0x1c(L_PTE_MT_WRITEALLOC) | 0x400(L_PTE_SHARED)
-			 *	= 0x41c
-			 * s2_pgprot = 0 | L_PTE_SHARED = 0x400(L_PTE_SHARED)
-			 */
 			user_pgprot |= L_PTE_SHARED;
 			kern_pgprot |= L_PTE_SHARED;
 			vecs_pgprot |= L_PTE_SHARED;
