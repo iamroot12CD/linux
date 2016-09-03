@@ -39,6 +39,11 @@
 #define PMD_SECT_AP_WRITE	(_AT(pmdval_t, 1) << 10)
 #define PMD_SECT_AP_READ	(_AT(pmdval_t, 1) << 11)
 #define PMD_SECT_TEX(x)		(_AT(pmdval_t, (x)) << 12)	/* v5 */
+/* IAMROOT-12CD (2016-09-03):
+ * --------------------------
+ * APX(AP eXtension)
+ * http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0360f/CHDDEFEE.html
+ */
 #define PMD_SECT_APX		(_AT(pmdval_t, 1) << 15)	/* v6 */
 #define PMD_SECT_S		(_AT(pmdval_t, 1) << 16)	/* v6 */
 #define PMD_SECT_nG		(_AT(pmdval_t, 1) << 17)	/* v6 */

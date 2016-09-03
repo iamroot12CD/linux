@@ -252,6 +252,12 @@ __setup("noalign", noalign_setup);
 
 #endif /* ifdef CONFIG_CPU_CP15 / else */
 
+/* IAMROOT-12CD (2016-09-03):
+ * --------------------------
+ * IO 디바이스 메모리 매핑 영역은 실행불가, 쓰기 가능(DIRTY - DEVICE에서
+ *	writable 로사용), 항상 메모리상주(L_PTE_PRESENT) 되어 있어야함. 
+ * TODO: L_PTE_YOUNG 
+ */
 #define PROT_PTE_DEVICE		L_PTE_PRESENT|L_PTE_YOUNG|L_PTE_DIRTY|L_PTE_XN
 #define PROT_PTE_S2_DEVICE	PROT_PTE_DEVICE
 #define PROT_SECT_DEVICE	PMD_TYPE_SECT|PMD_SECT_AP_WRITE
@@ -263,6 +269,10 @@ __setup("noalign", noalign_setup);
  * mem_types[MT_DEVICE_CACHED].prot_sect |= PMD_SECT_XN;
  * mem_types[MT_DEVICE_WC].prot_sect |= PMD_SECT_XN;
  * mem_types[MT_MEMORY_RW].prot_sect |= PMD_SECT_XN;
+ * 
+ *  mem_types[MT_DEVICE].prot_sect |= PMD_SECT_TEX(1);
+ *  mem_types[MT_DEVICE_NONSHARED].prot_sect |= PMD_SECT_TEX(1);
+ *  mem_types[MT_DEVICE_WC].prot_sect |= PMD_SECT_BUFFERABLE;
  */
 static struct mem_type mem_types[] = {
 	[MT_DEVICE] = {		  /* Strongly ordered / ARMv6 shared device */
@@ -627,9 +637,28 @@ static void __init build_mem_type_table(void)
 	/*
 	 * Now deal with the memory-type mappings
 	 */
+	/* IAMROOT-12CD (2016-09-03):
+	 * --------------------------
+	 * cp = {
+	 * 	.policy		= "writealloc",
+	 * 	.cr_mask	= 0,
+	 * 	.pmd		= PMD_SECT_WBWA,
+	 * 	.pte		= L_PTE_MT_WRITEALLOC,
+	 * 	.pte_s2		= 0, 라즈베리파이는 쓰이지 않는다.
+	 * }
+	 */
 	cp = &cache_policies[cachepolicy];
+	/* IAMROOT-12CD (2016-09-03):
+	 * --------------------------
+	 * vecs_pgprot = kern_pgprot = user_pgprot = L_PTE_MT_WRITEALLOC
+	 */
 	vecs_pgprot = kern_pgprot = user_pgprot = cp->pte;
 	s2_pgprot = cp->pte_s2;
+	/* IAMROOT-12CD (2016-09-03):
+	 * --------------------------
+	 * hyp_device_pgprot = PROT_PTE_DEVICE | L_PTE_MT_DEV_SHARED |
+	 *			L_PTE_SHARED,
+	 */
 	hyp_device_pgprot = mem_types[MT_DEVICE].prot_pte;
 	s2_device_pgprot = mem_types[MT_DEVICE].prot_pte_s2;
 
@@ -645,6 +674,11 @@ static void __init build_mem_type_table(void)
 	/*
 	 * Check is it with support for the PXN bit
 	 * in the Short-descriptor translation table format descriptors.
+	 */
+	/* IAMROOT-12CD (2016-09-03):
+	 * --------------------------
+	 * CPUID_EXT_MMFR0 "c1, 4"  ->  0x10201105
+	 *	mrc        p15, 0, %0, c0, c1, 4
 	 */
 	if (cpu_arch == CPU_ARCH_ARMv7 &&
 		(read_cpuid_ext(CPUID_EXT_MMFR0) & 0xF) == 4) {

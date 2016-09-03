@@ -117,19 +117,59 @@
  * The PTE table pointer refers to the hardware entries; the "Linux"
  * entries are stored 1024 bytes below.
  */
+/* IAMROOT-12CD (2016-09-03):
+ * --------------------------
+ * 페이지가 메모리에 상주해 있고 스왑 아웃되지 않은 상태
+ */
 #define L_PTE_VALID		(_AT(pteval_t, 1) << 0)		/* Valid */
+/* IAMROOT-12CD (2016-09-03):
+ * --------------------------
+ * 페이지가 메모리에 상주해 있고 스왑 아웃되지 않은 상태
+ */
 #define L_PTE_PRESENT		(_AT(pteval_t, 1) << 0)
+/* IAMROOT-12CD (2016-09-03):
+ * --------------------------
+ * 페이지에 접근이 된 경우
+ */
 #define L_PTE_YOUNG		(_AT(pteval_t, 1) << 1)
+/* IAMROOT-12CD (2016-09-03):
+ * --------------------------
+ * 페이지가 변경된 경우
+ */
 #define L_PTE_DIRTY		(_AT(pteval_t, 1) << 6)
 #define L_PTE_RDONLY		(_AT(pteval_t, 1) << 7)
+/* IAMROOT-12CD (2016-09-03):
+ * --------------------------
+ * user process가 접근 가능한 경우 1, 커널만 접근 가능하게 할 경우 0
+ */
 #define L_PTE_USER		(_AT(pteval_t, 1) << 8)
+/* IAMROOT-12CD (2016-09-03):
+ * --------------------------
+ * Excute Never로 실행 금지
+ */
 #define L_PTE_XN		(_AT(pteval_t, 1) << 9)
+/* IAMROOT-12CD (2016-09-03):
+ * --------------------------
+ * 공유된 페이지
+ */
 #define L_PTE_SHARED		(_AT(pteval_t, 1) << 10)	/* shared(v6), coherent(xsc3) */
+/* IAMROOT-12CD (2016-09-03):
+ * --------------------------
+ * 페이지가 있으나 access 할 수 없는 페이지
+ */
 #define L_PTE_NONE		(_AT(pteval_t, 1) << 11)
 
 /*
  * These are the memory types, defined to be compatible with
  * pre-ARMv6 CPUs cacheable and bufferable bits:   XXCB
+ */
+/* IAMROOT-12CD (2016-09-03):
+ * --------------------------
+ * XXCB --> XX(TEX), C(cacheable), B(bufferable)
+ *	TEX	C	B
+ *	0	1	0	Write Through(no Write Allocate)
+ *	0	1	1	Write Back(no Write Allocate)
+ *	1	1	1	Write Back, Write Allocate
  */
 #define L_PTE_MT_UNCACHED	(_AT(pteval_t, 0x00) << 2)	/* 0000 */
 #define L_PTE_MT_BUFFERABLE	(_AT(pteval_t, 0x01) << 2)	/* 0001 */
