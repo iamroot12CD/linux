@@ -1,6 +1,17 @@
 # Iamroot ARM Kernel 분석 12차 CD조 (http://www.iamroot.org)
 
-## 제 71주차 스터디
+## 제 73주차 스터디
+#### 날짜: 2016-09-10
+#### 장소: Koss 공개SW개발자 Lab
+#### 내용:
+ - setup_arch() -> paging_init() -> build_mem_type_table() 분석 완료.
+ - setup_arch() -> paging_init() -> prepare_page_table() 분석
+#### 참석자
+ - **임채훈 (im.fehead@gmail.com)**
+ - *김미르 (skykmr8405@naver.com)*
+
+
+## 제 72주차 스터디
 #### 날짜: 2016-09-03
 #### 장소: Koss 공개SW개발자 Lab
 #### 내용: setup_arch() -> paging_init() 분석

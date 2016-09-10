@@ -78,8 +78,31 @@ static void unmap_region(struct mm_struct *mm,
  */
 /* IAMROOT-12CD (2016-08-23):
  * --------------------------
+ * 현재 구현에 매핑 유형과 보호의 효과에 대한 설명입니다. 이것은 제한된 86
+ * 페이지 보호 하드웨어에 기인한다. 예상되는 동작은 괄호에있다 :
  * {	0xa83, 0x383, 0x383, 0x383, 0x183, 0x183, 0x183, 0x183,
  *	0xa83, 0x383, 0x303, 0x303, 0x183, 0x183, 0x103, 0x103}
+ *
+ * #define __P000  __PAGE_NONE
+ * #define __P001  __PAGE_READONLY
+ * #define __P010  __PAGE_COPY
+ * #define __P011  __PAGE_COPY
+ * #define __P100  __PAGE_READONLY_EXEC
+ * #define __P101  __PAGE_READONLY_EXEC
+ * #define __P110  __PAGE_COPY_EXEC
+ * #define __P111  __PAGE_COPY_EXEC
+ * 
+ * #define __S000  __PAGE_NONE
+ * #define __S001  __PAGE_READONLY
+ * #define __S010  __PAGE_SHARED
+ * #define __S011  __PAGE_SHARED
+ * #define __S100  __PAGE_READONLY_EXEC
+ * #define __S101  __PAGE_READONLY_EXEC
+ * #define __S110  __PAGE_SHARED_EXEC
+ * #define __S111  __PAGE_SHARED_EXEC
+ *
+ * for (i = 0; i < 16; i++)
+ *	protection_map[i] |= (L_PTE_MT_WRITEALLOC | L_PTE_SHARED)
  */
 pgprot_t protection_map[16] = {
 	__P000, __P001, __P010, __P011, __P100, __P101, __P110, __P111,

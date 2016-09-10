@@ -127,9 +127,28 @@ static inline u32 __raw_readl(const volatile void __iomem *addr)
 /*
  * Architecture ioremap implementation.
  */
+/* IAMROOT-12CD (2016-09-10):
+ * --------------------------
+ * ARM의 공유 디바이스.
+ */
 #define MT_DEVICE		0
+
+/* IAMROOT-12CD (2016-09-10):
+ * --------------------------
+ * ARM의 비공유 디바이스
+ */
 #define MT_DEVICE_NONSHARED	1
+
+/* IAMROOT-12CD (2016-09-10):
+ * --------------------------
+ * 캐쉬 쓰기 버퍼 및 캐시 사용 디바이스
+ */
 #define MT_DEVICE_CACHED	2
+
+/* IAMROOT-12CD (2016-09-10):
+ * --------------------------
+ * 쓰기 버퍼 및 캐시 미사용 디바이스(Without Cache)
+ */
 #define MT_DEVICE_WC		3
 /*
  * types 4 onwards can be found in asm/mach/map.h and are undefined

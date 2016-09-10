@@ -144,6 +144,13 @@ extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
  *  2) If we could do execute protection, then read is implied
  *  3) write implies read permissions
  */
+/* IAMROOT-12CD (2016-09-10):
+ * --------------------------
+ * 대부분의 ARM 하드웨어 상에서는...
+ * 1) 실행 보호를 할수 없다.
+ * 2) 만약 실행보호를 할수 있다면, 읽기는 묵시적로 가능하다.
+ * 3) 쓰기가 가능하면 읽기는 묵시적으로 가능하다.
+ */
 #define __P000  __PAGE_NONE
 #define __P001  __PAGE_READONLY
 #define __P010  __PAGE_COPY

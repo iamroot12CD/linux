@@ -82,6 +82,14 @@
  * PMD_SHIFT determines the size of the area a second-level page table can map
  * PGDIR_SHIFT determines what a third-level page table entry can map
  */
+/* IAMROOT-12CD (2016-09-10):
+ * --------------------------
+ * 2단계 페이지 테이블 구조
+ *  31        21 20     12 11        0
+ * +------------+---------+-----------+
+ * | PGD = PMD  |  PTE    | offset    |
+ * +------------+---------+-----------+
+ */
 #define PMD_SHIFT		21
 #define PGDIR_SHIFT		21
 

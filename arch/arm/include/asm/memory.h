@@ -55,6 +55,12 @@
  * The module space lives between the addresses given by TASK_SIZE
  * and PAGE_OFFSET - it must be within 32MB of the kernel text.
  */
+/* IAMROOT-12CD (2016-09-10):
+ * --------------------------
+ * 모듈 공간은 TASK_SIZE와 PAGE_OFFSET 사이에 있다. - 이것은 커널 text 32MB이내
+ * 에 있어야한다.
+ * MODULES_VADDR = 2G-16M = 0x7f000000
+ */
 #ifndef CONFIG_THUMB2_KERNEL
 #define MODULES_VADDR		(PAGE_OFFSET - SZ_16M)
 #else
