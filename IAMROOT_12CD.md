@@ -1,6 +1,6 @@
 # Iamroot ARM Kernel 분석 12차 CD조 (http://www.iamroot.org)
 
-## 제 73주차 스터디
+## 제 74주차 스터디
 #### 날짜: 2016-09-10
 #### 장소: Koss 공개SW개발자 Lab
 #### 내용:
