@@ -93,6 +93,10 @@
 #define PMD_SHIFT		21
 #define PGDIR_SHIFT		21
 
+/* IAMROOT-12CD (2016-09-24):
+ * --------------------------
+ * PMD_SIZE = 2M
+ */
 #define PMD_SIZE		(1UL << PMD_SHIFT)
 #define PMD_MASK		(~(PMD_SIZE-1))
 #define PGDIR_SIZE		(1UL << PGDIR_SHIFT)

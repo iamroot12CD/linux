@@ -42,7 +42,17 @@
  * area for the same reason. ;)
  */
 #define VMALLOC_OFFSET		(8*1024*1024)
+/* IAMROOT-12CD (2016-09-24):
+ * --------------------------
+ * high_memory = 0xBC000000, VMALLOC_OFFSET=8M
+ * VMALLOC_START = 0xBC000000 + 8M --> 968M의 virtual addr
+ * VMALLOC_START = 0xbc800000
+ */
 #define VMALLOC_START		(((unsigned long)high_memory + VMALLOC_OFFSET) & ~(VMALLOC_OFFSET-1))
+/* IAMROOT-12CD (2016-09-24):
+ * --------------------------
+ * VMALLOC_END = 4080M (4G - 16M)
+ */
 #define VMALLOC_END		0xff000000UL
 
 #define LIBRARY_TEXT_START	0x0c000000

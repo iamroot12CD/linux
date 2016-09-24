@@ -42,6 +42,10 @@
 #ifndef __ASSEMBLY__
 
 #if __LINUX_ARM_ARCH__ >= 4
+/* IAMROOT-12CD (2016-09-24):
+ * --------------------------
+ * cr(0x10c5387d & (1 << 13)) = 0x2000
+ */
 #define vectors_high()	(get_cr() & CR_V)
 #else
 #define vectors_high()	(0)

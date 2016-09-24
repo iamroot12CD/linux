@@ -47,7 +47,9 @@ static inline pte_t get_top_pte(unsigned long va)
  *
  * virt		pgd_offset_k	pud_offset	pmd_offset
  * 0		0x80004000 + 0	0x80004000 + 0	0x80004000 + 0
- * 0x200000	0x80004000 + 2	0x80004000 + 2	0x80004000 + 2
+ * 0x200000	0x80004000 + 8	0x80004000 + 8	0x80004000 + 8
+ * 0x400000	0x80004000 + 16	0x80004000 + 16	0x80004000 + 16
+ * 0x600000	0x80004000 + 24	0x80004000 + 24	0x80004000 + 24(8*3)
  */
 static inline pmd_t *pmd_off_k(unsigned long virt)
 {

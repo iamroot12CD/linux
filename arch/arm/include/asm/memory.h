@@ -43,6 +43,10 @@
  * TASK_SIZE - the maximum size of a user space task.
  * TASK_UNMAPPED_BASE - the lower boundary of the mmap VM area
  */
+/* IAMROOT-12CD (2016-09-24):
+ * --------------------------
+ * 0x80000000 - 0x01000000(16M) = 0x7f000000
+ */
 #define TASK_SIZE		(UL(CONFIG_PAGE_OFFSET) - UL(SZ_16M))
 #define TASK_UNMAPPED_BASE	ALIGN(TASK_SIZE / 3, SZ_16M)
 
@@ -59,7 +63,7 @@
  * --------------------------
  * 모듈 공간은 TASK_SIZE와 PAGE_OFFSET 사이에 있다. - 이것은 커널 text 32MB이내
  * 에 있어야한다.
- * MODULES_VADDR = 2G-16M = 0x7f000000
+ * MODULES_VADDR = 2G-16M = 0x7f000000(2030M)
  */
 #ifndef CONFIG_THUMB2_KERNEL
 #define MODULES_VADDR		(PAGE_OFFSET - SZ_16M)

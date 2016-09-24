@@ -631,6 +631,12 @@ __v7_setup_stack:
 	 * --------------------------
 	 * tlb-v7.S 와 proc-macros.S 참고.
 	 */
+	/* IAMROOT-12CD (2016-09-24):
+	 * --------------------------
+	 * v7vbi_tlb_fns.tlb = v7wbi_tlb_flags_smp(TLB_WB | TLB_BARRIER | \
+	 *	TLB_V7_UIS_FULL | TLB_V7_UIS_PAGE | \
+	 *	TLB_V7_UIS_ASID | TLB_V7_UIS_BP)
+	 */
 	.long	v7wbi_tlb_fns
 	.long	v6_user_fns
 	.long	v7_cache_fns

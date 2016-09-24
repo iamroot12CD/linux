@@ -1166,6 +1166,14 @@ static void __init create_36bit_mapping(struct map_desc *md,
  * offsets, and we take full advantage of sections and
  * supersections.
  */
+/* IAMROOT-12CD (2016-09-24):
+ * --------------------------
+ * kernel 실행 영역.
+ * md.pfn = 0
+ * md.virtual = 0x80000000
+ * md.length = 0x900000
+ * md.type = MT_MEMORY_RWX
+ */
 static void __init create_mapping(struct map_desc *md)
 {
 	unsigned long addr, length, end;
@@ -1173,12 +1181,20 @@ static void __init create_mapping(struct map_desc *md)
 	const struct mem_type *type;
 	pgd_t *pgd;
 
+	/* IAMROOT-12CD (2016-09-24):
+	 * --------------------------
+	 * 사용자 영역에 맵핑을 만드는 경우 에러.
+	 */
 	if (md->virtual != vectors_base() && md->virtual < TASK_SIZE) {
 		pr_warn("BUG: not creating mapping for 0x%08llx at 0x%08lx in user region\n",
 			(long long)__pfn_to_phys((u64)md->pfn), md->virtual);
 		return;
 	}
 
+	/* IAMROOT-12CD (2016-09-24):
+	 * --------------------------
+	 * MT_DEVICE이거나 MT_ROM이면서 vmalloc 공간을 벗어날 영역이면 에러.
+	 */
 	if ((md->type == MT_DEVICE || md->type == MT_ROM) &&
 	    md->virtual >= PAGE_OFFSET &&
 	    (md->virtual < VMALLOC_START || md->virtual >= VMALLOC_END)) {
@@ -1186,6 +1202,12 @@ static void __init create_mapping(struct map_desc *md)
 			(long long)__pfn_to_phys((u64)md->pfn), md->virtual);
 	}
 
+	/* IAMROOT-12CD (2016-09-24):
+	 * --------------------------
+	 * md.type = MT_MEMORY_RWX
+	 * 여기까지 12CD 끝입니다.
+	 * AB팀으로 합칩니다.
+	 */
 	type = &mem_types[md->type];
 
 #ifndef CONFIG_ARM_LPAE
@@ -1198,6 +1220,11 @@ static void __init create_mapping(struct map_desc *md)
 	}
 #endif
 
+	/* IAMROOT-12CD (2016-09-24):
+	 * --------------------------
+	 * md->virtual = 0x80000000
+	 * addr = 0x80000000
+	 */
 	addr = md->virtual & PAGE_MASK;
 	phys = __pfn_to_phys(md->pfn);
 	length = PAGE_ALIGN(md->length + (md->virtual & ~PAGE_MASK));
@@ -1531,11 +1558,17 @@ static inline void prepare_page_table(void)
 	 */
 	/* IAMROOT-12CD (2016-09-10):
 	 * --------------------------
-	 * 커널이미지 아래 모든 매핑을 청소합니다.
+	 * 커널이미지 아래 모든 매핑을 청소(data clean)합니다.
 	 * MODULES_VADDR = 2G-16M = 0x7f000000
 	 * PMD_SIZE = (1 << 21) = 2M
 	 *
-	 * 다음 : pmd_clear 분석
+	 *	addr		pmd_off_k
+	 *	0		0x80004000
+	 *	0x200000	0x80004008
+	 *	0x400000	0x80004010
+	 *	0x600000	0x80004018
+	 *	...
+	 *	0x7ee00000	0x80005fb8
 	 */
 	for (addr = 0; addr < MODULES_VADDR; addr += PMD_SIZE)
 		pmd_clear(pmd_off_k(addr));
@@ -1544,11 +1577,30 @@ static inline void prepare_page_table(void)
 	/* The XIP kernel is mapped in the module area -- skip over it */
 	addr = ((unsigned long)_etext + PMD_SIZE - 1) & PMD_MASK;
 #endif
+	/* IAMROOT-12CD (2016-09-24):
+	 * --------------------------
+	 *	addr		pmd_off_k
+	 *	0x7f000000	0x80005fc0
+	 *	0x7f200000	0x80005fc8
+	 *	0x7f400000	0x80005fd0
+	 *	...
+	 *	0x7fe00000	0x80005ff8
+	 */
 	for ( ; addr < PAGE_OFFSET; addr += PMD_SIZE)
 		pmd_clear(pmd_off_k(addr));
 
 	/*
 	 * Find the end of the first block of lowmem.
+	 */
+	/* IAMROOT-12CD (2016-09-24):
+	 * --------------------------
+	 * .memory
+	 * {cnt = 0x1, max = 0x80, total_size = 0x3c000000, regions = {
+	 *   [0] = {base = 0x0, size = 0x3c000000, flags = 0x0}, 0 ~ 960M 영역.
+	 *   [1] = {base = 0x0, size = 0x0, flags = 0x0},
+	 *   ...
+	 *
+	 * end = 960M
 	 */
 	end = memblock.memory.regions[0].base + memblock.memory.regions[0].size;
 	if (end >= arm_lowmem_limit)
@@ -1557,6 +1609,14 @@ static inline void prepare_page_table(void)
 	/*
 	 * Clear out all the kernel space mappings, except for the first
 	 * memory bank, up to the vmalloc region.
+	 */
+	/* IAMROOT-12CD (2016-09-24):
+	 * --------------------------
+	 * end = 960M, addr = 0x80000000 + 960M = 2.96G
+	 * VMALLOC_START = 0xbc800000(968M의 가상주소) = 3.968G
+	 * PMD_SIZE = 2M
+	 *
+	 * 2.96G ~ 3.968G 커널 영역의 Cache clear
 	 */
 	for (addr = __phys_to_virt(end);
 	     addr < VMALLOC_START; addr += PMD_SIZE)
@@ -1714,11 +1774,25 @@ static void __init kmap_init(void)
 static void __init map_lowmem(void)
 {
 	struct memblock_region *reg;
+	/* IAMROOT-12CD (2016-09-24):
+	 * --------------------------
+	 * _stext = 0x80008240, kernel_x_start = 0x0
+	 * __init_end = 0x8080c000, kernel_x_end = 0x900000
+	 */
 	phys_addr_t kernel_x_start = round_down(__pa(_stext), SECTION_SIZE);
 	phys_addr_t kernel_x_end = round_up(__pa(__init_end), SECTION_SIZE);
 
 	/* Map all the lowmem memory banks. */
 	for_each_memblock(memory, reg) {
+		/* IAMROOT-12CD (2016-08-20):
+		 * --------------------------
+		 * .memory
+		 * {cnt = 0x1, max = 0x80, total_size = 0x3c000000, regions = {
+		 *   [0] = {base = 0x0, size = 0x3c000000, flags = 0x0}, 0 ~ 960M 영역.
+		 *   [1] = {base = 0x0, size = 0x0, flags = 0x0},
+		 *   ...
+		 * }}
+		 */
 		phys_addr_t start = reg->base;
 		phys_addr_t end = start + reg->size;
 		struct map_desc map;
@@ -1744,6 +1818,14 @@ static void __init map_lowmem(void)
 			create_mapping(&map);
 		} else {
 			/* This better cover the entire kernel */
+			/* IAMROOT-12CD (2016-09-24):
+			 * --------------------------
+			 * 커널 전체를 커버 해야한다.
+			 *
+			 * start = 0, end = 960M
+			 * _stext = 0x80008240, kernel_x_start = 0x0
+			 * __init_end = 0x8080c000, kernel_x_end = 0x900000
+			 */
 			if (start < kernel_x_start) {
 				map.pfn = __phys_to_pfn(start);
 				map.virtual = __phys_to_virt(start);
@@ -1753,6 +1835,13 @@ static void __init map_lowmem(void)
 				create_mapping(&map);
 			}
 
+			/* IAMROOT-12CD (2016-09-24):
+			 * --------------------------
+			 * map.pfn = 0
+			 * map.virtual = 0x80000000
+			 * map.length = 0x900000
+			 * map.type = MT_MEMORY_RWX
+			 */
 			map.pfn = __phys_to_pfn(kernel_x_start);
 			map.virtual = __phys_to_virt(kernel_x_start);
 			map.length = kernel_x_end - kernel_x_start;

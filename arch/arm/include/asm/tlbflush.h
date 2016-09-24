@@ -126,6 +126,10 @@
 #  define _TLB v4wbi
 # endif
 #else
+/* IAMROOT-12CD (2016-09-24):
+ * --------------------------
+ * 라즈베리파이2
+ */
 # define fr_possible_flags	0
 # define fr_always_flags	(-1UL)
 #endif
@@ -229,6 +233,13 @@ extern void __cpu_flush_kern_tlb_range(unsigned long, unsigned long);
 
 extern struct cpu_tlb_fns cpu_tlb;
 
+/* IAMROOT-12CD (2016-09-24):
+ * --------------------------
+ * cpu_tlb.tlb_flags = v7wbi_tlb_flags_smp(TLB_WB | TLB_BARRIER | \
+ *	TLB_V7_UIS_FULL | TLB_V7_UIS_PAGE | \
+ *	TLB_V7_UIS_ASID | TLB_V7_UIS_BP)
+ *	= 0x90f00000
+ */
 #define __cpu_tlb_flags			cpu_tlb.tlb_flags
 
 /*
@@ -304,6 +315,23 @@ extern struct cpu_tlb_fns cpu_tlb;
 
 #define tlb_flag(f)	((always_tlb_flags & (f)) || (__tlb_flag & possible_tlb_flags & (f)))
 
+/* IAMROOT-12CD (2016-09-24):
+ * --------------------------
+ * f 조건이 always_tlb_flags에 있으면 mcr 명령어를 실행하고
+ * f 조건이 possible_tlb_flags 에 있으면
+ *	f 조건이 __tlb_flag에 있으면 mrc 실행.
+ *
+ * __tlb_op(TLB_DCLEAN, "p15, 0, %0, c7, c10, 1       @ flush_pmd", pmd)
+ * always_tlb_flags & (f) == false
+ * possible_tlb_flags & (f) = true
+ *	tst __tlb_flag, f	@ and 계산 결과
+ *	mcrne p15, 0, pmd, c7, c10, 1       @ flush_pmd
+ *	@ Clean DCache single entry (MVA)	MCR p15, 0, <Rd>, c7, c10, 1
+ *
+ * __tlb_op(TLB_L2CLEAN_FR, "p15, 1, %0, c15, c9, 1  @ L2 flush_pmd", pmd)
+ * always_tlb_flags & (f) = false
+ * possible_tlb_flags & (f) = false
+ */
 #define __tlb_op(f, insnarg, arg)					\
 	do {								\
 		if (always_tlb_flags & (f))				\
@@ -316,7 +344,18 @@ extern struct cpu_tlb_fns cpu_tlb;
 			    : "cc");					\
 	} while (0)
 
+/* IAMROOT-12CD (2016-09-24):
+ * --------------------------
+ * f(인자)를 지원하면 regs(인자)를 실행해라.
+ * tlb_op(TLB_DCLEAN, "c7, c10, 1	@ flush_pmd", pmd);
+ */
 #define tlb_op(f, regs, arg)	__tlb_op(f, "p15, 0, %0, " regs, arg)
+
+/* IAMROOT-12CD (2016-09-24):
+ * --------------------------
+ * tlb_l2_op(TLB_L2CLEAN_FR, "c15, c9, 1  @ L2 flush_pmd", pmd);
+ * __tlb_op(TLB_L2CLEAN_FR, "p15, 1, %0, c15, c9, 1  @ L2 flush_pmd", pmd)
+ */
 #define tlb_l2_op(f, regs, arg)	__tlb_op(f, "p15, 1, %0, " regs, arg)
 
 static inline void __local_flush_tlb_all(void)
@@ -584,11 +623,31 @@ static inline void flush_pmd_entry(void *pmd)
 		dsb(ishst);
 }
 
+/* IAMROOT-12CD (2016-09-24):
+ * --------------------------
+ *	pmd
+ *	0x80004000
+ *	0x80004008
+ *	0x80004016
+ *	0x80004024
+ */
 static inline void clean_pmd_entry(void *pmd)
 {
+	/* IAMROOT-12CD (2016-09-24):
+	 * --------------------------
+	 * __tlb_flag = 0x90f00000
+	 */
 	const unsigned int __tlb_flag = __cpu_tlb_flags;
 
+	/* IAMROOT-12CD (2016-09-24):
+	 * --------------------------
+	 * Clean DCache single entry (MVA)	MCR p15, 0, <Rd>, c7, c10, 1
+	 */
 	tlb_op(TLB_DCLEAN, "c7, c10, 1	@ flush_pmd", pmd);
+	/* IAMROOT-12CD (2016-09-24):
+	 * --------------------------
+	 * 아래는 TLB_L2CLEAN_FR에 해당 되는 flag가 없어서 실행 안함.
+	 */
 	tlb_l2_op(TLB_L2CLEAN_FR, "c15, c9, 1  @ L2 flush_pmd", pmd);
 }
 
